@@ -173,10 +173,17 @@ ShipmentSchema.index({
 
 // ------------------ PRE-SAVE LOGIC ------------------
 ShipmentSchema.pre("save", function (next) {
-  if (this.referenceNo && !this.referenceNo.startsWith("ELX-UK-")) {
-    this.referenceNo = `ELX-UK-${this.referenceNo}`;
+  if (this.referenceNo) {
+    // Remove any accidental duplicate prefixes before saving
+    this.referenceNo = this.referenceNo.replace(/^ELX-UK-ELX-/, "ELX-UK-");
+
+    // If it doesn’t already start correctly, prepend the right prefix
+    if (!this.referenceNo.startsWith("ELX-UK-")) {
+      this.referenceNo = `ELX-UK-${this.referenceNo}`;
+    }
   }
   next();
 });
+
 
 module.exports = mongoose.model("Shipment", ShipmentSchema);
