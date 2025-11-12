@@ -1,7 +1,7 @@
 
 function Menu() {
   return (
-    <div>Menu</div>
+    <div className="text-2xl text-white">Menu</div>
   )
 }
 
