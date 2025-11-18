@@ -1,5 +1,7 @@
 import { DataGrid } from "@mui/x-data-grid";
 import { FaTrash, FaEye, FaEdit } from "react-icons/fa";
+import { Link } from "react-router-dom";
+
 
 const Users = () => {
   const rows = [
@@ -284,9 +286,11 @@ const Users = () => {
     <div className="m-[30px] bg-[#D9D9D9] p-[20px] rounded-md">
       <div className="flex items-center justify-between mb-[20px]">
         <h1 className="text-[20px] font-semibold">All Users</h1>
-        <button className="bg-[#1A2930] text-white px-[16px] py-[10px] rounded-md hover:bg-[#FFA500] transition">
-          New User
-        </button>
+        <Link to="/newuser">
+          <button className="bg-[#1A2930] text-white px-[16px] py-[10px] rounded-md hover:bg-[#FFA500] transition">
+            New User
+          </button>
+        </Link>
       </div>
 
       <div className="bg-white rounded-md p-4 shadow-md">

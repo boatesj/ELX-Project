@@ -6,7 +6,9 @@ import Navbar from "./components/Navbar";
 import Menu from "./components/Menu";
 import Footer from "./components/Footer";
 import Users from "./pages/Users";
+import NewUser from "./pages/NewUser";
 import Login from "./pages/Login";
+import NewShipment from "./pages/NewShipment";
 
 function App() {
   const Layout = () => {
@@ -31,10 +33,12 @@ function App() {
       path: "/",
       element: <Layout />,
       children: [
-        { path: "/", element: <Home /> },
-        { path: "/shipments", element: <Shipments /> },
-        { path: "/shipment/:shipmentId", element: <Shipment /> },
-        { path: "/users", element: <Users /> },
+        { index: true, element: <Home /> },       // default route
+        { path: "shipments", element: <Shipments /> },
+        { path: "newshipment", element: <NewShipment /> },
+        { path: "shipment/:shipmentId", element: <Shipment /> },
+        { path: "users", element: <Users /> },
+        { path: "newuser", element: <NewUser /> },
       ],
     },
 
@@ -43,11 +47,8 @@ function App() {
       element: <Login />,
     },
   ]);
-  return (
-    <>
-      <RouterProvider router={router} />
-    </>
-  );
+
+  return <RouterProvider router={router} />;
 }
 
 export default App;

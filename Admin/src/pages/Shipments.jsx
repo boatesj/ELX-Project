@@ -1,5 +1,6 @@
 import { DataGrid } from "@mui/x-data-grid";
 import { FaTrash } from "react-icons/fa";
+import { Link } from "react-router-dom";
 
 const Shipments = () => {
   const rows = [
@@ -137,9 +138,11 @@ const Shipments = () => {
     <div className="m-[30px] bg-[#D9D9D9] p-[20px] rounded-md">
       <div className="flex items-center justify-between mb-[20px]">
         <h1 className="text-[20px] font-semibold">All Shipments</h1>
-        <button className="bg-[#1A2930] text-white px-[16px] py-[10px] rounded-md hover:bg-[#FFA500] transition">
-          New Shipment
-        </button>
+        <Link to="/newshipment">
+          <button className="bg-[#1A2930] text-white px-[16px] py-[10px] rounded-md hover:bg-[#FFA500] transition">
+            New Shipment
+          </button>
+        </Link>
       </div>
 
       <div className="bg-white rounded-md p-4 shadow-md">
