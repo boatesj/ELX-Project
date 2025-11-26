@@ -4,28 +4,20 @@ import Login from "./pages/Login.jsx";
 import Myshipments from "./pages/Myshipments";
 import ShipmentDetails from "./pages/ShipmentDetails";
 import Shipments from "./pages/Shipments";
+import RootLayout from "./layouts/RootLayout.jsx";
+
 
 function App() {
   const router = createBrowserRouter([
     {
-      path: "/",
-      element: <Home />,
-    },
-    {
-      path: "/login",
-      element: <Login />,
-    },
-    {
-      path: "/myshipments",
-      element: <Myshipments />,
-    },
-    {
-      path: "/shipmentdetails/:id",
-      element: <ShipmentDetails />,
-    },
-    {
-      path: "/allshipments",
-      element: <Shipments />,
+      element: <RootLayout />,   // Navbar mounted ONCE here
+      children: [
+        { path: "/", element: <Home /> },
+        { path: "/login", element: <Login /> },
+        { path: "/myshipments", element: <Myshipments /> },
+        { path: "/shipmentdetails/:id", element: <ShipmentDetails /> },
+        { path: "/allshipments", element: <Shipments /> },
+      ],
     },
   ]);
 
