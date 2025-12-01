@@ -4,6 +4,7 @@ import QuoteSection from "../components/QuoteSection";
 import KeyDestinations from "../components/KeyDestinations";
 import TrustStories from "../components/TrustStories";
 import ServiceOverview from "../components/ServiceOverview";
+import SocialProofBoard from "../components/SocialProofBoard";
 
 const Home = () => {
   return (
@@ -14,6 +15,7 @@ const Home = () => {
       <TrustStories />
       <BusinessAccountSection />
       <ServiceOverview />
+      <SocialProofBoard />
 
       {/* Your other Home sections */}
       {/* <Services /> */}

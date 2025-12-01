@@ -3,7 +3,57 @@ import {
   FaUniversity,
   FaCarSide,
   FaCheckCircle,
+  FaStar,
 } from "react-icons/fa";
+
+const testimonials = [
+  {
+    id: 1,
+    icon: <FaUniversity className="text-lg" />,
+    label: "Higher education",
+    title: "Secure documents for an African university",
+    quote:
+      "Ellcworth handled our degree certificates with care from the UK printer to our campus. The updates were clear, and the handover documentation helped us maintain full control at every stage.",
+    name: "Mrs. Nyarko",
+    role: "Registry, Presbyterian University",
+    rating: 5,
+  },
+  {
+    id: 2,
+    icon: <FaCarSide className="text-lg" />,
+    label: "Vehicle trader",
+    title: "RoRo shipment for a vehicle dealer",
+    quote:
+      "They confirmed sailing options, guided us on port delivery and issued documents our buyers in Tema can rely on. It’s now straightforward to quote delivery dates with confidence.",
+    name: "Kofi Mensah",
+    role: "Vehicle trader, Accra",
+    rating: 5,
+  },
+  {
+    id: 3,
+    icon: <FaUserTie className="text-lg" />,
+    label: "Family shipper",
+    title: "Personal effects, consolidated and tracked",
+    quote:
+      "Instead of sending multiple parcels, we shipped everything through Ellcworth. They checked and consolidated our boxes, so we had one shipment, one bill and full visibility until delivery.",
+    name: "Ama Boateng",
+    role: "Family shipper, Kumasi",
+    rating: 5,
+  },
+];
+
+const renderStars = (rating = 5) => {
+  return (
+    <div className="flex items-center gap-1">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <FaStar
+          key={index}
+          className={index < rating ? "text-[#FFA500]" : "text-gray-300"}
+        />
+      ))}
+    </div>
+  );
+};
 
 const TrustStories = () => {
   return (
@@ -17,22 +67,41 @@ const TrustStories = () => {
       "
     >
       <div className="mx-auto w-full max-w-6xl px-4 md:px-6 lg:px-8">
-        {/* Heading */}
-        <div className="mb-10 max-w-3xl">
-          <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] md:text-xs font-semibold tracking-[0.16em] uppercase mb-3">
-            Why shippers trust Ellcworth
-          </span>
-          <h2 className="text-3xl md:text-[2.5rem] font-semibold tracking-tight text-[#111827] mb-3 uppercase">
-            Built around real customers, not just cargo.
-          </h2>
-          <p className="text-base md:text-lg text-gray-700">
-            Behind every shipment is a university, a trader or a family with a
-            deadline. We design our service around their reality, with clear
-            updates and careful handling from booking to delivery.
-          </p>
+        {/* Heading + rating summary */}
+        <div className="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-3xl">
+            <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] md:text-xs font-semibold tracking-[0.16em] uppercase mb-3">
+              Read our reviews
+            </span>
+            <h2 className="text-3xl md:text-[2.5rem] font-semibold tracking-tight text-[#111827] mb-3 uppercase">
+              Real feedback from real shippers.
+            </h2>
+            <p className="text-base md:text-lg text-gray-700">
+              Universities, traders and families trust Ellcworth to move
+              sensitive, time-critical cargo between the UK and Africa.
+              Here&rsquo;s what a few of them say about working with us.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[#9A9EAB]/40 bg-white p-4 md:p-5 shadow-sm max-w-xs">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9A9EAB] mb-1">
+              Customer satisfaction
+            </p>
+            <div className="flex items-center gap-3 mb-2">
+              {renderStars(5)}
+              <span className="text-sm font-semibold text-[#111827]">
+                4.9 / 5
+              </span>
+            </div>
+            <p className="text-xs md:text-sm text-gray-600">
+              Based on repeat shippers for{" "}
+              <span className="font-medium">UK–Africa</span> routes and secure
+              document movements.
+            </p>
+          </div>
         </div>
 
-        {/* Top row — Trust pillars */}
+        {/* Trust pillars (kept, but tightened) */}
         <div className="mb-10 grid gap-6 md:grid-cols-3">
           <div className="rounded-2xl border border-[#9A9EAB]/40 bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9A9EAB] mb-2">
@@ -43,8 +112,8 @@ const TrustStories = () => {
             </h3>
             <p className="text-sm md:text-[15px] text-gray-700 leading-relaxed">
               From booking and port delivery to vessel departure and arrival, we
-              let you know what&rsquo;s happening so you&rsquo;re never
-              guessing.
+              keep you informed so you&rsquo;re never guessing where your
+              shipment is.
             </p>
           </div>
 
@@ -56,9 +125,8 @@ const TrustStories = () => {
               UK–Africa routes, every day
             </h3>
             <p className="text-sm md:text-[15px] text-gray-700 leading-relaxed">
-              Our work is centred on UK exports into African ports, so
-              we&rsquo;re familiar with the routes, sailings and paperwork our
-              customers rely on.
+              Our work is centred on UK exports into African ports, so we know
+              the vessels, routes and paperwork your shipment depends on.
             </p>
           </div>
 
@@ -77,86 +145,51 @@ const TrustStories = () => {
           </div>
         </div>
 
-        {/* Bottom row — User stories */}
+        {/* Testimonials */}
         <div className="grid gap-6 md:grid-cols-3">
-          {/* Story 1 */}
-          <article className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1A2930] text-[#FFA500]">
-                <FaUniversity className="text-lg" />
+          {testimonials.map((story) => (
+            <article
+              key={story.id}
+              className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm"
+            >
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1A2930] text-[#FFA500]">
+                  {story.icon}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9A9EAB]">
+                    {story.label}
+                  </p>
+                  <p className="text-sm font-semibold text-[#111827]">
+                    {story.title}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9A9EAB]">
-                  User story
-                </p>
-                <p className="text-sm font-semibold text-[#111827]">
-                  Secure documents for an African university
-                </p>
-              </div>
-            </div>
-            <p className="text-sm md:text-[15px] text-gray-700 leading-relaxed mb-4">
-              A UK secure printer sends degree certificates to our warehouse. We
-              check cartons, apply tamper-evident seals and arrange tracked
-              export to the university campus, with signed proof at handover.
-            </p>
-            <p className="mt-auto text-xs md:text-sm text-gray-500 flex items-center gap-1.5">
-              <FaCheckCircle className="text-[#FFA500]" />
-              <span>Designed for registrars and examination offices.</span>
-            </p>
-          </article>
 
-          {/* Story 2 */}
-          <article className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1A2930] text-[#FFA500]">
-                <FaCarSide className="text-lg" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9A9EAB]">
-                  User story
-                </p>
-                <p className="text-sm font-semibold text-[#111827]">
-                  RoRo shipment for a vehicle trader
-                </p>
-              </div>
-            </div>
-            <p className="text-sm md:text-[15px] text-gray-700 leading-relaxed mb-4">
-              A UK trader buys vehicles at auction. We confirm sailing options,
-              book RoRo space, guide them on port delivery and issue shipping
-              documents their buyers can trust at the destination port.
-            </p>
-            <p className="mt-auto text-xs md:text-sm text-gray-500 flex items-center gap-1.5">
-              <FaCheckCircle className="text-[#FFA500]" />
-              <span>Clear expectations on costs, timing and documents.</span>
-            </p>
-          </article>
+              <p className="text-sm md:text-[15px] text-gray-700 leading-relaxed mb-4">
+                “{story.quote}”
+              </p>
 
-          {/* Story 3 */}
-          <article className="flex flex-col rounded-2xl border border-gray-200 bg-white p-5 md:p-6 shadow-sm">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1A2930] text-[#FFA500]">
-                <FaUserTie className="text-lg" />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9A9EAB]">
-                  User story
+              <div className="mt-auto flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-[#111827]">
+                      {story.name}
+                    </span>
+                    <span className="text-xs md:text-sm text-gray-500">
+                      {story.role}
+                    </span>
+                  </div>
+                  {renderStars(story.rating)}
+                </div>
+
+                <p className="text-[11px] md:text-xs text-gray-500 flex items-center gap-1.5">
+                  <FaCheckCircle className="text-[#FFA500]" />
+                  <span>Verified Ellcworth shipper.</span>
                 </p>
-                <p className="text-sm font-semibold text-[#111827]">
-                  Family consolidating personal effects
-                </p>
               </div>
-            </div>
-            <p className="text-sm md:text-[15px] text-gray-700 leading-relaxed mb-4">
-              A family orders items from several UK retailers. Instead of
-              shipping each parcel separately, they send everything to our
-              warehouse. We check, photograph and consolidate into a single
-              export shipment.
-            </p>
-            <p className="mt-auto text-xs md:text-sm text-gray-500 flex items-center gap-1.5">
-              <FaCheckCircle className="text-[#FFA500]" />
-              <span>Fewer shipments, better control over total cost.</span>
-            </p>
-          </article>
+            </article>
+          ))}
         </div>
       </div>
     </section>

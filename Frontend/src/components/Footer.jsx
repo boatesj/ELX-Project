@@ -72,10 +72,10 @@ const Footer = () => {
               <li className="flex items-center gap-2">
                 <FaPhoneAlt className="text-[#FFA500]" />
                 <a
-                  href="tel:+44XXXXXXXXXX"
+                  href="tel:+44 20 8979 6054"
                   className="hover:text-[#FFA500] transition"
                 >
-                  +44 (0) __ __ __ __ __
+                  +44 (0) 20 8979 6054
                 </a>
               </li>
               <li className="flex items-center gap-2">

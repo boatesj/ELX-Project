@@ -1,5 +1,6 @@
 import { assets } from "../assets/assets";
 import { FaEnvelope, FaPhone } from "react-icons/fa";
+import { Link } from "react-router-dom";
 
 const Navbar = () => {
   return (
@@ -50,7 +51,7 @@ const Navbar = () => {
             <div className="flex items-center gap-2">
               <FaPhone className="text-[#FFA500]" />
               <a href="tel:0208414800" className="hover:underline">
-                0208-414-800
+                +44 20 8979 6054
               </a>
             </div>
           </div>
@@ -94,9 +95,11 @@ const Navbar = () => {
           </div>
 
           {/* Button on the right */}
-          <button className="hidden md:block bg-[#1A2930] text-white px-6 py-2 rounded-full text-xs md:text-sm font-semibold tracking-[0.14em] capitalize hover:bg-[#121c23] transition ml-4">
-            Customer Login
-          </button>
+          <Link to="/login">
+            <button className="hidden md:block bg-[#1A2930] text-white px-6 py-2 rounded-full text-xs md:text-sm font-semibold tracking-[0.14em] capitalize hover:bg-[#121c23] transition ml-4">
+              Customer Login
+            </button>
+          </Link>
         </div>
       </div>
     </div>
