@@ -1,153 +1,351 @@
-const mongoose = require("mongoose");
+ Hconst mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
 
-// CREATE A SHIPMENT
+/**
+ * @desc    Create a new shipment
+ * @route   POST /shipments
+ */
 const createShipment = async (req, res) => {
   try {
     const newShipment = new Shipment(req.body);
     const saved = await newShipment.save();
-    return res.status(201).json(saved);
+
+    // ✅ populate customer details before returning
+    await saved.populate("customer", "fullname email");
+
+    return res.status(201).json({
+      ok: true,
+      message: "Shipment created successfully",
+      data: saved,
+    });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Failed to create shipment", error: error.message });
+    console.error("Error creating shipment:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to create shipment",
+      error: error.message,
+    });
   }
 };
 
-// GET ALL SHIPMENTS
+/**
+ * @desc    Get all shipments
+ * @route   GET /shipments
+ */
 const getAllShipments = async (req, res) => {
   try {
-    const shipments = await Shipment.find().sort({ createdAt: -1 });
-    return res.status(200).json(shipments);
+    const shipments = await Shipment.find()
+      .populate("customer", "fullname email") // ✅ include customer info
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      ok: true,
+      count: shipments.length,
+      data: shipments,
+    });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Failed to fetch shipments", error: error.message });
+    console.error("Error fetching shipments:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to fetch shipments",
+      error: error.message,
+    });
   }
 };
 
-// GET A SHIPMENT
+/**
+ * @desc    Get one shipment by ID
+ * @route   GET /shipments/:id
+ */
 const getOneShipment = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: "Invalid ID" });
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ ok: false, message: "Invalid shipment ID" });
 
-    const shipment = await Shipment.findById(id);
-    if (!shipment) return res.status(404).json({ message: "Shipment not found" });
+    const shipment = await Shipment.findById(id).populate("customer", "fullname email");
+    if (!shipment)
+      return res.status(404).json({ ok: false, message: "Shipment not found" });
 
-    return res.status(200).json(shipment);
+    return res.status(200).json({ ok: true, data: shipment });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Failed to fetch shipment", error: error.message });
+    console.error("Error fetching shipment:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to fetch shipment",
+      error: error.message,
+    });
   }
 };
 
-// UPDATE A SHIPMENT
+/**
+ * @desc    Update a shipment
+ * @route   PUT /shipments/:id
+ */
 const updateShipment = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: "Invalid ID" });
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ ok: false, message: "Invalid shipment ID" });
 
     const updated = await Shipment.findByIdAndUpdate(id, req.body, {
       new: true,
       runValidators: true,
-    });
-    if (!updated) return res.status(404).json({ message: "Shipment not found" });
+    }).populate("customer", "fullname email");
 
-    return res.status(200).json(updated);
+    if (!updated)
+      return res.status(404).json({ ok: false, message: "Shipment not found" });
+
+    return res.status(200).json({
+      ok: true,
+      message: "Shipment updated successfully",
+      data: updated,
+    });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Failed to update shipment", error: error.message });
+    console.error("Error updating shipment:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to update shipment",
+      error: error.message,
+    });
   }
 };
 
-// GET USER'S SHIPMENTS
+/**
+ * @desc    Get shipments belonging to a specific user
+ * @route   GET /shipments/me/list
+ */
 const getUserShipment = async (req, res) => {
   try {
-    const email = (req.user?.email || req.query.email || req.body.email || "").toLowerCase().trim();
-    if (!email) return res.status(400).json({ message: "Email is required" });
+    const email =
+      (req.user?.email || req.query.email || req.body.email || "").toLowerCase().trim();
+    if (!email) return res.status(400).json({ ok: false, message: "Email is required" });
 
-    const shipments = await Shipment.find({ "shipper.email": email }).sort({ createdAt: -1 });
-    return res.status(200).json(shipments);
+    const shipments = await Shipment.find({ "shipper.email": email })
+      .populate("customer", "fullname email")
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      ok: true,
+      count: shipments.length,
+      data: shipments,
+    });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Failed to fetch user shipments", error: error.message });
+    console.error("Error fetching user shipments:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to fetch user shipments",
+      error: error.message,
+    });
   }
 };
 
-// DELETE A SHIPMENT
+/**
+ * @desc    Delete a shipment
+ * @route   DELETE /shipments/:id
+ */
 const deleteShipment = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: "Invalid ID" });
+    if (!mongoose.isValidObjectId(id))
+      return res.status(400).json({ ok: false, message: "Invalid shipment ID" });
 
     const deleted = await Shipment.findByIdAndDelete(id);
-    if (!deleted) return res.status(404).json({ message: "Shipment not found" });
+    if (!deleted)
+      return res.status(404).json({ ok: false, message: "Shipment not found" });
 
-    return res.status(200).json({ message: "Shipment has been successfully deleted" });
+    return res.status(200).json({
+      ok: true,
+      message: "Shipment has been successfully deleted",
+    });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Failed to delete shipment", error: error.message });
+    console.error("Error deleting shipment:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to delete shipment",
+      error: error.message,
+    });
   }
 };
 
-// Admin: add tracking event
+/**
+ * @desc    Admin - Add a tracking event
+ * @route   POST /shipments/:id/tracking
+ */
 const addTrackingEvent = async (req, res) => {
   try {
     const { id } = req.params;
     const shipment = await Shipment.findById(id);
-    if (!shipment) return res.status(404).json({ ok: false, message: "Shipment not found" });
+    if (!shipment)
+      return res.status(404).json({ ok: false, message: "Shipment not found" });
 
-    const { code, description, at, location, meta } = req.body;
-    shipment.addTrackingEvent({ code, description, at: at ? new Date(at) : new Date(), location, meta });
+    const newEvent = {
+      status: req.body.status || "update", // ✅ prevent schema error
+      event: req.body.event,
+      date: req.body.date || new Date(),
+      location: req.body.location || "Unknown",
+      meta: req.body.meta || {},
+    };
+
+    shipment.trackingEvents.push(newEvent);
     await shipment.save();
 
-    return res.status(200).json({ ok: true, data: shipment.tracking });
+    return res.status(200).json({
+      ok: true,
+      message: "Tracking event added successfully",
+      data: shipment.trackingEvents,
+    });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, message: "Failed to add tracking", error: error.message });
+    console.error("Error adding tracking event:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to add tracking event",
+      error: error.message,
+    });
   }
 };
 
-// Admin: attach document
+/**
+ * @desc    Admin - Attach a document to shipment
+ * @route   POST /shipments/:id/documents
+ */
 const addDocument = async (req, res) => {
   try {
     const { id } = req.params;
     const shipment = await Shipment.findById(id);
-    if (!shipment) return res.status(404).json({ ok: false, message: "Shipment not found" });
+    if (!shipment)
+      return res.status(404).json({ ok: false, message: "Shipment not found" });
 
-    const { type, url } = req.body;
+    const { name, fileUrl } = req.body;
     shipment.documents.push({
-      type,
-      url,
+      name,
+      fileUrl,
       uploadedAt: new Date(),
       uploadedBy: req.user?.id || undefined,
     });
+
     await shipment.save();
 
-    return res.status(200).json({ ok: true, data: shipment.documents });
+    return res.status(200).json({
+      ok: true,
+      message: "Document added successfully",
+      data: shipment.documents,
+    });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, message: "Failed to add document", error: error.message });
+    console.error("Error adding document:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to add document",
+      error: error.message,
+    });
   }
 };
 
-// Admin: update status
+/**
+ * @desc    Admin - Update shipment status
+ * @route   PATCH /shipments/:id/status
+ */
 const updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+
     const shipment = await Shipment.findByIdAndUpdate(
       id,
       { status },
       { new: true, runValidators: true }
-    );
-    if (!shipment) return res.status(404).json({ ok: false, message: "Shipment not found" });
+    ).populate("customer", "fullname email");
 
-    return res.status(200).json({ ok: true, data: shipment });
+    if (!shipment)
+      return res.status(404).json({ ok: false, message: "Shipment not found" });
+
+    return res.status(200).json({
+      ok: true,
+      message: `Shipment status updated to '${status}'`,
+      data: shipment,
+    });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, message: "Failed to update status", error: error.message });
+    console.error("Error updating shipment status:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to update status",
+      error: error.message,
+    });
   }
 };
+
+/**
+ * @desc    Admin - Dashboard analytics for shipments
+ * @route   GET /shipments/dashboard
+ */
+const getDashboardStats = async (req, res) => {
+  try {
+    // Fetch counts by shipment status
+    const stats = await Shipment.aggregate([
+      { $match: { isDeleted: false } },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    // Convert aggregation to easy key:value format
+    const summary = stats.reduce((acc, curr) => {
+      acc[curr._id] = curr.count;
+      return acc;
+    }, {});
+
+    // Count totals
+    const totalShipments = await Shipment.countDocuments({ isDeleted: false });
+    const deliveredCount = summary.delivered || 0;
+    const pendingCount = summary.pending || 0;
+
+    // Find most common routes
+    const topRoutes = await Shipment.aggregate([
+      { $match: { isDeleted: false } },
+      {
+        $group: {
+          _id: {
+            origin: "$ports.originPort",
+            destination: "$ports.destinationPort",
+          },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { count: -1 } },
+      { $limit: 5 },
+    ]);
+
+    // Final response
+    return res.status(200).json({
+      ok: true,
+      message: "Dashboard data retrieved successfully",
+      data: {
+        totals: {
+          totalShipments,
+          deliveredCount,
+          pendingCount,
+          active: totalShipments - deliveredCount - pendingCount,
+        },
+        byStatus: summary,
+        topRoutes: topRoutes.map((r) => ({
+          route: `${r._id.origin} → ${r._id.destination}`,
+          count: r.count,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching dashboard stats:", error);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to fetch dashboard data",
+      error: error.message,
+    });
+  }
+};
+
 
 module.exports = {
   createShipment,
@@ -159,4 +357,5 @@ module.exports = {
   addTrackingEvent,
   addDocument,
   updateStatus,
+  getDashboardStats,
 };

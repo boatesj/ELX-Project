@@ -5,10 +5,28 @@ const mongoose = require("mongoose");
 // Tracking history (status progression)
 const TrackingEventSchema = new mongoose.Schema(
   {
-    status: { type: String, required: true, trim: true }, // e.g., "Booked", "At Port", "Loaded", etc.
-    location: { type: String, trim: true },
-    notes: { type: String, trim: true },
-    eventAt: { type: Date, default: Date.now },
+    status: {
+      type: String,
+      trim: true,
+      default: "update", // ✅ makes status optional for internal events
+    },
+    event: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    location: {
+      type: String,
+      trim: true,
+    },
+    date: {
+      type: Date,
+      default: Date.now,
+    },
+    meta: {
+      type: Object,
+      default: {},
+    },
   },
   { _id: false }
 );
@@ -16,9 +34,10 @@ const TrackingEventSchema = new mongoose.Schema(
 // Uploaded documents (BOL, ID, Invoice, etc.)
 const DocumentSchema = new mongoose.Schema(
   {
-    type: { type: String, required: true, trim: true },
-    url: { type: String, required: true, trim: true },
+    name: { type: String, required: true, trim: true },
+    fileUrl: { type: String, required: true, trim: true },
     uploadedAt: { type: Date, default: Date.now },
+    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { _id: false }
 );
@@ -58,7 +77,7 @@ const ShipmentSchema = new mongoose.Schema(
       email: { type: String, trim: true },
     },
 
-    // Notify party
+    // Notify party (optional)
     notify: {
       name: { type: String, trim: true },
       address: { type: String, trim: true },
@@ -106,7 +125,7 @@ const ShipmentSchema = new mongoose.Schema(
     shippingDate: { type: Date },
     eta: { type: Date },
 
-    // Status progression
+    // Shipment lifecycle status
     status: {
       type: String,
       enum: [
@@ -130,7 +149,10 @@ const ShipmentSchema = new mongoose.Schema(
       delivered: { type: Boolean, default: false },
     },
 
+    // Tracking history
     trackingEvents: [TrackingEventSchema],
+
+    // Uploaded docs
     documents: [DocumentSchema],
 
     // Logical deletion (for soft deletes)
@@ -151,8 +173,14 @@ ShipmentSchema.index({
 
 // ------------------ PRE-SAVE LOGIC ------------------
 ShipmentSchema.pre("save", function (next) {
-  if (this.referenceNo && !this.referenceNo.startsWith("ELX-UK-")) {
-    this.referenceNo = `ELX-UK-${this.referenceNo}`;
+  if (this.referenceNo) {
+    // Remove any accidental duplicate prefixes before saving
+    this.referenceNo = this.referenceNo.replace(/^ELX-UK-ELX-/, "ELX-UK-");
+
+    // If it doesn’t already start correctly, prepend the right prefix
+    if (!this.referenceNo.startsWith("ELX-UK-")) {
+      this.referenceNo = `ELX-UK-${this.referenceNo}`;
+    }
   }
   next();
 });
