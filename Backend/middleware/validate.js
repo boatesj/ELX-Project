@@ -27,4 +27,3 @@ function handleValidation(req, res, next) {
 }
 
 module.exports = { handleValidation };
-

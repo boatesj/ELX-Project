@@ -4,9 +4,7 @@ const { body, param } = require("express-validator");
  * Validate login input
  */
 const validateLogin = [
-  body("email")
-    .isEmail()
-    .withMessage("A valid email is required"),
+  body("email").isEmail().withMessage("A valid email is required"),
   body("password")
     .isString()
     .isLength({ min: 6 })
@@ -22,9 +20,7 @@ const validateRegister = [
     .trim()
     .notEmpty()
     .withMessage("Full name is required"),
-  body("email")
-    .isEmail()
-    .withMessage("A valid email is required"),
+  body("email").isEmail().withMessage("A valid email is required"),
   body("password")
     .isString()
     .isLength({ min: 8 })
@@ -85,9 +81,7 @@ const validateDocument = [
     .trim()
     .notEmpty()
     .withMessage("Document name is required"),
-  body("fileUrl")
-    .isURL()
-    .withMessage("File URL must be valid"),
+  body("fileUrl").isURL().withMessage("File URL must be valid"),
 ];
 
 /**

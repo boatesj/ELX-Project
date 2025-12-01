@@ -26,7 +26,13 @@ const Shipment = require("../models/Shipment");
  * @route   POST /shipments
  * @desc    Create a new shipment
  */
-router.post("/", requireAuth, validateShipmentCreate, handleValidation, createShipment);
+router.post(
+  "/",
+  requireAuth,
+  validateShipmentCreate,
+  handleValidation,
+  createShipment
+);
 
 /**
  * @route   GET /shipments
@@ -74,19 +80,37 @@ router.get("/me/list", requireAuth, getUserShipment);
  * @route   GET /shipments/:id
  * @desc    Get shipment by ID
  */
-router.get("/:id", requireAuth, validateObjectIdParam("id"), handleValidation, getOneShipment);
+router.get(
+  "/:id",
+  requireAuth,
+  validateObjectIdParam("id"),
+  handleValidation,
+  getOneShipment
+);
 
 /**
  * @route   PUT /shipments/:id
  * @desc    Update shipment
  */
-router.put("/:id", requireAuth, validateObjectIdParam("id"), handleValidation, updateShipment);
+router.put(
+  "/:id",
+  requireAuth,
+  validateObjectIdParam("id"),
+  handleValidation,
+  updateShipment
+);
 
 /**
  * @route   DELETE /shipments/:id
  * @desc    Delete shipment
  */
-router.delete("/:id", requireAuth, validateObjectIdParam("id"), handleValidation, deleteShipment);
+router.delete(
+  "/:id",
+  requireAuth,
+  validateObjectIdParam("id"),
+  handleValidation,
+  deleteShipment
+);
 
 /**
  * @route   POST /shipments/:id/tracking
