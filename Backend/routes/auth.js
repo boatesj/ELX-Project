@@ -1,5 +1,6 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const {
   registerUser,
@@ -16,19 +17,23 @@ const router = express.Router();
 function requireAuth(req, res, next) {
   const auth = req.headers.authorization || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-  if (!token) return res.status(401).json({ ok: false, message: "Missing token" });
+  if (!token)
+    return res.status(401).json({ ok: false, message: "Missing token" });
 
   const secret = process.env.JWT_SECRET || process.env.JWT_SEC;
-  if (!secret) {
-    return res.status(500).json({ ok: false, message: "JWT secret not configured" });
-  }
+  if (!secret)
+    return res
+      .status(500)
+      .json({ ok: false, message: "JWT secret not configured" });
 
   try {
-    const decoded = jwt.verify(token, secret); // { id, role, iat, exp }
+    const decoded = jwt.verify(token, secret); // { id, role }
     req.user = decoded;
     return next();
   } catch (e) {
-    return res.status(401).json({ ok: false, message: "Invalid or expired token" });
+    return res
+      .status(401)
+      .json({ ok: false, message: "Invalid or expired token" });
   }
 }
 
@@ -44,18 +49,100 @@ router.get("/me", requireAuth, async (req, res) => {
     const user = await User.findById(req.user.id)
       .select("-password -__v")
       .lean();
-    if (!user) return res.status(404).json({ ok: false, message: "User not found" });
+
+    if (!user)
+      return res.status(404).json({ ok: false, message: "User not found" });
+
     return res.json({ ok: true, data: user });
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ ok: false, message: "Server error", error: err.message });
+    console.error("Error fetching profile:", err);
+    return res
+      .status(500)
+      .json({ ok: false, message: "Server error", error: err.message });
   }
 });
 
-/** GET /auth/reset-password/:token (verify token) */
-router.get("/reset-password/:token", requestPasswordReset);
+/** PATCH /auth/me — Update profile */
+router.patch("/me", requireAuth, async (req, res) => {
+  try {
+    const allowedFields = [
+      "fullname",
+      "phone",
+      "country",
+      "city",
+      "postcode",
+      "address",
+    ];
 
-/** POST /auth/reset-password/:token (set new password) */
+    const updates = {};
+    for (const key of allowedFields) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(req.user.id, updates, {
+      new: true,
+      runValidators: true,
+      select: "-password -__v",
+    });
+
+    if (!updatedUser)
+      return res.status(404).json({ ok: false, message: "User not found" });
+
+    return res.json({
+      ok: true,
+      message: "Profile updated successfully",
+      data: updatedUser,
+    });
+  } catch (err) {
+    console.error("Profile update error:", err);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to update profile",
+      error: err.message,
+    });
+  }
+});
+
+/** PATCH /auth/me/password — Change password */
+router.patch("/me/password", requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "Both passwords are required" });
+    }
+
+    const user = await User.findById(req.user.id).select("+password");
+    if (!user)
+      return res.status(404).json({ ok: false, message: "User not found" });
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch)
+      return res
+        .status(400)
+        .json({ ok: false, message: "Current password is incorrect" });
+
+    user.password = newPassword; // triggers hashing via pre-save hook
+    await user.save();
+
+    return res.json({
+      ok: true,
+      message: "Password updated successfully",
+    });
+  } catch (err) {
+    console.error("Password update error:", err);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to update password",
+      error: err.message,
+    });
+  }
+});
+
+/** Password reset flow */
+router.get("/reset-password/:token", requestPasswordReset);
 router.post("/reset-password/:token", resetPassword);
 
 module.exports = router;

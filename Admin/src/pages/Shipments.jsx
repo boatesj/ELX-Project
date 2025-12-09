@@ -1,88 +1,102 @@
 import { DataGrid } from "@mui/x-data-grid";
 import { FaTrash } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { authRequest } from "../requestMethods";
+
+const formatStatusLabel = (status) => {
+  if (!status) return "";
+  return status
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
+
+const getStatusClasses = (status) => {
+  switch (status) {
+    case "pending":
+      return "bg-gray-100 text-gray-700 border border-gray-300";
+    case "booked":
+      return "bg-[#FFA500]/10 text-[#FFA500] border border-[#FFA500]/40";
+    case "at_origin_yard":
+      return "bg-blue-100 text-blue-700 border border-blue-300";
+    case "loaded":
+    case "sailed":
+      return "bg-indigo-100 text-indigo-700 border border-indigo-300";
+    case "arrived":
+    case "cleared":
+      return "bg-emerald-100 text-emerald-700 border border-emerald-300";
+    case "delivered":
+      return "bg-green-100 text-green-700 border border-green-300";
+    case "cancelled":
+      return "bg-red-100 text-red-700 border border-red-300";
+    default:
+      return "bg-gray-100 text-gray-700 border border-gray-300";
+  }
+};
 
 const Shipments = () => {
-  const rows = [
-    {
-      id: 1,
-      shipper: "Presbyterian University College",
-      consignee: "Advanced Secure Technologies",
-      from: "Cardiff, UK",
-      destination: "Accra, Ghana",
-      weight: 45,
-      cost: 320,
-      status: "Booked",
-    },
-    {
-      id: 2,
-      shipper: "Kwame Nkrumah University of Science & Tech",
-      consignee: "Ellcworth Express (Kumasi Office)",
-      from: "Birmingham, UK",
-      destination: "Tema Port, Ghana",
-      weight: 850,
-      cost: 2750,
-      status: "Loaded",
-    },
-    {
-      id: 3,
-      shipper: "Mrs. Ama Boateng",
-      consignee: "Kofi Boateng",
-      from: "London, UK",
-      destination: "Takoradi, Ghana",
-      weight: 1230,
-      cost: 1580,
-      status: "Arrived",
-    },
-    {
-      id: 4,
-      shipper: "Jubilee Bank Ghana",
-      consignee: "Secure Print Ghana",
-      from: "Manchester, UK",
-      destination: "Accra, Ghana",
-      weight: 18,
-      cost: 210,
-      status: "Booked",
-    },
-    {
-      id: 5,
-      shipper: "Daniel Owusu",
-      consignee: "Agnes Owusu",
-      from: "Leeds, UK",
-      destination: "Kumasi, Ghana",
-      weight: 95,
-      cost: 460,
-      status: "Loaded",
-    },
-  ];
+  const [rows, setRows] = useState([]);
 
-  // Badge styling logic
-  const getStatusClasses = (status) => {
-    switch (status) {
-      case "Booked":
-        return "bg-blue-100 text-blue-700 border border-blue-300";
-      case "Loaded":
-        return "bg-yellow-100 text-yellow-700 border border-yellow-300";
-      case "Arrived":
-        return "bg-green-100 text-green-700 border border-green-300";
-      default:
-        return "bg-gray-100 text-gray-700 border border-gray-300";
+  const handleDelete = async (id) => {
+    const confirm = window.confirm(
+      "Are you sure you want to delete this shipment?"
+    );
+    if (!confirm) return;
+
+    try {
+      await authRequest.delete(`/api/v1/shipments/${id}`);
+      // Remove from local state so the grid updates
+      setRows((prev) => prev.filter((row) => row._id !== id));
+    } catch (error) {
+      console.error(
+        "❌ Error deleting shipment:",
+        error.response?.data || error
+      );
+      alert("Failed to delete shipment. Please try again.");
     }
   };
 
   const columns = [
-    { field: "shipper", headerName: "Shipper", width: 240 },
-    { field: "consignee", headerName: "Consignee", width: 240 },
-    { field: "from", headerName: "From", width: 170 },
-    { field: "destination", headerName: "Destination", width: 180 },
-    { field: "weight", headerName: "Weight (kg)", width: 140 },
-    { field: "cost", headerName: "Cost (£)", width: 120 },
-
-    // ✓ Status Column With Badges
+    {
+      field: "referenceNo",
+      headerName: "Reference",
+      width: 190,
+    },
+    {
+      field: "shipper",
+      headerName: "Shipper",
+      width: 220,
+    },
+    {
+      field: "consignee",
+      headerName: "Consignee",
+      width: 220,
+    },
+    {
+      field: "from",
+      headerName: "From",
+      width: 160,
+    },
+    {
+      field: "destination",
+      headerName: "Destination",
+      width: 170,
+    },
+    {
+      field: "mode",
+      headerName: "Mode",
+      width: 110,
+    },
+    {
+      field: "weight",
+      headerName: "Weight",
+      width: 120,
+    },
     {
       field: "status",
       headerName: "Status",
-      width: 150,
+      width: 160,
       renderCell: (params) => (
         <div className="flex items-center h-full">
           <span
@@ -90,34 +104,37 @@ const Shipments = () => {
               params.value
             )}`}
           >
-            {params.value}
+            {formatStatusLabel(params.value)}
           </span>
         </div>
       ),
     },
-
     {
       field: "actions",
       headerName: "Actions",
       width: 200,
       sortable: false,
       filterable: false,
-      renderCell: () => {
+      renderCell: (params) => {
+        const id = params.row._id;
         return (
           <div className="flex items-center h-full gap-3">
             {/* Edit Button */}
-            <button
-              className="
-                px-3 py-1 rounded-md font-semibold text-xs
-                bg-[#FFA500] text-black
-                hover:bg-[#e69300] transition
-              "
-            >
-              Edit
-            </button>
+            <Link to={`/shipments/${id}`}>
+              <button
+                className="
+                  px-3 py-1 rounded-md font-semibold text-xs
+                  bg-[#FFA500] text-black
+                  hover:bg-[#e69300] transition
+                "
+              >
+                Edit
+              </button>
+            </Link>
 
             {/* Delete Button */}
             <button
+              onClick={() => handleDelete(id)}
               className="
                 flex items-center gap-2 
                 px-3 py-1 rounded-md font-semibold text-xs
@@ -134,6 +151,50 @@ const Shipments = () => {
     },
   ];
 
+  useEffect(() => {
+    const getShipments = async () => {
+      try {
+        const res = await authRequest.get("/api/v1/shipments");
+        console.log("🔎 Raw shipments response:", res.data);
+
+        let shipmentsArray = [];
+
+        if (Array.isArray(res.data)) {
+          shipmentsArray = res.data;
+        } else if (Array.isArray(res.data.shipments)) {
+          shipmentsArray = res.data.shipments;
+        } else if (Array.isArray(res.data.data)) {
+          shipmentsArray = res.data.data;
+        } else {
+          console.warn("⚠ No shipments array found in response");
+        }
+
+        const normalised = shipmentsArray.map((s) => ({
+          _id: s._id,
+          referenceNo: s.referenceNo,
+          shipper: s.shipper?.name || "",
+          consignee: s.consignee?.name || "",
+          from: s.ports?.originPort || "",
+          destination: s.ports?.destinationPort || "",
+          mode: s.mode || "",
+          weight: s.cargo?.weight || "",
+          status: s.status || "pending",
+          raw: s,
+        }));
+
+        console.log("✅ Normalised rows for grid:", normalised);
+        setRows(normalised);
+      } catch (error) {
+        console.error(
+          "❌ Error fetching shipments:",
+          error.response?.data || error
+        );
+      }
+    };
+
+    getShipments();
+  }, []);
+
   return (
     <div className="m-[30px] bg-[#D9D9D9] p-[20px] rounded-md">
       <div className="flex items-center justify-between mb-[20px]">
@@ -148,6 +209,7 @@ const Shipments = () => {
       <div className="bg-white rounded-md p-4 shadow-md">
         <DataGrid
           rows={rows}
+          getRowId={(row) => row._id}
           columns={columns}
           checkboxSelection
           autoHeight

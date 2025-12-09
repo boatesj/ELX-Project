@@ -6,7 +6,9 @@ const helmet = require("helmet");
 
 // Try to require morgan only if installed
 let morgan = null;
-try { morgan = require("morgan"); } catch (_) {}
+try {
+  morgan = require("morgan");
+} catch (_) {}
 
 const rateLimit = require("express-rate-limit");
 const swaggerUI = require("swagger-ui-express");
@@ -28,7 +30,12 @@ const authLimiter = rateLimit({
 });
 
 // --- MIDDLEWARES ---
-app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:3000", credentials: true }));
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(helmet());
 if (process.env.NODE_ENV === "development" && morgan) app.use(morgan("dev"));
@@ -117,7 +124,10 @@ const swaggerSpec = swaggerJsdoc({
           type: "object",
           properties: {
             type: { type: "string", example: "BOL" },
-            url: { type: "string", example: "https://cdn.example.com/bol123.pdf" },
+            url: {
+              type: "string",
+              example: "https://cdn.example.com/bol123.pdf",
+            },
           },
         },
         ShipmentMinimal: {
@@ -138,15 +148,33 @@ const swaggerSpec = swaggerJsdoc({
     },
     paths: {
       "/health": {
-        get: { summary: "Health check", tags: ["System"], responses: { 200: { description: "OK" } } },
+        get: {
+          summary: "Health check",
+          tags: ["System"],
+          responses: { 200: { description: "OK" } },
+        },
       },
       "/auth/register": {
         post: {
           summary: "Register a new user",
           tags: ["Auth"],
-          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/RegisterRequest" } } } },
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/RegisterRequest" },
+              },
+            },
+          },
           responses: {
-            201: { description: "Created", content: { "application/json": { schema: { $ref: "#/components/schemas/AuthResponse" } } } },
+            201: {
+              description: "Created",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/AuthResponse" },
+                },
+              },
+            },
             409: { description: "Email already registered" },
             400: { description: "Missing required fields" },
           },
@@ -156,23 +184,57 @@ const swaggerSpec = swaggerJsdoc({
         post: {
           summary: "Login",
           tags: ["Auth"],
-          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/LoginRequest" } } } },
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/LoginRequest" },
+              },
+            },
+          },
           responses: {
-            200: { description: "OK", content: { "application/json": { schema: { $ref: "#/components/schemas/AuthResponse" } } } },
+            200: {
+              description: "OK",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/AuthResponse" },
+                },
+              },
+            },
             401: { description: "Invalid credentials" },
           },
         },
       },
       "/auth/me": {
-        get: { summary: "Get current user", tags: ["Auth"], security: [{ bearerAuth: [] }], responses: { 200: { description: "OK" }, 401: { description: "Unauthorized" } } },
+        get: {
+          summary: "Get current user",
+          tags: ["Auth"],
+          security: [{ bearerAuth: [] }],
+          responses: {
+            200: { description: "OK" },
+            401: { description: "Unauthorized" },
+          },
+        },
       },
       "/shipments": {
-        get: { summary: "List shipments", tags: ["Shipments"], security: [{ bearerAuth: [] }], responses: { 200: { description: "OK" } } },
+        get: {
+          summary: "List shipments",
+          tags: ["Shipments"],
+          security: [{ bearerAuth: [] }],
+          responses: { 200: { description: "OK" } },
+        },
         post: {
           summary: "Create shipment",
           tags: ["Shipments"],
           security: [{ bearerAuth: [] }],
-          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/ShipmentMinimal" } } } },
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ShipmentMinimal" },
+              },
+            },
+          },
           responses: { 201: { description: "Created" } },
         },
       },
@@ -181,21 +243,45 @@ const swaggerSpec = swaggerJsdoc({
           summary: "Get a shipment",
           tags: ["Shipments"],
           security: [{ bearerAuth: [] }],
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-          responses: { 200: { description: "OK" }, 404: { description: "Not found" } },
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          responses: {
+            200: { description: "OK" },
+            404: { description: "Not found" },
+          },
         },
         put: {
           summary: "Update shipment",
           tags: ["Shipments"],
           security: [{ bearerAuth: [] }],
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
           responses: { 200: { description: "OK" } },
         },
         delete: {
           summary: "Delete shipment",
           tags: ["Shipments"],
           security: [{ bearerAuth: [] }],
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
           responses: { 200: { description: "Deleted" } },
         },
       },
@@ -204,9 +290,26 @@ const swaggerSpec = swaggerJsdoc({
           summary: "Add tracking event (admin)",
           tags: ["Shipments"],
           security: [{ bearerAuth: [] }],
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/TrackingEvent" } } } },
-          responses: { 200: { description: "OK" }, 403: { description: "Forbidden" } },
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/TrackingEvent" },
+              },
+            },
+          },
+          responses: {
+            200: { description: "OK" },
+            403: { description: "Forbidden" },
+          },
         },
       },
       "/shipments/{id}/documents": {
@@ -214,9 +317,26 @@ const swaggerSpec = swaggerJsdoc({
           summary: "Attach document (admin)",
           tags: ["Shipments"],
           security: [{ bearerAuth: [] }],
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-          requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/Document" } } } },
-          responses: { 200: { description: "OK" }, 403: { description: "Forbidden" } },
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/Document" },
+              },
+            },
+          },
+          responses: {
+            200: { description: "OK" },
+            403: { description: "Forbidden" },
+          },
         },
       },
       "/shipments/{id}/status": {
@@ -224,9 +344,29 @@ const swaggerSpec = swaggerJsdoc({
           summary: "Update status (admin)",
           tags: ["Shipments"],
           security: [{ bearerAuth: [] }],
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
-          requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { status: { type: "string", example: "sailed" } } } } } },
-          responses: { 200: { description: "OK" }, 403: { description: "Forbidden" } },
+          parameters: [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: { status: { type: "string", example: "sailed" } },
+                },
+              },
+            },
+          },
+          responses: {
+            200: { description: "OK" },
+            403: { description: "Forbidden" },
+          },
         },
       },
     },
@@ -234,17 +374,25 @@ const swaggerSpec = swaggerJsdoc({
   apis: [], // you can point to route files with JSDoc later
 });
 
-app.use("/docs", swaggerUI.serve, swaggerUI.setup(swaggerSpec, { explorer: true }));
+app.use(
+  "/docs",
+  swaggerUI.serve,
+  swaggerUI.setup(swaggerSpec, { explorer: true })
+);
 
 // --- ROUTES ---
 app.use("/auth", authLimiter, authRoute);
 app.use("/users", userRoute);
 app.use("/shipments", shipmentRoute);
+app.use("/api/v1/shipments", shipmentRoute);
 
 // --- DB + SERVER START ---
 const PORT = Number(process.env.PORT) || 8000;
 const MONGO_URI = process.env.MONGO_URI || process.env.DB;
-if (!MONGO_URI) { console.error("❌ No Mongo URI found. Set MONGO_URI (or DB) in your .env."); process.exit(1); }
+if (!MONGO_URI) {
+  console.error("❌ No Mongo URI found. Set MONGO_URI (or DB) in your .env.");
+  process.exit(1);
+}
 
 mongoose
   .connect(MONGO_URI)
@@ -262,7 +410,9 @@ mongoose
 // --- ERROR HANDLER ---
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ ok: false, message: "Something went wrong", error: err.message });
+  res
+    .status(500)
+    .json({ ok: false, message: "Something went wrong", error: err.message });
 });
 
 module.exports = app;

@@ -13,7 +13,7 @@ function handleValidation(req, res, next) {
   }
 
   // Format errors by field for easier frontend use
-  const formatted = errors.array().map(err => ({
+  const formatted = errors.array().map((err) => ({
     field: err.path,
     message: err.msg,
     value: err.value ?? null,

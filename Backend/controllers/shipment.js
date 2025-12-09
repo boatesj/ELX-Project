@@ -1,22 +1,37 @@
- Hconst mongoose = require("mongoose");
+const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
 
 /**
  * @desc    Create a new shipment
- * @route   POST /shipments
+ * @route   POST /api/v1/shipments
+ * @access  Admin / Authenticated (depending on your auth middleware)
+ *
+ * NOTE:
+ * - Validation should already be handled by validateShipmentCreate + handleValidation
+ * - We enrich the payload with createdBy + channel, but otherwise trust validated req.body
  */
 const createShipment = async (req, res) => {
   try {
-    const newShipment = new Shipment(req.body);
-    const saved = await newShipment.save();
+    const { body, user } = req;
 
-    // ✅ populate customer details before returning
-    await saved.populate("customer", "fullname email");
+    const payload = {
+      ...body,
+      // who keyed the booking (if auth middleware attaches user)
+      createdBy: user?.id || body.createdBy || undefined,
+      // booking channel (allow override from body if you want)
+      channel:
+        body.channel || (user?.role === "admin" ? "admin_panel" : "web_portal"),
+    };
+
+    const newShipment = await Shipment.create(payload);
+
+    // populate customer details before returning
+    await newShipment.populate("customer", "fullname email");
 
     return res.status(201).json({
       ok: true,
       message: "Shipment created successfully",
-      data: saved,
+      data: newShipment,
     });
   } catch (error) {
     console.error("Error creating shipment:", error);
@@ -29,13 +44,13 @@ const createShipment = async (req, res) => {
 };
 
 /**
- * @desc    Get all shipments
- * @route   GET /shipments
+ * @desc    Get all (active) shipments
+ * @route   GET /api/v1/shipments
  */
 const getAllShipments = async (req, res) => {
   try {
-    const shipments = await Shipment.find()
-      .populate("customer", "fullname email") // ✅ include customer info
+    const shipments = await Shipment.find({ isDeleted: false })
+      .populate("customer", "fullname email")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
@@ -55,17 +70,25 @@ const getAllShipments = async (req, res) => {
 
 /**
  * @desc    Get one shipment by ID
- * @route   GET /shipments/:id
+ * @route   GET /api/v1/shipments/:id
  */
 const getOneShipment = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id))
-      return res.status(400).json({ ok: false, message: "Invalid shipment ID" });
+    if (!mongoose.isValidObjectId(id)) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "Invalid shipment ID" });
+    }
 
-    const shipment = await Shipment.findById(id).populate("customer", "fullname email");
-    if (!shipment)
+    const shipment = await Shipment.findOne({
+      _id: id,
+      isDeleted: false,
+    }).populate("customer", "fullname email");
+
+    if (!shipment) {
       return res.status(404).json({ ok: false, message: "Shipment not found" });
+    }
 
     return res.status(200).json({ ok: true, data: shipment });
   } catch (error) {
@@ -80,21 +103,29 @@ const getOneShipment = async (req, res) => {
 
 /**
  * @desc    Update a shipment
- * @route   PUT /shipments/:id
+ * @route   PUT /api/v1/shipments/:id
  */
 const updateShipment = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id))
-      return res.status(400).json({ ok: false, message: "Invalid shipment ID" });
+    if (!mongoose.isValidObjectId(id)) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "Invalid shipment ID" });
+    }
 
-    const updated = await Shipment.findByIdAndUpdate(id, req.body, {
-      new: true,
-      runValidators: true,
-    }).populate("customer", "fullname email");
+    const updated = await Shipment.findOneAndUpdate(
+      { _id: id, isDeleted: false },
+      req.body,
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).populate("customer", "fullname email");
 
-    if (!updated)
+    if (!updated) {
       return res.status(404).json({ ok: false, message: "Shipment not found" });
+    }
 
     return res.status(200).json({
       ok: true,
@@ -112,16 +143,30 @@ const updateShipment = async (req, res) => {
 };
 
 /**
- * @desc    Get shipments belonging to a specific user
- * @route   GET /shipments/me/list
+ * @desc    Get shipments belonging to a specific user (by email)
+ * @route   GET /api/v1/shipments/me/list
+ *
+ * Uses:
+ * - req.user.email (preferred, if auth)
+ * - or req.query.email / req.body.email as fallback
  */
 const getUserShipment = async (req, res) => {
   try {
-    const email =
-      (req.user?.email || req.query.email || req.body.email || "").toLowerCase().trim();
-    if (!email) return res.status(400).json({ ok: false, message: "Email is required" });
+    const email = (req.user?.email || req.query.email || req.body.email || "")
+      .toLowerCase()
+      .trim();
 
-    const shipments = await Shipment.find({ "shipper.email": email })
+    if (!email) {
+      return res.status(400).json({
+        ok: false,
+        message: "Email is required",
+      });
+    }
+
+    const shipments = await Shipment.find({
+      "shipper.email": email,
+      isDeleted: false,
+    })
       .populate("customer", "fullname email")
       .sort({ createdAt: -1 });
 
@@ -141,18 +186,27 @@ const getUserShipment = async (req, res) => {
 };
 
 /**
- * @desc    Delete a shipment
- * @route   DELETE /shipments/:id
+ * @desc    Soft-delete a shipment
+ * @route   DELETE /api/v1/shipments/:id
  */
 const deleteShipment = async (req, res) => {
   try {
     const { id } = req.params;
-    if (!mongoose.isValidObjectId(id))
-      return res.status(400).json({ ok: false, message: "Invalid shipment ID" });
+    if (!mongoose.isValidObjectId(id)) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "Invalid shipment ID" });
+    }
 
-    const deleted = await Shipment.findByIdAndDelete(id);
-    if (!deleted)
+    const deleted = await Shipment.findOneAndUpdate(
+      { _id: id, isDeleted: false },
+      { isDeleted: true },
+      { new: true }
+    );
+
+    if (!deleted) {
       return res.status(404).json({ ok: false, message: "Shipment not found" });
+    }
 
     return res.status(200).json({
       ok: true,
@@ -170,17 +224,29 @@ const deleteShipment = async (req, res) => {
 
 /**
  * @desc    Admin - Add a tracking event
- * @route   POST /shipments/:id/tracking
+ * @route   POST /api/v1/shipments/:id/tracking
  */
 const addTrackingEvent = async (req, res) => {
   try {
     const { id } = req.params;
-    const shipment = await Shipment.findById(id);
-    if (!shipment)
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "Invalid shipment ID" });
+    }
+
+    const shipment = await Shipment.findOne({
+      _id: id,
+      isDeleted: false,
+    });
+
+    if (!shipment) {
       return res.status(404).json({ ok: false, message: "Shipment not found" });
+    }
 
     const newEvent = {
-      status: req.body.status || "update", // ✅ prevent schema error
+      status: req.body.status || "update",
       event: req.body.event,
       date: req.body.date || new Date(),
       location: req.body.location || "Unknown",
@@ -207,14 +273,26 @@ const addTrackingEvent = async (req, res) => {
 
 /**
  * @desc    Admin - Attach a document to shipment
- * @route   POST /shipments/:id/documents
+ * @route   POST /api/v1/shipments/:id/documents
  */
 const addDocument = async (req, res) => {
   try {
     const { id } = req.params;
-    const shipment = await Shipment.findById(id);
-    if (!shipment)
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "Invalid shipment ID" });
+    }
+
+    const shipment = await Shipment.findOne({
+      _id: id,
+      isDeleted: false,
+    });
+
+    if (!shipment) {
       return res.status(404).json({ ok: false, message: "Shipment not found" });
+    }
 
     const { name, fileUrl } = req.body;
     shipment.documents.push({
@@ -243,21 +321,28 @@ const addDocument = async (req, res) => {
 
 /**
  * @desc    Admin - Update shipment status
- * @route   PATCH /shipments/:id/status
+ * @route   PATCH /api/v1/shipments/:id/status
  */
 const updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    const shipment = await Shipment.findByIdAndUpdate(
-      id,
+    if (!mongoose.isValidObjectId(id)) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "Invalid shipment ID" });
+    }
+
+    const shipment = await Shipment.findOneAndUpdate(
+      { _id: id, isDeleted: false },
       { status },
       { new: true, runValidators: true }
     ).populate("customer", "fullname email");
 
-    if (!shipment)
+    if (!shipment) {
       return res.status(404).json({ ok: false, message: "Shipment not found" });
+    }
 
     return res.status(200).json({
       ok: true,
@@ -276,7 +361,7 @@ const updateStatus = async (req, res) => {
 
 /**
  * @desc    Admin - Dashboard analytics for shipments
- * @route   GET /shipments/dashboard
+ * @route   GET /api/v1/shipments/dashboard
  */
 const getDashboardStats = async (req, res) => {
   try {
@@ -298,7 +383,9 @@ const getDashboardStats = async (req, res) => {
     }, {});
 
     // Count totals
-    const totalShipments = await Shipment.countDocuments({ isDeleted: false });
+    const totalShipments = await Shipment.countDocuments({
+      isDeleted: false,
+    });
     const deliveredCount = summary.delivered || 0;
     const pendingCount = summary.pending || 0;
 
@@ -318,7 +405,6 @@ const getDashboardStats = async (req, res) => {
       { $limit: 5 },
     ]);
 
-    // Final response
     return res.status(200).json({
       ok: true,
       message: "Dashboard data retrieved successfully",
@@ -345,7 +431,6 @@ const getDashboardStats = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   createShipment,
