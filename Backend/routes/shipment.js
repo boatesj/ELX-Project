@@ -10,7 +10,7 @@ const {
   addTrackingEvent,
   addDocument,
   updateStatus,
-  getDashboardStats, // ✅ NEW
+  getDashboardStats,
 } = require("../controllers/shipment");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { handleValidation } = require("../middleware/validate");
@@ -44,25 +44,29 @@ router.get("/", requireAuth, getAllShipments);
  * @route   GET /shipments/dashboard
  * @desc    Admin dashboard analytics
  */
-router.get("/dashboard", requireAuth, requireRole("admin"), getDashboardStats); // ✅ NEW ROUTE
+router.get("/dashboard", requireAuth, requireRole("admin"), getDashboardStats);
 
 /**
  * @route   GET /shipments/track/:ref
- * @desc    Track a shipment by reference number
+ * @desc    Track a shipment by reference number (public or auth – your choice)
  */
 router.get("/track/:ref", async (req, res) => {
   try {
+    const ref = req.params.ref.trim();
+
     const shipment = await Shipment.findOne({
-      referenceNo: { $regex: `^${req.params.ref}$`, $options: "i" },
+      referenceNo: { $regex: `^${ref}$`, $options: "i" },
+      isDeleted: false,
     }).populate("customer", "fullname email");
 
     if (!shipment) {
       return res.status(404).json({ ok: false, message: "Shipment not found" });
     }
 
-    res.status(200).json({ ok: true, shipment });
+    return res.status(200).json({ ok: true, data: shipment });
   } catch (err) {
-    res.status(500).json({
+    console.error("Error retrieving shipment by reference:", err);
+    return res.status(500).json({
       ok: false,
       message: "Error retrieving shipment",
       error: err.message,
@@ -102,7 +106,7 @@ router.put(
 
 /**
  * @route   DELETE /shipments/:id
- * @desc    Delete shipment
+ * @desc    Soft-delete shipment
  */
 router.delete(
   "/:id",

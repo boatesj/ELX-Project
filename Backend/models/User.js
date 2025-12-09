@@ -3,31 +3,108 @@ const bcrypt = require("bcryptjs");
 
 const UserSchema = new mongoose.Schema(
   {
-    fullname: { type: String, required: true, trim: true },
-    email:    { type: String, required: true, unique: true, lowercase: true, trim: true },
-    password: { type: String, required: true, select: false }, // hidden by default
-    country:  { type: String, required: true, trim: true },
-    address:  { type: String, required: true, trim: true },
-    age:      { type: Number, min: 0, max: 130 },
+    // CRM / Identity Fields
+    accountType: {
+      type: String,
+      enum: ["Business", "Individual"],
+      default: "Business",
+    },
 
-    role:   { type: String, default: "user", trim: true },      // "user", "admin"
-    status: { type: String, default: "pending", trim: true },   // "pending","active","suspended"
+    fullname: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-    isDeleted: { type: Boolean, default: false }, // soft delete
-    welcomeMailSent: { type: Boolean, default: false }
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+
+    phone: {
+      type: String,
+      trim: true,
+    },
+
+    country: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    city: {
+      type: String,
+      trim: true,
+    },
+
+    postcode: {
+      type: String,
+      trim: true,
+    },
+
+    address: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    // Optional notes for internal admin use
+    notes: {
+      type: String,
+      trim: true,
+    },
+
+    // System + Access Control
+    role: {
+      type: String,
+      enum: ["Shipper", "Consignee", "Both", "Admin", "user"],
+      default: "Shipper",
+      trim: true,
+    },
+
+    status: {
+      type: String,
+      enum: ["pending", "active", "suspended"],
+      default: "pending",
+      trim: true,
+    },
+
+    // Password (optional — required only for login users)
+    password: {
+      type: String,
+      select: false,
+    },
+
+    // Additional fields from old system
+    age: { type: Number, min: 0, max: 130 },
+
+    // Soft delete + onboarding
+    isDeleted: { type: Boolean, default: false },
+    welcomeMailSent: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
-// Hash password when it changes
+/**
+ * Hash password only when present AND modified.
+ * Allows admin-created CRM users (no password yet).
+ */
 UserSchema.pre("save", async function (next) {
+  if (!this.password) return next(); // No password provided
   if (!this.isModified("password")) return next();
-  this.password = await bcrypt.hash(this.password, 12); 
+
+  this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
-// Instance method for login checks
+/**
+ * Compare password for login users.
+ */
 UserSchema.methods.comparePassword = function (candidate) {
+  if (!this.password) return false; // No password set
   return bcrypt.compare(candidate, this.password);
 };
 

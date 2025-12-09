@@ -9,6 +9,8 @@ import Users from "./pages/Users";
 import NewUser from "./pages/NewUser";
 import Login from "./pages/Login";
 import NewShipment from "./pages/NewShipment";
+import Profile from "./pages/Profile";
+import Orders from "./pages/Orders";
 
 function App() {
   const Layout = () => {
@@ -33,15 +35,16 @@ function App() {
       path: "/",
       element: <Layout />,
       children: [
-        { index: true, element: <Home /> },       // default route
+        { index: true, element: <Home /> }, // default route
         { path: "shipments", element: <Shipments /> },
         { path: "newshipment", element: <NewShipment /> },
-        { path: "shipment/:shipmentId", element: <Shipment /> },
+        { path: "shipments/:shipmentId", element: <Shipment /> },
         { path: "users", element: <Users /> },
         { path: "newuser", element: <NewUser /> },
+        { path: "profile", element: <Profile /> },
+        { path: "orders", element: <Orders /> },
       ],
     },
-
     {
       path: "/login",
       element: <Login />,

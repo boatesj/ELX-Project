@@ -1,4 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { getNames } from "country-list";
+
+// Pre-compute global country list (all ISO countries, sorted)
+const COUNTRY_OPTIONS = getNames().sort();
 
 // Reusable input component
 const FormInput = ({
@@ -29,44 +34,51 @@ const FormInput = ({
   </div>
 );
 
+// Backend base + users endpoint (matches app.use("/users", userRoute);)
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const USERS_API = `${API_BASE_URL}/users`;
+
 const NewUser = () => {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
+    accountType: "Business", // default
     fullName: "",
     email: "",
     phone: "",
     country: "",
+    city: "",
+    postcode: "",
     address: "",
     userType: "",
+    notes: "",
   });
 
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState("");
-
-  const countries = [
-    "United Kingdom",
-    "United States",
-    "Canada",
-    "Ghana",
-    "Nigeria",
-    "Germany",
-    "United Arab Emirates",
-    "India",
-  ];
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const userTypes = ["Shipper", "Consignee", "Both", "Admin"];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    setErrors((prev) => ({ ...prev, [name]: "" })); // clear error as user types
+    setErrors((prev) => ({ ...prev, [name]: "" }));
     setSuccessMessage("");
+    setSubmitError("");
   };
 
   const validate = () => {
     const newErrors = {};
 
+    if (!formData.accountType.trim()) {
+      newErrors.accountType = "Account type is required.";
+    }
+
     if (!formData.fullName.trim()) {
-      newErrors.fullName = "Full name is required.";
+      newErrors.fullName = "Full name / company is required.";
     }
 
     if (!formData.email.trim()) {
@@ -85,8 +97,12 @@ const NewUser = () => {
       newErrors.country = "Country is required.";
     }
 
+    if (!formData.city.trim()) {
+      newErrors.city = "City / town is required.";
+    }
+
     if (!formData.address.trim()) {
-      newErrors.address = "Address is required.";
+      newErrors.address = "Street address is required.";
     }
 
     if (!formData.userType.trim()) {
@@ -98,28 +114,88 @@ const NewUser = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!validate()) return;
 
-    // Later this is where you'll POST to the backend API
-    console.log("New user data:", formData);
+    setIsSubmitting(true);
+    setSubmitError("");
+    setSuccessMessage("");
 
-    setSuccessMessage("User created successfully (not yet saved to backend).");
-    setFormData({
-      fullName: "",
-      email: "",
-      phone: "",
-      country: "",
-      address: "",
-      userType: "",
-    });
+    // Payload shape – you may need to extend your User schema to store
+    // accountType, city, postcode, notes.
+    const payload = {
+      accountType: formData.accountType, // "Business" / "Individual"
+      fullname: formData.fullName,
+      email: formData.email,
+      phone: formData.phone,
+      country: formData.country,
+      city: formData.city,
+      postcode: formData.postcode,
+      address: formData.address,
+      role: formData.userType, // "Shipper" / "Consignee" / "Both" / "Admin"
+      notes: formData.notes,
+      status: "pending", // or "active" as needed
+    };
+
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setSubmitError("Please log in before creating a user.");
+        navigate(`/login?redirect=/newuser`);
+        return;
+      }
+
+      const res = await fetch(USERS_API, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to create user");
+      }
+
+      setSuccessMessage("User created successfully.");
+      setFormData({
+        accountType: "Business",
+        fullName: "",
+        email: "",
+        phone: "",
+        country: "",
+        city: "",
+        postcode: "",
+        address: "",
+        userType: "",
+        notes: "",
+      });
+
+      setTimeout(() => {
+        navigate("/users");
+      }, 700);
+    } catch (err) {
+      console.error(err);
+      setSubmitError(err.message || "Something went wrong creating the user.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="m-[30px] bg-white p-[30px] rounded-md shadow-md">
-      <h2 className="text-[22px] font-semibold mb-[20px]">New User</h2>
+      <div className="mb-[20px]">
+        <h2 className="text-[22px] font-semibold">New Customer / User</h2>
+        <p className="text-sm text-gray-500 mt-1">
+          Capture key account details once so you can reuse them across quotes,
+          bookings and secure documents.
+        </p>
+      </div>
 
       {successMessage && (
         <div className="mb-4 px-4 py-2 rounded-md bg-green-100 text-green-800 text-sm border border-green-300">
@@ -127,36 +203,77 @@ const NewUser = () => {
         </div>
       )}
 
+      {submitError && (
+        <div className="mb-4 px-4 py-2 rounded-md bg-red-100 text-red-800 text-sm border border-red-300">
+          {submitError}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
+        {/* Account Type */}
+        <div className="flex flex-col my-[16px]">
+          <label className="font-medium mb-1" htmlFor="accountType">
+            Account Type
+          </label>
+          <select
+            id="accountType"
+            name="accountType"
+            value={formData.accountType}
+            onChange={handleChange}
+            className={`border p-[10px] w-[300px] rounded outline-none ${
+              errors.accountType ? "border-red-500" : "border-[#555]"
+            }`}
+          >
+            <option value="Business">Business</option>
+            <option value="Individual">Individual</option>
+          </select>
+          {errors.accountType && (
+            <span className="text-red-500 text-xs mt-1">
+              {errors.accountType}
+            </span>
+          )}
+        </div>
+
+        {/* Full Name / Company */}
         <FormInput
-          label="Full Name"
+          label={
+            formData.accountType === "Business"
+              ? "Company Name / Contact"
+              : "Full Name"
+          }
           name="fullName"
-          placeholder="Jerry Antwerp"
+          placeholder={
+            formData.accountType === "Business"
+              ? "OceanGate Logistics Ltd"
+              : "Kofi Mensah"
+          }
           value={formData.fullName}
           onChange={handleChange}
           error={errors.fullName}
         />
 
+        {/* Email */}
         <FormInput
           label="Email"
           name="email"
           type="email"
-          placeholder="JAntwerp@priority.com"
+          placeholder="ops@oceangate.co.uk"
           value={formData.email}
           onChange={handleChange}
           error={errors.email}
         />
 
+        {/* Phone */}
         <FormInput
           label="Phone Number"
           name="phone"
-          placeholder="+44 7123 456 789"
+          placeholder="+44 20 8801 9900"
           value={formData.phone}
           onChange={handleChange}
           error={errors.phone}
         />
 
-        {/* Country Dropdown */}
+        {/* Country */}
         <div className="flex flex-col my-[16px]">
           <label className="font-medium mb-1" htmlFor="country">
             Country
@@ -171,7 +288,7 @@ const NewUser = () => {
             }`}
           >
             <option value="">Select a country</option>
-            {countries.map((c) => (
+            {COUNTRY_OPTIONS.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -182,7 +299,52 @@ const NewUser = () => {
           )}
         </div>
 
-        {/* User Type Dropdown */}
+        {/* City + Postcode in one row on larger screens */}
+        <div className="flex flex-col md:flex-row md:gap-4">
+          <div className="flex-1">
+            <FormInput
+              label="City / Town"
+              name="city"
+              placeholder="Accra"
+              value={formData.city}
+              onChange={handleChange}
+              error={errors.city}
+            />
+          </div>
+          <div className="flex-1">
+            <FormInput
+              label="Postcode / ZIP (optional)"
+              name="postcode"
+              placeholder="EC1A 1BB"
+              value={formData.postcode}
+              onChange={handleChange}
+              error={errors.postcode}
+            />
+          </div>
+        </div>
+
+        {/* Street Address */}
+        <div className="flex flex-col my-[16px]">
+          <label className="font-medium mb-1" htmlFor="address">
+            Street Address
+          </label>
+          <input
+            id="address"
+            name="address"
+            type="text"
+            placeholder="35214 Auroria Avenue"
+            value={formData.address}
+            onChange={handleChange}
+            className={`border p-[10px] w-[300px] rounded outline-none ${
+              errors.address ? "border-red-500" : "border-[#555]"
+            }`}
+          />
+          {errors.address && (
+            <span className="text-red-500 text-xs mt-1">{errors.address}</span>
+          )}
+        </div>
+
+        {/* User Type */}
         <div className="flex flex-col my-[16px]">
           <label className="font-medium mb-1" htmlFor="userType">
             User Type
@@ -208,36 +370,33 @@ const NewUser = () => {
           )}
         </div>
 
+        {/* Internal notes */}
         <div className="flex flex-col my-[16px]">
-          <label className="font-medium mb-1" htmlFor="address">
-            Address
+          <label className="font-medium mb-1" htmlFor="notes">
+            Internal Notes (optional)
           </label>
-          <input
-            id="address"
-            name="address"
-            type="text"
-            placeholder="35214 Auroria Avenue, UK"
-            value={formData.address}
+          <textarea
+            id="notes"
+            name="notes"
+            placeholder="e.g. University client – needs 2 weeks’ notice, prefers WhatsApp updates."
+            value={formData.notes}
             onChange={handleChange}
-            className={`border p-[10px] w-[300px] rounded outline-none ${
-              errors.address ? "border-red-500" : "border-[#555]"
-            }`}
+            className="border p-[10px] w-[300px] h-[90px] rounded outline-none border-[#555] text-sm resize-none"
           />
-          {errors.address && (
-            <span className="text-red-500 text-xs mt-1">{errors.address}</span>
-          )}
         </div>
 
         <button
           type="submit"
+          disabled={isSubmitting}
           className="
             bg-[#1A2930] text-white 
             p-[12px] w-[300px] rounded-md 
             hover:bg-[#FFA500] hover:text-black 
             font-semibold transition
+            disabled:opacity-60 disabled:cursor-not-allowed
           "
         >
-          Create User
+          {isSubmitting ? "Creating..." : "Create User"}
         </button>
       </form>
     </div>
