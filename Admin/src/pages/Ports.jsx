@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { authRequest } from "../requestMethods";
 import { FaEdit, FaTrash } from "react-icons/fa";
 
@@ -37,6 +37,24 @@ function Ports() {
     fetchPorts();
   }, []);
 
+  const sortedPorts = useMemo(() => {
+    const list = Array.isArray(ports) ? ports : [];
+    // Sort active first, then country, then name
+    return [...list].sort((a, b) => {
+      const aActive = a?.isActive ? 1 : 0;
+      const bActive = b?.isActive ? 1 : 0;
+      if (aActive !== bActive) return bActive - aActive;
+
+      const ac = (a?.country || "").toLowerCase();
+      const bc = (b?.country || "").toLowerCase();
+      if (ac !== bc) return ac.localeCompare(bc);
+
+      const an = (a?.name || "").toLowerCase();
+      const bn = (b?.name || "").toLowerCase();
+      return an.localeCompare(bn);
+    });
+  }, [ports]);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm((prev) => ({
@@ -73,6 +91,7 @@ function Ports() {
         setSuccess("Port added successfully.");
       }
       resetForm();
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       console.error(err);
       setError("Could not save port. Please check details and try again.");
@@ -99,10 +118,12 @@ function Ports() {
     resetForm();
     setSuccess("");
     setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleToggleActive = async (port) => {
     try {
+      setError("");
       const updated = { ...port, isActive: !port.isActive };
       const res = await authRequest.put(`/config/ports/${port._id}`, updated);
       const saved = res.data;
@@ -120,9 +141,11 @@ function Ports() {
     if (!confirmDelete) return;
 
     try {
+      setError("");
       await authRequest.delete(`/config/ports/${port._id}`);
       setPorts((prev) => prev.filter((p) => p._id !== port._id));
       setSuccess("Port deleted.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       console.error(err);
       setError("Could not delete port.");
@@ -130,10 +153,12 @@ function Ports() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[#1A2930]">Ports</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold text-[#1A2930]">
+            Ports
+          </h1>
           <p className="mt-1 text-sm text-gray-500">
             Manage the list of ports available when creating shipments.
           </p>
@@ -154,7 +179,7 @@ function Ports() {
 
       {/* Add / Edit port form */}
       <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
           <h2 className="text-sm font-semibold text-[#1A2930]">
             {editingId ? "Edit port" : "Add new port"}
           </h2>
@@ -162,7 +187,7 @@ function Ports() {
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="text-xs text-gray-500 hover:text-gray-700"
+              className="text-xs text-gray-500 hover:text-gray-700 self-start sm:self-auto"
             >
               Cancel edit
             </button>
@@ -186,6 +211,7 @@ function Ports() {
               required
             />
           </div>
+
           <div className="flex flex-col gap-1 md:col-span-2">
             <label className="text-xs font-semibold text-gray-600">
               Port name
@@ -199,6 +225,7 @@ function Ports() {
               required
             />
           </div>
+
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-gray-600">
               Country
@@ -212,6 +239,7 @@ function Ports() {
               required
             />
           </div>
+
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-gray-600">Type</label>
             <select
@@ -225,7 +253,8 @@ function Ports() {
               <option value="both">Both</option>
             </select>
           </div>
-          <div className="flex items-center gap-3 md:justify-end">
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:justify-end">
             <label className="flex items-center gap-2 text-xs text-gray-600">
               <input
                 type="checkbox"
@@ -236,6 +265,7 @@ function Ports() {
               />
               Active
             </label>
+
             <button
               type="submit"
               disabled={saving}
@@ -253,9 +283,9 @@ function Ports() {
         </form>
       </section>
 
-      {/* Ports table */}
+      {/* Ports list */}
       <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
           <h2 className="text-sm font-semibold text-[#1A2930]">
             All ports ({ports.length})
           </h2>
@@ -264,7 +294,76 @@ function Ports() {
           )}
         </div>
 
-        <div className="overflow-x-auto">
+        {/* MOBILE: cards */}
+        <div className="md:hidden space-y-3">
+          {!loading && sortedPorts.length === 0 && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-center text-xs text-gray-600">
+              No ports added yet.
+            </div>
+          )}
+
+          {sortedPorts.map((port) => (
+            <div
+              key={port._id || port.code}
+              className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-gray-500 font-mono">
+                    {port.code}
+                  </p>
+                  <h3 className="text-base font-semibold text-[#1A2930] truncate">
+                    {port.name}
+                  </h3>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    <span className="inline-flex items-center rounded-full px-2 py-1 border border-gray-200 bg-gray-50 text-gray-700">
+                      {port.country}
+                    </span>
+                    <span className="inline-flex items-center rounded-full px-2 py-1 border border-gray-200 bg-gray-50 text-gray-700 capitalize">
+                      {port.type}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActive(port)}
+                      className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-medium ${
+                        port.isActive
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : "bg-gray-100 text-gray-500 border border-gray-200"
+                      }`}
+                    >
+                      {port.isActive ? "Active" : "Inactive"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleEdit(port)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-[#1A2930] hover:border-[#FFA500]/50 hover:text-[#FFA500]"
+                >
+                  <FaEdit className="text-[12px]" />
+                  Edit
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDelete(port)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+                >
+                  <FaTrash className="text-[12px]" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* DESKTOP: table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
               <tr className="bg-[#1A2930] text-white text-[11px] uppercase tracking-[0.14em]">
@@ -277,7 +376,7 @@ function Ports() {
               </tr>
             </thead>
             <tbody>
-              {ports.map((port) => (
+              {sortedPorts.map((port) => (
                 <tr
                   key={port._id || port.code}
                   className="border-b border-gray-100 hover:bg-gray-50"
@@ -326,7 +425,7 @@ function Ports() {
                 </tr>
               ))}
 
-              {!loading && ports.length === 0 && (
+              {!loading && sortedPorts.length === 0 && (
                 <tr>
                   <td
                     colSpan={6}

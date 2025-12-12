@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { authRequest } from "../requestMethods";
 import { FaEdit, FaTrash } from "react-icons/fa";
 
@@ -37,6 +37,19 @@ function CargoCategories() {
     fetchCategories();
   }, []);
 
+  const sortedCategories = useMemo(() => {
+    const list = Array.isArray(categories) ? categories : [];
+    // Sort active first, then label
+    return [...list].sort((a, b) => {
+      const aActive = a?.isActive ? 1 : 0;
+      const bActive = b?.isActive ? 1 : 0;
+      if (aActive !== bActive) return bActive - aActive;
+      const al = (a?.label || "").toLowerCase();
+      const bl = (b?.label || "").toLowerCase();
+      return al.localeCompare(bl);
+    });
+  }, [categories]);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setForm((prev) => ({
@@ -74,6 +87,7 @@ function CargoCategories() {
         setSuccess("Cargo category added successfully.");
       }
       resetForm();
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       console.error(err);
       setError(
@@ -102,10 +116,12 @@ function CargoCategories() {
     resetForm();
     setSuccess("");
     setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleToggleActive = async (item) => {
     try {
+      setError("");
       const updatedData = { ...item, isActive: !item.isActive };
       const res = await authRequest.put(
         `/config/cargo-categories/${item._id}`,
@@ -123,6 +139,7 @@ function CargoCategories() {
 
   const handleToggleHazardous = async (item) => {
     try {
+      setError("");
       const updatedData = {
         ...item,
         isHazardousPossible: !item.isHazardousPossible,
@@ -148,9 +165,11 @@ function CargoCategories() {
     if (!confirmDelete) return;
 
     try {
+      setError("");
       await authRequest.delete(`/config/cargo-categories/${item._id}`);
       setCategories((prev) => prev.filter((cat) => cat._id !== item._id));
       setSuccess("Cargo category deleted.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       console.error(err);
       setError("Could not delete cargo category.");
@@ -158,10 +177,10 @@ function CargoCategories() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-[#1A2930]">
+          <h1 className="text-xl sm:text-2xl font-semibold text-[#1A2930]">
             Cargo categories
           </h1>
           <p className="mt-1 text-sm text-gray-500">
@@ -181,16 +200,18 @@ function CargoCategories() {
         </div>
       )}
 
+      {/* FORM */}
       <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
           <h2 className="text-sm font-semibold text-[#1A2930]">
             {editingId ? "Edit cargo category" : "Add new cargo category"}
           </h2>
+
           {editingId && (
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="text-xs text-gray-500 hover:text-gray-700"
+              className="text-xs text-gray-500 hover:text-gray-700 self-start sm:self-auto"
             >
               Cancel edit
             </button>
@@ -245,7 +266,7 @@ function CargoCategories() {
             />
           </div>
 
-          <div className="flex items-center gap-3 md:col-span-1 md:justify-end">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:col-span-1 md:justify-end">
             <div className="flex flex-col gap-1">
               <label className="flex items-center gap-2 text-xs text-gray-600">
                 <input
@@ -286,11 +307,13 @@ function CargoCategories() {
         </form>
       </section>
 
+      {/* LIST */}
       <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
           <h2 className="text-sm font-semibold text-[#1A2930]">
             All cargo categories ({categories.length})
           </h2>
+
           {loading && (
             <span className="text-xs text-gray-500">
               Loading cargo categories...
@@ -298,7 +321,86 @@ function CargoCategories() {
           )}
         </div>
 
-        <div className="overflow-x-auto">
+        {/* MOBILE: cards */}
+        <div className="md:hidden space-y-3">
+          {!loading && sortedCategories.length === 0 && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-center text-xs text-gray-600">
+              No cargo categories configured yet.
+            </div>
+          )}
+
+          {sortedCategories.map((item) => (
+            <div
+              key={item._id || item.key}
+              className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-gray-500">
+                    {item.key}
+                  </p>
+                  <h3 className="text-base font-semibold text-[#1A2930] truncate">
+                    {item.label}
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {item.description || "—"}
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-2 items-end">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleHazardous(item)}
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                      item.isHazardousPossible
+                        ? "bg-amber-50 text-amber-700 border border-amber-200"
+                        : "bg-gray-100 text-gray-500 border border-gray-200"
+                    }`}
+                  >
+                    {item.isHazardousPossible
+                      ? "Hazmat: Allowed"
+                      : "Hazmat: No"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleToggleActive(item)}
+                    className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                      item.isActive
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-gray-100 text-gray-500 border border-gray-200"
+                    }`}
+                  >
+                    {item.isActive ? "Status: Active" : "Status: Inactive"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleEdit(item)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-[#1A2930] hover:border-[#FFA500]/50 hover:text-[#FFA500]"
+                >
+                  <FaEdit className="text-[12px]" />
+                  Edit
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDelete(item)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+                >
+                  <FaTrash className="text-[12px]" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* DESKTOP: table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
               <tr className="bg-[#1A2930] text-white text-[11px] uppercase tracking-[0.14em]">
@@ -311,7 +413,7 @@ function CargoCategories() {
               </tr>
             </thead>
             <tbody>
-              {categories.map((item) => (
+              {sortedCategories.map((item) => (
                 <tr
                   key={item._id || item.key}
                   className="border-b border-gray-100 hover:bg-gray-50"
@@ -372,7 +474,7 @@ function CargoCategories() {
                 </tr>
               ))}
 
-              {!loading && categories.length === 0 && (
+              {!loading && sortedCategories.length === 0 && (
                 <tr>
                   <td
                     colSpan={6}
