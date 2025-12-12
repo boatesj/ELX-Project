@@ -1,4 +1,6 @@
+// Backend/models/Shipment.js
 const mongoose = require("mongoose");
+const Counter = require("./Counter");
 
 // ------------------ SUBSCHEMAS ------------------
 
@@ -286,39 +288,48 @@ ShipmentSchema.index({
   "ports.destinationPort": 1,
 });
 
-// ------------------ PRE-SAVE LOGIC ------------------
-ShipmentSchema.pre("save", async function (next) {
-  if (this.isNew && !this.referenceNo) {
-    const modeCodeMap = {
-      RoRo: "RORO",
-      Container: "FCL",
-      Air: "AIR",
-      LCL: "LCL",
-      Documents: "DOC",
-      Parcels: "PAR",
-      Pallets: "PAL",
-    };
+// ------------------ PRE-VALIDATE LOGIC ------------------
+// Generate a unique business reference number before validation if not provided
+ShipmentSchema.pre("validate", async function (next) {
+  try {
+    // Only generate on NEW docs with no referenceNo explicitly set
+    if (this.isNew && !this.referenceNo) {
+      const modeCodeMap = {
+        RoRo: "RORO",
+        Container: "FCL",
+        Air: "AIR",
+        LCL: "LCL",
+        Documents: "DOC",
+        Parcels: "PAR",
+        Pallets: "PAL",
+      };
 
-    const modeCode = modeCodeMap[this.mode] || "GEN"; // fallback
+      const modeCode = modeCodeMap[this.mode] || "GEN";
 
-    const date = new Date();
-    const YY = String(date.getFullYear()).slice(-2);
-    const MM = String(date.getMonth() + 1).padStart(2, "0");
-    const DD = String(date.getDate()).padStart(2, "0");
+      const now = new Date();
+      const YY = String(now.getFullYear()).slice(-2);
+      const MM = String(now.getMonth() + 1).padStart(2, "0");
+      const DD = String(now.getDate()).padStart(2, "0");
 
-    const dailyCount = await this.constructor.countDocuments({
-      createdAt: {
-        $gte: new Date(date.setHours(0, 0, 0, 0)),
-        $lt: new Date(date.setHours(23, 59, 59, 999)),
-      },
-    });
+      // Counter key: per mode per day
+      const key = `${modeCode}-${YY}${MM}${DD}`;
 
-    const seq = String(dailyCount + 1).padStart(4, "0");
+      const counter = await Counter.findOneAndUpdate(
+        { key },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
 
-    this.referenceNo = `ELX-${modeCode}-${YY}${MM}${DD}-${seq}`;
+      const seq = String(counter.seq).padStart(4, "0");
+
+      this.referenceNo = `ELX-${modeCode}-${YY}${MM}${DD}-${seq}`;
+    }
+
+    next();
+  } catch (err) {
+    console.error("Error generating referenceNo (pre-validate):", err);
+    next(err);
   }
-
-  next();
 });
 
 module.exports = mongoose.model("Shipment", ShipmentSchema);
