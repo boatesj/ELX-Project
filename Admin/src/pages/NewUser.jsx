@@ -5,7 +5,7 @@ import { getNames } from "country-list";
 // Pre-compute global country list (all ISO countries, sorted)
 const COUNTRY_OPTIONS = getNames().sort();
 
-// Reusable input component
+// Reusable input component (mobile-first: full width)
 const FormInput = ({
   label,
   type = "text",
@@ -15,8 +15,8 @@ const FormInput = ({
   placeholder,
   error,
 }) => (
-  <div className="flex flex-col my-[16px]">
-    <label className="font-medium mb-1" htmlFor={name}>
+  <div className="flex flex-col gap-1">
+    <label className="text-xs font-semibold text-gray-700" htmlFor={name}>
       {label}
     </label>
     <input
@@ -26,11 +26,36 @@ const FormInput = ({
       placeholder={placeholder}
       value={value}
       onChange={onChange}
-      className={`border p-[10px] w-[300px] rounded outline-none ${
+      className={`border px-3 py-2 rounded outline-none text-sm w-full bg-white ${
         error ? "border-red-500" : "border-[#555]"
       }`}
     />
-    {error && <span className="text-red-500 text-xs mt-1">{error}</span>}
+    {error && <span className="text-red-500 text-xs">{error}</span>}
+  </div>
+);
+
+// Simple section wrapper (accordion)
+const Section = ({ title, subtitle, open, onToggle, children }) => (
+  <div className="bg-white rounded-md shadow-sm border border-slate-100">
+    <button
+      type="button"
+      onClick={onToggle}
+      className="w-full flex items-start justify-between gap-4 px-4 py-3 text-left"
+    >
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+          {title}
+        </h3>
+        {subtitle ? (
+          <p className="text-[11px] text-gray-500 mt-1">{subtitle}</p>
+        ) : null}
+      </div>
+      <span className="text-xs font-semibold text-[#1A2930]">
+        {open ? "Hide" : "Show"}
+      </span>
+    </button>
+
+    {open ? <div className="px-4 pb-4">{children}</div> : null}
   </div>
 );
 
@@ -59,6 +84,11 @@ const NewUser = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Mobile section toggles
+  const [openAccount, setOpenAccount] = useState(true);
+  const [openAddress, setOpenAddress] = useState(true);
+  const [openRole, setOpenRole] = useState(true);
 
   const userTypes = ["Shipper", "Consignee", "Both", "Admin"];
 
@@ -110,6 +140,25 @@ const NewUser = () => {
     }
 
     setErrors(newErrors);
+
+    // If there are errors, open the likely sections so the user can see them
+    if (Object.keys(newErrors).length) {
+      if (
+        newErrors.accountType ||
+        newErrors.fullName ||
+        newErrors.email ||
+        newErrors.phone
+      )
+        setOpenAccount(true);
+      if (
+        newErrors.country ||
+        newErrors.city ||
+        newErrors.postcode ||
+        newErrors.address
+      )
+        setOpenAddress(true);
+      if (newErrors.userType) setOpenRole(true);
+    }
 
     return Object.keys(newErrors).length === 0;
   };
@@ -188,10 +237,12 @@ const NewUser = () => {
   };
 
   return (
-    <div className="m-[30px] bg-white p-[30px] rounded-md shadow-md">
-      <div className="mb-[20px]">
-        <h2 className="text-[22px] font-semibold">New Customer / User</h2>
-        <p className="text-sm text-gray-500 mt-1">
+    <div className="bg-[#D9D9D9] rounded-md p-3 sm:p-5 lg:p-[30px] shadow-sm">
+      <div className="mb-4">
+        <h2 className="text-[20px] sm:text-[22px] font-semibold text-[#1A2930]">
+          New Customer / User
+        </h2>
+        <p className="text-sm text-gray-600 mt-1">
           Capture key account details once so you can reuse them across quotes,
           bookings and secure documents.
         </p>
@@ -209,195 +260,276 @@ const NewUser = () => {
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
-        {/* Account Type */}
-        <div className="flex flex-col my-[16px]">
-          <label className="font-medium mb-1" htmlFor="accountType">
-            Account Type
-          </label>
-          <select
-            id="accountType"
-            name="accountType"
-            value={formData.accountType}
-            onChange={handleChange}
-            className={`border p-[10px] w-[300px] rounded outline-none ${
-              errors.accountType ? "border-red-500" : "border-[#555]"
-            }`}
-          >
-            <option value="Business">Business</option>
-            <option value="Individual">Individual</option>
-          </select>
-          {errors.accountType && (
-            <span className="text-red-500 text-xs mt-1">
-              {errors.accountType}
-            </span>
-          )}
-        </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 lg:gap-6">
+          {/* LEFT: main form sections */}
+          <div className="space-y-4">
+            <Section
+              title="Account"
+              subtitle="Core identity and contact details."
+              open={openAccount}
+              onToggle={() => setOpenAccount((v) => !v)}
+            >
+              {/* Account Type */}
+              <div className="flex flex-col gap-1">
+                <label
+                  className="text-xs font-semibold text-gray-700"
+                  htmlFor="accountType"
+                >
+                  Account Type
+                </label>
+                <select
+                  id="accountType"
+                  name="accountType"
+                  value={formData.accountType}
+                  onChange={handleChange}
+                  className={`border px-3 py-2 rounded outline-none text-sm w-full bg-white ${
+                    errors.accountType ? "border-red-500" : "border-[#555]"
+                  }`}
+                >
+                  <option value="Business">Business</option>
+                  <option value="Individual">Individual</option>
+                </select>
+                {errors.accountType && (
+                  <span className="text-red-500 text-xs">
+                    {errors.accountType}
+                  </span>
+                )}
+              </div>
 
-        {/* Full Name / Company */}
-        <FormInput
-          label={
-            formData.accountType === "Business"
-              ? "Company Name / Contact"
-              : "Full Name"
-          }
-          name="fullName"
-          placeholder={
-            formData.accountType === "Business"
-              ? "OceanGate Logistics Ltd"
-              : "Kofi Mensah"
-          }
-          value={formData.fullName}
-          onChange={handleChange}
-          error={errors.fullName}
-        />
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Full Name / Company */}
+                <FormInput
+                  label={
+                    formData.accountType === "Business"
+                      ? "Company Name / Contact"
+                      : "Full Name"
+                  }
+                  name="fullName"
+                  placeholder={
+                    formData.accountType === "Business"
+                      ? "OceanGate Logistics Ltd"
+                      : "Kofi Mensah"
+                  }
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  error={errors.fullName}
+                />
 
-        {/* Email */}
-        <FormInput
-          label="Email"
-          name="email"
-          type="email"
-          placeholder="ops@oceangate.co.uk"
-          value={formData.email}
-          onChange={handleChange}
-          error={errors.email}
-        />
+                {/* Email */}
+                <FormInput
+                  label="Email"
+                  name="email"
+                  type="email"
+                  placeholder="ops@oceangate.co.uk"
+                  value={formData.email}
+                  onChange={handleChange}
+                  error={errors.email}
+                />
 
-        {/* Phone */}
-        <FormInput
-          label="Phone Number"
-          name="phone"
-          placeholder="+44 20 8801 9900"
-          value={formData.phone}
-          onChange={handleChange}
-          error={errors.phone}
-        />
+                {/* Phone */}
+                <FormInput
+                  label="Phone Number"
+                  name="phone"
+                  placeholder="+44 20 8801 9900"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  error={errors.phone}
+                />
+              </div>
+            </Section>
 
-        {/* Country */}
-        <div className="flex flex-col my-[16px]">
-          <label className="font-medium mb-1" htmlFor="country">
-            Country
-          </label>
-          <select
-            id="country"
-            name="country"
-            value={formData.country}
-            onChange={handleChange}
-            className={`border p-[10px] w-[300px] rounded outline-none ${
-              errors.country ? "border-red-500" : "border-[#555]"
-            }`}
-          >
-            <option value="">Select a country</option>
-            {COUNTRY_OPTIONS.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          {errors.country && (
-            <span className="text-red-500 text-xs mt-1">{errors.country}</span>
-          )}
-        </div>
+            <Section
+              title="Address"
+              subtitle="Where the customer is based."
+              open={openAddress}
+              onToggle={() => setOpenAddress((v) => !v)}
+            >
+              {/* Country */}
+              <div className="flex flex-col gap-1">
+                <label
+                  className="text-xs font-semibold text-gray-700"
+                  htmlFor="country"
+                >
+                  Country
+                </label>
+                <select
+                  id="country"
+                  name="country"
+                  value={formData.country}
+                  onChange={handleChange}
+                  className={`border px-3 py-2 rounded outline-none text-sm w-full bg-white ${
+                    errors.country ? "border-red-500" : "border-[#555]"
+                  }`}
+                >
+                  <option value="">Select a country</option>
+                  {COUNTRY_OPTIONS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                {errors.country && (
+                  <span className="text-red-500 text-xs">{errors.country}</span>
+                )}
+              </div>
 
-        {/* City + Postcode in one row on larger screens */}
-        <div className="flex flex-col md:flex-row md:gap-4">
-          <div className="flex-1">
-            <FormInput
-              label="City / Town"
-              name="city"
-              placeholder="Accra"
-              value={formData.city}
-              onChange={handleChange}
-              error={errors.city}
-            />
+              {/* City + Postcode */}
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormInput
+                  label="City / Town"
+                  name="city"
+                  placeholder="Accra"
+                  value={formData.city}
+                  onChange={handleChange}
+                  error={errors.city}
+                />
+
+                <FormInput
+                  label="Postcode / ZIP (optional)"
+                  name="postcode"
+                  placeholder="EC1A 1BB"
+                  value={formData.postcode}
+                  onChange={handleChange}
+                  error={errors.postcode}
+                />
+              </div>
+
+              {/* Street Address */}
+              <div className="mt-4 flex flex-col gap-1">
+                <label
+                  className="text-xs font-semibold text-gray-700"
+                  htmlFor="address"
+                >
+                  Street Address
+                </label>
+                <input
+                  id="address"
+                  name="address"
+                  type="text"
+                  placeholder="35214 Auroria Avenue"
+                  value={formData.address}
+                  onChange={handleChange}
+                  className={`border px-3 py-2 rounded outline-none text-sm w-full bg-white ${
+                    errors.address ? "border-red-500" : "border-[#555]"
+                  }`}
+                />
+                {errors.address && (
+                  <span className="text-red-500 text-xs">{errors.address}</span>
+                )}
+              </div>
+            </Section>
+
+            <Section
+              title="Role & notes"
+              subtitle="How they use Ellcworth, and any internal guidance."
+              open={openRole}
+              onToggle={() => setOpenRole((v) => !v)}
+            >
+              {/* User Type */}
+              <div className="flex flex-col gap-1">
+                <label
+                  className="text-xs font-semibold text-gray-700"
+                  htmlFor="userType"
+                >
+                  User Type
+                </label>
+                <select
+                  id="userType"
+                  name="userType"
+                  value={formData.userType}
+                  onChange={handleChange}
+                  className={`border px-3 py-2 rounded outline-none text-sm w-full bg-white ${
+                    errors.userType ? "border-red-500" : "border-[#555]"
+                  }`}
+                >
+                  <option value="">Select a user type</option>
+                  {userTypes.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+                {errors.userType && (
+                  <span className="text-red-500 text-xs">
+                    {errors.userType}
+                  </span>
+                )}
+              </div>
+
+              {/* Internal notes */}
+              <div className="mt-4 flex flex-col gap-1">
+                <label
+                  className="text-xs font-semibold text-gray-700"
+                  htmlFor="notes"
+                >
+                  Internal Notes (optional)
+                </label>
+                <textarea
+                  id="notes"
+                  name="notes"
+                  placeholder="e.g. University client – needs 2 weeks’ notice, prefers WhatsApp updates."
+                  value={formData.notes}
+                  onChange={handleChange}
+                  className="border px-3 py-2 rounded outline-none border-[#555] text-sm resize-none w-full h-[110px] bg-white"
+                />
+              </div>
+            </Section>
           </div>
-          <div className="flex-1">
-            <FormInput
-              label="Postcode / ZIP (optional)"
-              name="postcode"
-              placeholder="EC1A 1BB"
-              value={formData.postcode}
-              onChange={handleChange}
-              error={errors.postcode}
-            />
+
+          {/* RIGHT: desktop helper + desktop submit */}
+          <div className="space-y-4">
+            <div className="hidden lg:block bg-white rounded-md p-4 border border-slate-100">
+              <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                Tip
+              </h4>
+              <p className="text-[11px] text-gray-600 mt-2">
+                Save clean contact details once — then reuse the customer on
+                quotes, shipments, documents, and invoices.
+              </p>
+            </div>
+
+            <div className="hidden lg:block">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="
+                  w-full
+                  bg-[#1A2930] text-white
+                  py-3 rounded-md
+                  hover:bg-[#FFA500] hover:text-black
+                  font-semibold transition
+                  disabled:opacity-60 disabled:cursor-not-allowed
+                "
+              >
+                {isSubmitting ? "Creating..." : "Create User"}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Street Address */}
-        <div className="flex flex-col my-[16px]">
-          <label className="font-medium mb-1" htmlFor="address">
-            Street Address
-          </label>
-          <input
-            id="address"
-            name="address"
-            type="text"
-            placeholder="35214 Auroria Avenue"
-            value={formData.address}
-            onChange={handleChange}
-            className={`border p-[10px] w-[300px] rounded outline-none ${
-              errors.address ? "border-red-500" : "border-[#555]"
-            }`}
-          />
-          {errors.address && (
-            <span className="text-red-500 text-xs mt-1">{errors.address}</span>
-          )}
+        {/* Mobile sticky CTA */}
+        <div className="lg:hidden sticky bottom-0 left-0 right-0 pb-3">
+          <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-md p-3 shadow-lg">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="
+                w-full
+                bg-[#1A2930] text-white
+                py-3 rounded-md
+                hover:bg-[#FFA500] hover:text-black
+                font-semibold transition
+                disabled:opacity-60 disabled:cursor-not-allowed
+              "
+            >
+              {isSubmitting ? "Creating..." : "Create User"}
+            </button>
+            <p className="mt-2 text-[10px] text-gray-600">
+              Creates the user and returns you to the Users table.
+            </p>
+          </div>
         </div>
-
-        {/* User Type */}
-        <div className="flex flex-col my-[16px]">
-          <label className="font-medium mb-1" htmlFor="userType">
-            User Type
-          </label>
-          <select
-            id="userType"
-            name="userType"
-            value={formData.userType}
-            onChange={handleChange}
-            className={`border p-[10px] w-[300px] rounded outline-none ${
-              errors.userType ? "border-red-500" : "border-[#555]"
-            }`}
-          >
-            <option value="">Select a user type</option>
-            {userTypes.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-          {errors.userType && (
-            <span className="text-red-500 text-xs mt-1">{errors.userType}</span>
-          )}
-        </div>
-
-        {/* Internal notes */}
-        <div className="flex flex-col my-[16px]">
-          <label className="font-medium mb-1" htmlFor="notes">
-            Internal Notes (optional)
-          </label>
-          <textarea
-            id="notes"
-            name="notes"
-            placeholder="e.g. University client – needs 2 weeks’ notice, prefers WhatsApp updates."
-            value={formData.notes}
-            onChange={handleChange}
-            className="border p-[10px] w-[300px] h-[90px] rounded outline-none border-[#555] text-sm resize-none"
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="
-            bg-[#1A2930] text-white 
-            p-[12px] w-[300px] rounded-md 
-            hover:bg-[#FFA500] hover:text-black 
-            font-semibold transition
-            disabled:opacity-60 disabled:cursor-not-allowed
-          "
-        >
-          {isSubmitting ? "Creating..." : "Create User"}
-        </button>
       </form>
     </div>
   );
