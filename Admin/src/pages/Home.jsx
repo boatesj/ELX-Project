@@ -1,29 +1,50 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+// Admin/src/pages/Home.jsx
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { HiArrowTrendingUp, HiArrowTrendingDown } from "react-icons/hi2";
 import { PieChart } from "@mui/x-charts/PieChart";
+import { authRequest } from "../requestMethods";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+// ---------- helpers ----------
+const safeArray = (maybeArr) => (Array.isArray(maybeArr) ? maybeArr : []);
 
-const USERS_API = `${API_BASE_URL}/users`;
-const SHIPMENTS_DASHBOARD_API = `${API_BASE_URL}/shipments/dashboard`;
-const SHIPMENTS_API = `${API_BASE_URL}/shipments`;
+const pickUsersArray = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.users)) return payload.users;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
 
-// Reusable metric card with optional click handler
-const metricCard = (
-  title,
-  value,
-  trend = null,
-  subLabel = "Compared to last period",
-  onClick
-) => (
-  <div
-    className={`flex flex-col justify-between bg-[#1A1A1A] rounded-xl shadow-lg
+const pickShipmentsArray = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.shipments)) return payload.shipments;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+};
+
+const formatIsoDate = (iso) =>
+  iso ? new Date(iso).toISOString().slice(0, 10) : "—";
+
+const formatStatusLabel = (status) =>
+  (status || "pending").toString().trim().toLowerCase().replace(/_/g, " ");
+
+const MetricCard = ({ title, value, trend, subLabel, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={!onClick}
+    className={`
+      flex flex-col justify-between text-left
+      bg-[#1A1A1A] rounded-xl shadow-lg
       w-full min-h-[150px] sm:min-h-[170px] md:min-h-[190px]
       p-4 sm:p-5 md:p-6 text-[#E5E5E5]
-      ${onClick ? "cursor-pointer hover:bg-[#222222] transition" : ""}`}
-    onClick={onClick}
+      ${
+        onClick
+          ? "cursor-pointer hover:bg-[#222222] transition"
+          : "cursor-default"
+      }
+      focus:outline-none focus:ring-2 focus:ring-[#FFA500]/40
+    `}
   >
     <div>
       <h2 className="text-xs sm:text-sm font-semibold tracking-wide uppercase text-gray-300">
@@ -45,19 +66,49 @@ const metricCard = (
     </div>
 
     <p className="mt-3 text-[11px] sm:text-xs text-gray-400">{subLabel}</p>
-  </div>
+  </button>
 );
+
+// Responsive width/height for the PieChart without extra deps
+const useElementSize = () => {
+  const ref = useRef(null);
+  const [size, setSize] = useState({ w: 360, h: 260 });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const cr = entry?.contentRect;
+      if (!cr) return;
+      setSize({
+        w: Math.max(260, Math.floor(cr.width)),
+        h: Math.max(240, Math.floor(cr.height)),
+      });
+    });
+
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return [ref, size];
+};
 
 const Home = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [totalUsers, setTotalUsers] = useState(null);
   const [recentUsers, setRecentUsers] = useState([]);
+
   const [shipmentTotals, setShipmentTotals] = useState({
     deliveredCount: null,
     pendingCount: null,
     active: null,
+    total: null,
   });
+
   const [pieData, setPieData] = useState([]);
   const [topRoutes, setTopRoutes] = useState([]);
   const [latestShipments, setLatestShipments] = useState([]);
@@ -65,154 +116,141 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
+  const [chartWrapRef, chartSize] = useElementSize();
+
+  const chartDims = useMemo(() => {
+    // keep chart readable across breakpoints
+    const w = Math.min(520, chartSize.w);
+    const h = Math.min(340, Math.max(260, Math.floor(chartSize.h)));
+    const outerRadius = Math.min(140, Math.max(95, Math.floor(w * 0.28)));
+    const innerRadius = Math.max(40, Math.floor(outerRadius * 0.35));
+    return { w, h, outerRadius, innerRadius };
+  }, [chartSize]);
+
+  const handleAuthFail = (
+    message = "Please log in to view dashboard analytics."
+  ) => {
+    setLoadError(message);
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+  };
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
       setLoadError("");
 
       try {
+        // authRequest should include token; still guard if token missing
         const token = localStorage.getItem("token");
         if (!token) {
-          setLoadError("Please log in to view dashboard analytics.");
+          handleAuthFail("Please log in to view dashboard analytics.");
           setLoading(false);
           return;
         }
 
-        // Fetch users, shipment dashboard stats, and latest shipments in parallel
-        const [usersRes, shipmentsDashboardRes, shipmentsListRes] =
-          await Promise.all([
-            fetch(USERS_API, {
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            }),
-            fetch(SHIPMENTS_DASHBOARD_API, {
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            }),
-            fetch(SHIPMENTS_API, {
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-            }),
-          ]);
-
-        // Handle errors for each
-        if (!usersRes.ok) {
-          const errorData = await usersRes.json().catch(() => ({}));
-          throw new Error(errorData.message || "Failed to load users");
-        }
-
-        if (!shipmentsDashboardRes.ok) {
-          const errorData = await shipmentsDashboardRes
-            .json()
-            .catch(() => ({}));
-          throw new Error(errorData.message || "Failed to load shipment stats");
-        }
-
-        if (!shipmentsListRes.ok) {
-          const errorData = await shipmentsListRes.json().catch(() => ({}));
-          throw new Error(errorData.message || "Failed to load shipments list");
-        }
-
-        const usersData = await usersRes.json();
-        const shipmentsDashboardJson = await shipmentsDashboardRes.json();
-        const shipmentsListData = await shipmentsListRes.json();
-
-        console.log("Users API response:", usersData);
-        console.log(
-          "Shipments dashboard API response:",
-          shipmentsDashboardJson
-        );
-        console.log("Shipments list API response:", shipmentsListData);
+        const [usersRes, dashboardRes, shipmentsRes] = await Promise.all([
+          authRequest.get("/users"),
+          authRequest.get("/shipments/dashboard"),
+          authRequest.get("/shipments"),
+        ]);
 
         // ----- USERS -----
-        const usersArray = Array.isArray(usersData)
-          ? usersData
-          : usersData.users || [];
-
+        const usersPayload = usersRes?.data;
+        const usersArray = pickUsersArray(usersPayload);
         setTotalUsers(usersArray.length);
-        setRecentUsers(usersArray.slice(0, 5)); // newest first
+
+        // If backend is not sorted, do a best-effort sort by createdAt desc
+        const sortedUsers = [...usersArray].sort((a, b) => {
+          const da = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const db = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return db - da;
+        });
+        setRecentUsers(sortedUsers.slice(0, 5));
 
         // ----- SHIPMENTS DASHBOARD -----
-        const dashboardData =
-          shipmentsDashboardJson?.data || shipmentsDashboardJson || {};
-
-        const totals = dashboardData.totals || {};
-        const byStatus = dashboardData.byStatus || {};
-        const routes = dashboardData.topRoutes || [];
+        const dashboardPayload =
+          dashboardRes?.data?.data || dashboardRes?.data || {};
+        const totals = dashboardPayload.totals || {};
+        const byStatus = dashboardPayload.byStatus || {};
+        const routes = safeArray(dashboardPayload.topRoutes);
 
         const pending =
           totals.pending ?? totals.pendingShipments ?? byStatus.pending ?? 0;
+
         const delivered =
           totals.delivered ??
           totals.deliveredShipments ??
           byStatus.delivered ??
           0;
 
-        // Prefer backend active value, fall back to derived
+        const total =
+          totals.total ??
+          totals.totalShipments ??
+          pending + delivered + (totals.active ?? totals.activeShipments ?? 0);
+
         const active =
           totals.active ??
           totals.activeShipments ??
-          (totals.totalShipments || 0) - delivered - pending;
+          Math.max(0, (total || 0) - delivered - pending);
 
         setShipmentTotals({
           deliveredCount: delivered,
           pendingCount: pending,
           active,
+          total: total ?? pending + delivered + active,
         });
 
         setPieData([
-          { id: 0, value: pending, label: "Pending", color: "#FFA500" }, // orange
-          { id: 1, value: delivered, label: "Delivered", color: "#22C55E" }, // green
+          { id: 0, value: pending, label: "Pending", color: "#FFA500" },
+          { id: 1, value: delivered, label: "Delivered", color: "#22C55E" },
           {
             id: 2,
             value: active,
             label: "In Transit / Active",
             color: "#38BDF8",
-          }, // blue
+          },
         ]);
 
         setTopRoutes(routes);
 
-        // ----- LATEST SHIPMENTS (from full list endpoint) -----
-        let shipmentsArray = [];
+        // ----- LATEST SHIPMENTS -----
+        const shipmentsPayload = shipmentsRes?.data;
+        const shipmentsArray = pickShipmentsArray(shipmentsPayload);
 
-        if (Array.isArray(shipmentsListData)) {
-          // backend returns just an array
-          shipmentsArray = shipmentsListData;
-        } else if (Array.isArray(shipmentsListData.data)) {
-          // e.g. { data: [...] }
-          shipmentsArray = shipmentsListData.data;
-        } else if (Array.isArray(shipmentsListData.shipments)) {
-          // e.g. { shipments: [...] }
-          shipmentsArray = shipmentsListData.shipments;
-        } else {
-          console.warn(
-            "Unexpected shipments list response shape:",
-            shipmentsListData
-          );
+        const sortedShipments = [...shipmentsArray].sort((a, b) => {
+          const da = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const db = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return db - da;
+        });
+
+        setLatestShipments(sortedShipments.slice(0, 5));
+      } catch (err) {
+        const status = err?.response?.status;
+
+        if (status === 401) {
+          handleAuthFail("Your session has expired. Please log in again.");
+          return;
         }
 
-        const latest = shipmentsArray.slice(0, 5);
-        setLatestShipments(latest);
-      } catch (err) {
-        console.error("Dashboard load error:", err);
-        setLoadError(err.message || "Failed to load dashboard analytics.");
+        console.error("Dashboard load error:", err?.response?.data || err);
+        setLoadError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Failed to load dashboard analytics."
+        );
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0F0F0F] text-white px-4 py-6 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#0F0F0F] text-white px-4 py-6 sm:px-6 lg:px-8 font-montserrat">
       <div className="mx-auto w-full max-w-7xl">
         {/* PAGE HEADER */}
         <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -234,83 +272,101 @@ const Home = () => {
 
         {/* TOP METRICS */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {metricCard(
-            "Total Users",
-            totalUsers,
-            totalUsers !== null ? "up" : null,
-            "All CRM users in the system",
-            () => navigate("/users")
-          )}
-          {metricCard(
-            "Delivered Shipments",
-            shipmentTotals.deliveredCount,
-            shipmentTotals.deliveredCount !== null ? "up" : null,
-            "Completed deliveries",
-            () => navigate("/shipments?status=delivered")
-          )}
-          {metricCard(
-            "Pending Shipments",
-            shipmentTotals.pendingCount,
-            shipmentTotals.pendingCount !== null &&
+          <MetricCard
+            title="Total Users"
+            value={totalUsers}
+            trend={totalUsers !== null ? "up" : null}
+            subLabel="All CRM users in the system"
+            onClick={() => navigate("/users")}
+          />
+          <MetricCard
+            title="Delivered Shipments"
+            value={shipmentTotals.deliveredCount}
+            trend={shipmentTotals.deliveredCount !== null ? "up" : null}
+            subLabel="Completed deliveries"
+            onClick={() => navigate("/shipments?status=delivered")}
+          />
+          <MetricCard
+            title="Pending Shipments"
+            value={shipmentTotals.pendingCount}
+            trend={
+              shipmentTotals.pendingCount !== null &&
               shipmentTotals.pendingCount > 0
-              ? "down"
-              : null,
-            "Awaiting dispatch or loading",
-            () => navigate("/shipments?status=pending")
-          )}
-          {metricCard(
-            "Active Shipments",
-            shipmentTotals.active,
-            shipmentTotals.active !== null && shipmentTotals.active > 0
-              ? "up"
-              : null,
-            "Currently in progress",
-            () => navigate("/shipments")
-          )}
+                ? "down"
+                : null
+            }
+            subLabel="Awaiting dispatch or loading"
+            onClick={() => navigate("/shipments?status=pending")}
+          />
+          <MetricCard
+            title="Active Shipments"
+            value={shipmentTotals.active}
+            trend={
+              shipmentTotals.active !== null && shipmentTotals.active > 0
+                ? "up"
+                : null
+            }
+            subLabel="Currently in progress"
+            onClick={() => navigate("/shipments")}
+          />
         </div>
 
-        {/* MIDDLE ROW: PIE + RECENT USERS + TOP ROUTES */}
+        {/* MIDDLE ROW */}
         <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-          {/* PIE CHART - make it first and full-width on small screens */}
+          {/* PIE CHART */}
           <div className="order-1 bg-[#1A1A1A] rounded-xl p-4 sm:p-6 shadow-lg w-full min-h-[320px] xl:col-span-2">
-            <h3 className="text-base sm:text-lg font-semibold mb-4 tracking-wide">
-              Shipment Breakdown
-            </h3>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base sm:text-lg font-semibold mb-1 tracking-wide">
+                  Shipment Breakdown
+                </h3>
+                <p className="text-[11px] sm:text-xs text-gray-400">
+                  Pending vs delivered vs active shipments.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/shipments")}
+                className="text-[11px] sm:text-xs font-semibold text-gray-300 hover:text-[#FFA500] transition"
+              >
+                View all →
+              </button>
+            </div>
+
             {loading ? (
-              <div className="h-full flex items-center justify-center text-sm text-gray-400">
+              <div className="h-[260px] sm:h-[280px] flex items-center justify-center text-sm text-gray-400">
                 Loading chart...
               </div>
             ) : (
               <>
-                <div className="w-full overflow-x-auto flex justify-center">
-                  <div className="min-w-[260px] sm:min-w-[320px] md:min-w-[380px]">
-                    <PieChart
-                      width={380}
-                      height={260}
-                      slotProps={{
-                        legend: { hidden: true },
-                      }}
-                      series={[
-                        {
-                          data: pieData,
-                          innerRadius: 40,
-                          outerRadius: 120,
-                          paddingAngle: 3,
-                          cornerRadius: 4,
-                        },
-                      ]}
-                      sx={{
-                        "& .MuiPieArc-root": {
-                          transition: "all 0.25s ease",
-                          cursor: "default",
-                        },
-                      }}
-                    />
-                  </div>
+                <div
+                  ref={chartWrapRef}
+                  className="mt-4 w-full h-[260px] sm:h-[280px] md:h-[300px] flex items-center justify-center"
+                >
+                  <PieChart
+                    width={chartDims.w}
+                    height={chartDims.h}
+                    slotProps={{ legend: { hidden: true } }}
+                    series={[
+                      {
+                        data: pieData,
+                        innerRadius: chartDims.innerRadius,
+                        outerRadius: chartDims.outerRadius,
+                        paddingAngle: 3,
+                        cornerRadius: 4,
+                      },
+                    ]}
+                    sx={{
+                      "& .MuiPieArc-root": {
+                        transition: "all 0.25s ease",
+                        cursor: "default",
+                      },
+                    }}
+                  />
                 </div>
 
                 {/* LEGEND */}
-                <div className="mt-4 flex flex-wrap gap-4 text-[11px] sm:text-xs text-gray-300">
+                <div className="mt-3 flex flex-wrap gap-4 text-[11px] sm:text-xs text-gray-300">
                   <button
                     type="button"
                     className="flex items-center gap-2 focus:outline-none hover:text-[#FFA500]"
@@ -342,12 +398,22 @@ const Home = () => {
 
           {/* RECENT USERS */}
           <div className="order-2 bg-[#1A1A1A] rounded-xl shadow-lg p-4 sm:p-6 w-full">
-            <h3
-              className="text-base sm:text-lg font-semibold tracking-wide cursor-pointer hover:text-[#FFA500] transition"
-              onClick={() => navigate("/users")}
-            >
-              Recent Users
-            </h3>
+            <div className="flex items-start justify-between gap-3">
+              <h3
+                className="text-base sm:text-lg font-semibold tracking-wide cursor-pointer hover:text-[#FFA500] transition"
+                onClick={() => navigate("/users")}
+              >
+                Recent Users
+              </h3>
+              <button
+                type="button"
+                onClick={() => navigate("/users")}
+                className="text-[11px] sm:text-xs font-semibold text-gray-300 hover:text-[#FFA500] transition"
+              >
+                Open →
+              </button>
+            </div>
+
             {loading ? (
               <div className="mt-4 text-sm text-gray-400">Loading users...</div>
             ) : recentUsers.length === 0 ? (
@@ -356,17 +422,17 @@ const Home = () => {
               </div>
             ) : (
               <ul className="mt-4 space-y-3 text-sm text-gray-300">
-                {recentUsers.map((user, idx) => (
+                {recentUsers.map((u) => (
                   <li
-                    key={user._id || idx}
-                    className="flex justify-between hover:text-[#FFA500] cursor-pointer"
-                    onClick={() => navigate("/users")}
+                    key={u._id}
+                    className="flex items-center justify-between gap-3 hover:text-[#FFA500] cursor-pointer"
+                    onClick={() => navigate(`/users/${u._id}`)}
                   >
-                    <span className="truncate max-w-[60%]">
-                      {user.fullname || user.name}
+                    <span className="truncate max-w-[70%]">
+                      {u.fullname || u.name || "—"}
                     </span>
-                    <span className="text-xs text-gray-500">
-                      {user.country || "—"}
+                    <span className="text-xs text-gray-500 truncate max-w-[30%] text-right">
+                      {u.country || "—"}
                     </span>
                   </li>
                 ))}
@@ -376,9 +442,19 @@ const Home = () => {
 
           {/* TOP ROUTES */}
           <div className="order-3 bg-[#1A1A1A] rounded-xl shadow-lg p-4 sm:p-6 w-full">
-            <h3 className="text-base sm:text-lg font-semibold tracking-wide">
-              Top Routes
-            </h3>
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-base sm:text-lg font-semibold tracking-wide">
+                Top Routes
+              </h3>
+              <button
+                type="button"
+                onClick={() => navigate("/shipments")}
+                className="text-[11px] sm:text-xs font-semibold text-gray-300 hover:text-[#FFA500] transition"
+              >
+                Shipments →
+              </button>
+            </div>
+
             {loading ? (
               <div className="mt-4 text-sm text-gray-400">
                 Loading routes...
@@ -391,10 +467,11 @@ const Home = () => {
               <ul className="mt-4 space-y-3 text-sm text-gray-300">
                 {topRoutes.map((route, idx) => (
                   <li
-                    key={idx}
+                    key={`${route.route || "route"}-${idx}`}
                     className="flex items-center justify-between border-b border-[#333] pb-2 hover:bg-[#222] px-2 -mx-2 rounded cursor-pointer"
                     onClick={() => {
-                      const [origin, destination] = route.route.split(" → ");
+                      const raw = String(route.route || "");
+                      const [origin, destination] = raw.split(" → ");
                       navigate(
                         `/shipments?origin=${encodeURIComponent(
                           origin || ""
@@ -403,13 +480,13 @@ const Home = () => {
                     }}
                   >
                     <div className="flex flex-col">
-                      <span className="font-medium truncate max-w-[150px] sm:max-w-[180px]">
-                        {route.route}
+                      <span className="font-medium truncate max-w-[170px] sm:max-w-[220px]">
+                        {route.route || "—"}
                       </span>
                       <span className="text-[11px] text-gray-500">Route</span>
                     </div>
                     <span className="text-sm font-semibold text-[#FFA500]">
-                      {route.count}
+                      {route.count ?? 0}
                     </span>
                   </li>
                 ))}
@@ -418,18 +495,33 @@ const Home = () => {
           </div>
         </div>
 
-        {/* BOTTOM ROW: LATEST SHIPMENTS TABLE */}
+        {/* BOTTOM ROW: LATEST SHIPMENTS */}
         <div className="mt-10 bg-[#1A1A1A] rounded-xl shadow-lg p-4 sm:p-6">
-          <h3 className="text-base sm:text-lg font-semibold tracking-wide mb-4">
-            Latest Shipments
-          </h3>
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold tracking-wide">
+                Latest Shipments
+              </h3>
+              <p className="text-[11px] sm:text-xs text-gray-400 mt-1">
+                Most recently created records.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/shipments")}
+              className="text-[11px] sm:text-xs font-semibold text-gray-300 hover:text-[#FFA500] transition"
+            >
+              View all →
+            </button>
+          </div>
+
           {loading ? (
             <div className="text-sm text-gray-400">Loading shipments...</div>
           ) : latestShipments.length === 0 ? (
             <div className="text-sm text-gray-400">No shipments found yet.</div>
           ) : (
             <div className="w-full overflow-x-auto">
-              <table className="min-w-[640px] w-full text-xs sm:text-sm text-left text-gray-300">
+              <table className="min-w-[720px] w-full text-xs sm:text-sm text-left text-gray-300">
                 <thead className="border-b border-[#333] text-[11px] sm:text-xs uppercase tracking-wide text-gray-400">
                   <tr>
                     <th className="py-2 pr-4">Reference</th>
@@ -449,7 +541,7 @@ const Home = () => {
                       onClick={() => navigate(`/shipments/${s._id}`)}
                     >
                       <td className="py-2 pr-4 text-[#FFA500] font-medium">
-                        {s.referenceNo}
+                        {s.referenceNo || "—"}
                       </td>
                       <td className="py-2 pr-4">
                         {s.customer?.fullname ||
@@ -464,17 +556,15 @@ const Home = () => {
                         {s.ports?.destinationPort || s.destination || "—"}
                       </td>
                       <td className="py-2 pr-4">
-                        {s.mode ? String(s.mode).toLowerCase() : "—"}
+                        {s.mode ? String(s.mode) : "—"}
                       </td>
                       <td className="py-2 pr-4">
                         <span className="px-2 py-1 rounded-full bg-[#222] text-[11px] sm:text-xs capitalize">
-                          {s.status || "pending"}
+                          {formatStatusLabel(s.status)}
                         </span>
                       </td>
                       <td className="py-2 pr-4">
-                        {s.createdAt
-                          ? new Date(s.createdAt).toISOString().slice(0, 10)
-                          : "—"}
+                        {formatIsoDate(s.createdAt)}
                       </td>
                     </tr>
                   ))}
