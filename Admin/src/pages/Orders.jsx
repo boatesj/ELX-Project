@@ -250,6 +250,12 @@ const Orders = () => {
     navigate(`/shipments/${id}`);
   };
 
+  // Mobile card click uses the same navigation behaviour
+  const handleCardClick = (id) => {
+    if (!id) return;
+    navigate(`/shipments/${id}`);
+  };
+
   // Quick stats
   const totalOrders = shipments.length;
   const deliveredCount = shipments.filter(
@@ -313,24 +319,25 @@ const Orders = () => {
   };
 
   return (
-    <div className="p-8 bg-[#0F0F0F] min-h-screen text-white">
+    <div className="p-3 sm:p-6 lg:p-8 bg-[#0F0F0F] min-h-screen text-white">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">Orders</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold">Orders</h1>
           <p className="text-sm text-gray-400 mt-1">
             Commercial view of all shipments and their payment status.
           </p>
         </div>
 
         {/* Summary badges */}
-        <div className="flex gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs w-full lg:w-auto">
           <div className="px-3 py-2 rounded-lg bg-[#020617] border border-[#1f2937]">
             <span className="block text-gray-400 uppercase tracking-wide">
               Total Orders
             </span>
             <span className="text-xl font-semibold">{totalOrders}</span>
           </div>
+
           <div className="px-3 py-2 rounded-lg bg-[#020617] border border-[#1f2937]">
             <span className="block text-gray-400 uppercase tracking-wide">
               Delivered
@@ -339,6 +346,7 @@ const Orders = () => {
               {deliveredCount}
             </span>
           </div>
+
           <div className="px-3 py-2 rounded-lg bg-[#020617] border border-[#1f2937]">
             <span className="block text-gray-400 uppercase tracking-wide">
               Unpaid
@@ -357,14 +365,14 @@ const Orders = () => {
       )}
 
       {/* Filters + Search + Export */}
-      <div className="mb-4 flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex flex-wrap gap-4 items-center">
+      <div className="mb-4 grid grid-cols-1 lg:flex lg:flex-wrap gap-3 lg:gap-4 lg:items-center lg:justify-between">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           {/* Search */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-300">Search:</span>
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-gray-300">Search</span>
             <input
               type="text"
-              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-2 py-1 outline-none"
+              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-3 py-2 outline-none w-full"
               placeholder="Ref, customer, shipper, route..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -372,10 +380,10 @@ const Orders = () => {
           </div>
 
           {/* Status filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-300">Status:</span>
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-gray-300">Status</span>
             <select
-              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-2 py-1 outline-none"
+              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-3 py-2 outline-none w-full"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -392,10 +400,10 @@ const Orders = () => {
           </div>
 
           {/* Mode filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-300">Mode:</span>
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-gray-300">Mode</span>
             <select
-              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-2 py-1 outline-none"
+              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-3 py-2 outline-none w-full"
               value={modeFilter}
               onChange={(e) => setModeFilter(e.target.value)}
             >
@@ -411,10 +419,10 @@ const Orders = () => {
           </div>
 
           {/* Payment filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-300">Payment:</span>
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-gray-300">Payment</span>
             <select
-              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-2 py-1 outline-none"
+              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-3 py-2 outline-none w-full"
               value={paymentFilter}
               onChange={(e) => setPaymentFilter(e.target.value)}
             >
@@ -428,18 +436,102 @@ const Orders = () => {
         </div>
 
         {/* Export button */}
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          disabled={!filteredRows.length}
-          className="text-xs px-3 py-2 rounded-md border border-[#374151] bg-[#020617] text-gray-200 hover:bg-[#111827] disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Export CSV ({filteredRows.length || 0})
-        </button>
+        <div className="flex items-end justify-end">
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={!filteredRows.length}
+            className="w-full sm:w-auto text-xs px-3 py-2 rounded-md border border-[#374151] bg-[#020617] text-gray-200 hover:bg-[#111827] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Export CSV ({filteredRows.length || 0})
+          </button>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-[#020617] rounded-2xl p-4 shadow-2xl border border-[#1f2937]">
+      {/* MOBILE: Card view */}
+      <div className="grid gap-3 lg:hidden">
+        {loading ? (
+          <div className="bg-[#020617] rounded-2xl p-4 border border-[#1f2937] text-sm text-gray-400">
+            Loading orders…
+          </div>
+        ) : filteredRows.length === 0 ? (
+          <div className="bg-[#020617] rounded-2xl p-4 border border-[#1f2937] text-sm text-gray-400">
+            No orders found for the current filters.
+          </div>
+        ) : (
+          filteredRows.map((row) => {
+            const payment = (row.paymentStatus || "unpaid").toLowerCase();
+            const status = (row.status || "pending").toLowerCase();
+
+            return (
+              <button
+                key={row.id}
+                type="button"
+                onClick={() => handleCardClick(row.id)}
+                className="text-left bg-[#020617] rounded-2xl p-4 shadow-2xl border border-[#1f2937] hover:bg-[#111827] transition"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-[#FFA500] break-words">
+                      {row.referenceNo || "—"}
+                    </div>
+                    <div className="text-xs text-gray-300 mt-1 break-words">
+                      {row.customer || "—"}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${getStatusChipClass(
+                        status
+                      )}`}
+                    >
+                      {status}
+                    </span>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-semibold ${getPaymentChipClass(
+                        payment
+                      )}`}
+                    >
+                      {payment.replace("_", " ")}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-gray-400">Route</span>
+                    <span className="text-sm text-gray-100 font-medium text-right break-words">
+                      {(row.origin || "—") + " → " + (row.destination || "—")}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-gray-400">Mode</span>
+                    <span className="text-sm text-gray-100 font-medium capitalize">
+                      {row.mode || "—"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-gray-400">Created</span>
+                    <span className="text-sm text-gray-100 font-medium">
+                      {row.createdAt || "—"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-3 text-xs text-gray-500">
+                  Tap to view full shipment details
+                </div>
+              </button>
+            );
+          })
+        )}
+      </div>
+
+      {/* DESKTOP: Table */}
+      <div className="hidden lg:block bg-[#020617] rounded-2xl p-4 shadow-2xl border border-[#1f2937]">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold tracking-[0.16em] uppercase text-gray-300">
             Orders Table
