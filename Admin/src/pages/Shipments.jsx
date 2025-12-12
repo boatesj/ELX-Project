@@ -1,7 +1,8 @@
+//Admin/src/pages/Shipments.jsx
 import { DataGrid } from "@mui/x-data-grid";
 import { FaTrash } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { authRequest } from "../requestMethods";
 
 const formatStatusLabel = (status) => {
@@ -57,99 +58,72 @@ const Shipments = () => {
     }
   };
 
-  const columns = [
-    {
-      field: "referenceNo",
-      headerName: "Reference",
-      width: 190,
-    },
-    {
-      field: "shipper",
-      headerName: "Shipper",
-      width: 220,
-    },
-    {
-      field: "consignee",
-      headerName: "Consignee",
-      width: 220,
-    },
-    {
-      field: "from",
-      headerName: "From",
-      width: 160,
-    },
-    {
-      field: "destination",
-      headerName: "Destination",
-      width: 170,
-    },
-    {
-      field: "mode",
-      headerName: "Mode",
-      width: 110,
-    },
-    {
-      field: "weight",
-      headerName: "Weight",
-      width: 120,
-    },
-    {
-      field: "status",
-      headerName: "Status",
-      width: 160,
-      renderCell: (params) => (
-        <div className="flex items-center h-full">
-          <span
-            className={`px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
-              params.value
-            )}`}
-          >
-            {formatStatusLabel(params.value)}
-          </span>
-        </div>
-      ),
-    },
-    {
-      field: "actions",
-      headerName: "Actions",
-      width: 200,
-      sortable: false,
-      filterable: false,
-      renderCell: (params) => {
-        const id = params.row._id;
-        return (
-          <div className="flex items-center h-full gap-3">
-            {/* Edit Button */}
-            <Link to={`/shipments/${id}`}>
+  const columns = useMemo(
+    () => [
+      { field: "referenceNo", headerName: "Reference", width: 190 },
+      { field: "shipper", headerName: "Shipper", width: 220 },
+      { field: "consignee", headerName: "Consignee", width: 220 },
+      { field: "from", headerName: "From", width: 160 },
+      { field: "destination", headerName: "Destination", width: 170 },
+      { field: "mode", headerName: "Mode", width: 110 },
+      { field: "weight", headerName: "Weight", width: 120 },
+      {
+        field: "status",
+        headerName: "Status",
+        width: 160,
+        renderCell: (params) => (
+          <div className="flex items-center h-full">
+            <span
+              className={`px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
+                params.value
+              )}`}
+            >
+              {formatStatusLabel(params.value)}
+            </span>
+          </div>
+        ),
+      },
+      {
+        field: "actions",
+        headerName: "Actions",
+        width: 200,
+        sortable: false,
+        filterable: false,
+        renderCell: (params) => {
+          const id = params.row._id;
+          return (
+            <div className="flex items-center h-full gap-3">
+              <Link to={`/shipments/${id}`}>
+                <button
+                  className="
+                    px-3 py-1 rounded-md font-semibold text-xs
+                    bg-[#FFA500] text-black
+                    hover:bg-[#e69300] transition
+                  "
+                >
+                  Edit
+                </button>
+              </Link>
+
               <button
+                onClick={() => handleDelete(id)}
                 className="
+                  flex items-center gap-2 
                   px-3 py-1 rounded-md font-semibold text-xs
-                  bg-[#FFA500] text-black
-                  hover:bg-[#e69300] transition
+                  bg-[#E53935] text-white
+                  hover:bg-[#c62828] transition
                 "
               >
-                Edit
+                <FaTrash className="text-white" />
+                Delete
               </button>
-            </Link>
-
-            {/* Delete Button */}
-            <button
-              onClick={() => handleDelete(id)}
-              className="
-                flex items-center gap-2 
-                px-3 py-1 rounded-md font-semibold text-xs
-                bg-[#E53935] text-white
-                hover:bg-[#c62828] transition
-              "
-            >
-              <FaTrash className="text-white" />
-              Delete
-            </button>
-          </div>
-        );
+            </div>
+          );
+        },
       },
-    },
-  ];
+    ],
+    []
+  );
 
   useEffect(() => {
     const getShipments = async () => {
@@ -196,17 +170,96 @@ const Shipments = () => {
   }, []);
 
   return (
-    <div className="m-[30px] bg-[#D9D9D9] p-[20px] rounded-md">
-      <div className="flex items-center justify-between mb-[20px]">
-        <h1 className="text-[20px] font-semibold">All Shipments</h1>
-        <Link to="/newshipment">
-          <button className="bg-[#1A2930] text-white px-[16px] py-[10px] rounded-md hover:bg-[#FFA500] transition">
+    <div className="bg-[#D9D9D9] rounded-md p-3 sm:p-5 lg:p-[20px]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+        <h1 className="text-[18px] sm:text-[20px] font-semibold">
+          All Shipments
+        </h1>
+
+        <Link to="/newshipment" className="w-full sm:w-auto">
+          <button className="w-full sm:w-auto bg-[#1A2930] text-white px-4 py-2.5 rounded-md hover:bg-[#FFA500] hover:text-black transition font-semibold">
             New Shipment
           </button>
         </Link>
       </div>
 
-      <div className="bg-white rounded-md p-4 shadow-md">
+      {/* MOBILE: Card list */}
+      <div className="grid gap-3 lg:hidden">
+        {rows.length === 0 ? (
+          <div className="bg-white rounded-md p-4 shadow-md text-sm text-gray-600">
+            No shipments found.
+          </div>
+        ) : (
+          rows.map((row) => (
+            <div
+              key={row._id}
+              className="bg-white rounded-md p-4 shadow-md border border-slate-100"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-slate-900 break-words">
+                    {row.referenceNo || "—"}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    {row.mode ? row.mode.toUpperCase() : "—"}{" "}
+                    {row.weight ? `• ${row.weight}` : ""}
+                  </div>
+                </div>
+
+                <span
+                  className={`shrink-0 px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
+                    row.status
+                  )}`}
+                >
+                  {formatStatusLabel(row.status)}
+                </span>
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-slate-500 text-xs">Shipper</span>
+                  <span className="text-slate-900 text-sm font-medium text-right break-words">
+                    {row.shipper || "—"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-slate-500 text-xs">Consignee</span>
+                  <span className="text-slate-900 text-sm font-medium text-right break-words">
+                    {row.consignee || "—"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-slate-500 text-xs">Route</span>
+                  <span className="text-slate-900 text-sm font-medium text-right break-words">
+                    {(row.from || "—") + " → " + (row.destination || "—")}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2">
+                <Link to={`/shipments/${row._id}`} className="flex-1">
+                  <button className="w-full px-3 py-2 rounded-md font-semibold text-xs bg-[#FFA500] text-black hover:bg-[#e69300] transition">
+                    Edit
+                  </button>
+                </Link>
+
+                <button
+                  onClick={() => handleDelete(row._id)}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md font-semibold text-xs bg-[#E53935] text-white hover:bg-[#c62828] transition"
+                >
+                  <FaTrash className="text-white" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* DESKTOP: DataGrid */}
+      <div className="hidden lg:block bg-white rounded-md p-4 shadow-md">
         <DataGrid
           rows={rows}
           getRowId={(row) => row._id}
