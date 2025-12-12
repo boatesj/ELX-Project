@@ -1,3 +1,4 @@
+// Admin/src/pages/Users.jsx
 import { useEffect, useState, useMemo } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { FaTrash, FaEye, FaEdit } from "react-icons/fa";
@@ -133,13 +134,15 @@ const Users = () => {
   }, []);
 
   const handleView = (id) => {
-    console.log("View user", id);
-    // later: navigate(`/users/${id}`)
+    if (!id) return;
+    // Navigate to a dedicated user details page
+    navigate(`/users/${id}`);
   };
 
   const handleEdit = (id) => {
-    console.log("Edit user", id);
-    // later: navigate(`/users/${id}/edit`)
+    if (!id) return;
+    // Navigate to a dedicated edit-user page
+    navigate(`/users/${id}/edit`);
   };
 
   const handleDelete = async (id) => {

@@ -7,6 +7,7 @@ const API_BASE_URL =
 
 const SHIPMENTS_API = `${API_BASE_URL}/shipments`;
 
+// Status chip styling
 const getStatusChipClass = (status) => {
   switch (status) {
     case "delivered":
@@ -24,6 +25,7 @@ const getStatusChipClass = (status) => {
   }
 };
 
+// Payment chip styling
 const getPaymentChipClass = (paymentStatus) => {
   switch (paymentStatus) {
     case "paid":
@@ -46,6 +48,7 @@ const Orders = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [modeFilter, setModeFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState(""); // 🔍 NEW
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
 
@@ -56,6 +59,7 @@ const Orders = () => {
 
     try {
       const token = localStorage.getItem("token");
+
       if (!token) {
         setLoadError("Please log in to view orders.");
         navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
@@ -77,12 +81,29 @@ const Orders = () => {
       }
 
       const data = await res.json();
+      console.log("Shipments API raw response:", data);
 
-      if (!res.ok || !data.ok) {
-        throw new Error(data.message || "Failed to load shipments");
+      if (!res.ok) {
+        throw new Error(data?.message || "Failed to load shipments");
       }
 
-      const list = Array.isArray(data.data) ? data.data : [];
+      // Normalise different payload shapes:
+      let list = [];
+
+      if (Array.isArray(data)) {
+        // e.g. backend returns just an array
+        list = data;
+      } else if (Array.isArray(data.data)) {
+        // e.g. { data: [...] }
+        list = data.data;
+      } else if (Array.isArray(data.shipments)) {
+        // e.g. { shipments: [...] }
+        list = data.shipments;
+      } else {
+        console.warn("Unexpected shipments response shape:", data);
+        list = [];
+      }
+
       setShipments(list);
     } catch (err) {
       console.error("Orders load error:", err);
@@ -99,6 +120,8 @@ const Orders = () => {
 
   // Client-side filters + mapping into rows
   const filteredRows = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+
     return shipments
       .filter((s) =>
         statusFilter === "all"
@@ -115,12 +138,37 @@ const Orders = () => {
           ? true
           : (s.paymentStatus || "").toLowerCase() === paymentFilter
       )
+      .filter((s) => {
+        if (!term) return true;
+
+        const customerName =
+          s.customer?.fullname ||
+          s.customer?.name ||
+          s.shipper?.name ||
+          s.customerName ||
+          "";
+        const origin = s.ports?.originPort || s.origin || "";
+        const destination = s.ports?.destinationPort || s.destination || "";
+        const ref = s.referenceNo || "";
+        const consigneeName = s.consignee?.name || "";
+
+        const haystack = [customerName, origin, destination, ref, consigneeName]
+          .join(" ")
+          .toLowerCase();
+
+        return haystack.includes(term);
+      })
       .map((s, index) => ({
         id: s._id || index,
         referenceNo: s.referenceNo,
-        customer: s.customer?.fullname || "—",
-        origin: s.ports?.originPort || "—",
-        destination: s.ports?.destinationPort || "—",
+        customer:
+          s.customer?.fullname ||
+          s.customer?.name ||
+          s.shipper?.name ||
+          s.customerName ||
+          "—",
+        origin: s.ports?.originPort || s.origin || "—",
+        destination: s.ports?.destinationPort || s.destination || "—",
         mode: s.mode || "—",
         paymentStatus: s.paymentStatus || "unpaid",
         status: s.status || "pending",
@@ -128,7 +176,7 @@ const Orders = () => {
           ? new Date(s.createdAt).toISOString().slice(0, 10)
           : "—",
       }));
-  }, [shipments, statusFilter, modeFilter, paymentFilter]);
+  }, [shipments, statusFilter, modeFilter, paymentFilter, searchTerm]);
 
   const columns = [
     {
@@ -156,36 +204,42 @@ const Orders = () => {
       headerName: "Mode",
       width: 120,
       renderCell: (params) => (
-        <span className="capitalize text-gray-100">{params.value}</span>
+        <span className="capitalize text-gray-100">{params.value || "—"}</span>
       ),
     },
     {
       field: "paymentStatus",
       headerName: "Payment",
       width: 150,
-      renderCell: (params) => (
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-semibold ${getPaymentChipClass(
-            (params.value || "").toLowerCase()
-          )}`}
-        >
-          {(params.value || "unpaid").replace("_", " ")}
-        </span>
-      ),
+      renderCell: (params) => {
+        const value = (params.value || "unpaid").toLowerCase();
+        return (
+          <span
+            className={`px-2 py-1 rounded-full text-xs font-semibold ${getPaymentChipClass(
+              value
+            )}`}
+          >
+            {value.replace("_", " ")}
+          </span>
+        );
+      },
     },
     {
       field: "status",
       headerName: "Status",
       width: 150,
-      renderCell: (params) => (
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${getStatusChipClass(
-            (params.value || "").toLowerCase()
-          )}`}
-        >
-          {params.value || "pending"}
-        </span>
-      ),
+      renderCell: (params) => {
+        const value = (params.value || "pending").toLowerCase();
+        return (
+          <span
+            className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${getStatusChipClass(
+              value
+            )}`}
+          >
+            {value}
+          </span>
+        );
+      },
     },
     { field: "createdAt", headerName: "Created", width: 130 },
   ];
@@ -302,9 +356,22 @@ const Orders = () => {
         </div>
       )}
 
-      {/* Filters */}
+      {/* Filters + Search + Export */}
       <div className="mb-4 flex flex-wrap gap-4 items-center justify-between">
         <div className="flex flex-wrap gap-4 items-center">
+          {/* Search */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-300">Search:</span>
+            <input
+              type="text"
+              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-2 py-1 outline-none"
+              placeholder="Ref, customer, shipper, route..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* Status filter */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-300">Status:</span>
             <select
@@ -324,7 +391,8 @@ const Orders = () => {
             </select>
           </div>
 
-          <div className="flex itemscenter gap-2">
+          {/* Mode filter */}
+          <div className="flex items-center gap-2">
             <span className="text-sm text-gray-300">Mode:</span>
             <select
               className="bg-[#020617] border border-[#1f2937] text-sm rounded px-2 py-1 outline-none"
@@ -342,6 +410,7 @@ const Orders = () => {
             </select>
           </div>
 
+          {/* Payment filter */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-300">Payment:</span>
             <select
@@ -369,7 +438,7 @@ const Orders = () => {
         </button>
       </div>
 
-      {/* Table – re-styled for visibility */}
+      {/* Table */}
       <div className="bg-[#020617] rounded-2xl p-4 shadow-2xl border border-[#1f2937]">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold tracking-[0.16em] uppercase text-gray-300">
@@ -398,13 +467,10 @@ const Orders = () => {
             color: "#E5E5E5",
             fontSize: "0.85rem",
 
-            // HEADER ROW container
             "& .MuiDataGrid-columnHeaders": {
               backgroundColor: "#0D121C",
               borderBottom: "1px solid #1F2937",
             },
-
-            // INDIVIDUAL HEADER CELLS
             "& .MuiDataGrid-columnHeader": {
               backgroundColor: "#0D121C",
               color: "#FFFFFF",
@@ -413,12 +479,10 @@ const Orders = () => {
               textTransform: "uppercase",
               letterSpacing: "0.14em",
             },
-
             "& .MuiDataGrid-columnHeaderTitle": {
               color: "#FFFFFF",
               fontWeight: 700,
             },
-
             "& .MuiDataGrid-cell": {
               borderBottom: "1px solid #1f2937",
             },

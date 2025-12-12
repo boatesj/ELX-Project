@@ -21,6 +21,14 @@ const SERVICE_TYPE_OPTIONS = [
   { value: "air_freight", label: "Air freight" },
 ];
 
+// NEW: payment status options
+const PAYMENT_STATUS_OPTIONS = [
+  { value: "unpaid", label: "Unpaid" },
+  { value: "part_paid", label: "Part paid" },
+  { value: "paid", label: "Paid" },
+  { value: "on_account", label: "On account" },
+];
+
 const MODE_OPTIONS = {
   sea_freight: [
     { value: "roro", label: "RoRo – vehicle shipment" },
@@ -41,22 +49,25 @@ const backendModeToUiMode = (serviceType, backendMode) => {
 
   if (serviceType === "air_freight") {
     // For air we currently store "Container" in backend – treat as generic air.
-    return "air_general";
+    return mode.includes("doc") ? "air_docs" : "air_general";
   }
 
   // Sea freight
   if (mode === "roro") return "roro";
   if (mode === "container") return "fcl"; // default to FCL for containers
+  if (mode === "lcl") return "lcl";
   return "roro";
 };
 
 const uiModeToBackendMode = (serviceType, uiMode) => {
   if (serviceType === "sea_freight") {
-    return uiMode === "roro" ? "RoRo" : "Container";
+    if (uiMode === "roro") return "RoRo";
+    if (uiMode === "lcl") return "LCL";
+    return "Container"; // FCL as default container
   }
   if (serviceType === "air_freight") {
     // Backend doesn’t have an "Air" enum yet – keep using "Container"
-    // and distinguish air vs sea via serviceType + UI mode.
+    // and distinguish via serviceType + UI mode.
     return "Container";
   }
   return "Container";
@@ -129,6 +140,12 @@ const Shipment = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Document section state
+  const [newDocName, setNewDocName] = useState("");
+  const [newDocUrl, setNewDocUrl] = useState("");
+  const [docSaving, setDocSaving] = useState(false);
+  const [docError, setDocError] = useState("");
 
   const [form, setForm] = useState({
     // Core identifiers
@@ -219,7 +236,11 @@ const Shipment = () => {
         const res = await authRequest.get(`/api/v1/shipments/${shipmentId}`);
         const s = res.data?.shipment || res.data?.data || res.data;
 
-        setShipment(s);
+        if (!s) {
+          setShipment(null);
+          setErrorMsg("Shipment not found.");
+          return;
+        }
 
         const inferredServiceType =
           s.serviceType ||
@@ -228,6 +249,11 @@ const Shipment = () => {
             : "sea_freight");
 
         const uiMode = backendModeToUiMode(inferredServiceType, s.mode);
+
+        setShipment({
+          ...s,
+          documents: s.documents || [],
+        });
 
         setForm({
           referenceNo: s.referenceNo || "",
@@ -298,7 +324,7 @@ const Shipment = () => {
   // ---------------- SAVE / UPDATE BOOKING ----------------
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!shipmentId) return;
+    if (!shipmentId || !shipment) return;
 
     try {
       setSaving(true);
@@ -369,7 +395,7 @@ const Shipment = () => {
       };
 
       if (form.cargoType) {
-        payload.cargoType = form.cargoType; // vehicle | container | lcl (for internal reporting)
+        payload.cargoType = form.cargoType; // vehicle | container | lcl
       }
 
       const res = await authRequest.put(
@@ -377,7 +403,11 @@ const Shipment = () => {
         payload
       );
       const updated = res.data?.shipment || res.data?.data || res.data;
-      setShipment(updated);
+
+      setShipment((prev) => ({
+        ...(prev || {}),
+        ...(updated || {}),
+      }));
 
       alert("Shipment updated successfully.");
     } catch (error) {
@@ -390,6 +420,47 @@ const Shipment = () => {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ---------------- DOCUMENTS: ADD / MANAGE ----------------
+  const handleAddDocument = async () => {
+    if (!shipmentId) return;
+
+    if (!newDocName.trim() || !newDocUrl.trim()) {
+      setDocError("Please provide both a document name and a file URL.");
+      return;
+    }
+
+    try {
+      setDocSaving(true);
+      setDocError("");
+
+      const res = await authRequest.post(
+        `/api/v1/shipments/${shipmentId}/documents`,
+        {
+          name: newDocName.trim(),
+          fileUrl: newDocUrl.trim(),
+        }
+      );
+
+      const docs = res.data?.data || [];
+
+      setShipment((prev) => ({
+        ...(prev || {}),
+        documents: docs,
+      }));
+
+      setNewDocName("");
+      setNewDocUrl("");
+    } catch (error) {
+      console.error("❌ Error adding document:", error.response?.data || error);
+      setDocError(
+        error.response?.data?.message ||
+          "Failed to add document to this shipment."
+      );
+    } finally {
+      setDocSaving(false);
     }
   };
 
@@ -573,7 +644,30 @@ const Shipment = () => {
               </div>
             </div>
 
-            {/* Cargo type (still useful for validation / views) */}
+            {/* NEW: Payment status row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-700">
+                  Payment status
+                </label>
+                <select
+                  value={form.paymentStatus}
+                  onChange={handleChange("paymentStatus")}
+                  className="border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+                >
+                  {PAYMENT_STATUS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-gray-500 mt-0.5">
+                  Controls how this order appears in the Orders view.
+                </p>
+              </div>
+            </div>
+
+            {/* Cargo type (internal) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-gray-700">
@@ -726,7 +820,7 @@ const Shipment = () => {
           </div>
         </div>
 
-        {/* RIGHT – Parties & Cargo */}
+        {/* RIGHT – Parties, Cargo, Documents */}
         <div className="space-y-4">
           {/* Shipper / Consignee / Notify */}
           <div className="bg-white rounded-md p-4 shadow-sm space-y-4">
@@ -963,6 +1057,87 @@ const Shipment = () => {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Documents */}
+          <div className="bg-white rounded-md p-4 shadow-sm space-y-3">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+              Documents
+            </h2>
+
+            {docError && (
+              <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md">
+                {docError}
+              </p>
+            )}
+
+            {/* Existing documents list */}
+            <div className="space-y-2">
+              {(shipment.documents || []).length === 0 ? (
+                <p className="text-xs text-gray-500">
+                  No documents uploaded yet for this shipment.
+                </p>
+              ) : (
+                <ul className="space-y-1 text-xs">
+                  {(shipment.documents || []).map((doc, idx) => (
+                    <li
+                      key={doc.fileUrl || idx}
+                      className="flex items-center justify-between border border-gray-100 rounded-md px-3 py-2"
+                    >
+                      <div className="flex flex-col">
+                        <a
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[13px] font-medium text-[#1A2930] hover:text-[#FFA500]"
+                        >
+                          {doc.name}
+                        </a>
+                        <span className="text-[10px] text-gray-500">
+                          Uploaded{" "}
+                          {doc.uploadedAt
+                            ? new Date(doc.uploadedAt).toLocaleDateString(
+                                "en-GB"
+                              )
+                            : ""}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Attach new document (no nested form – just inputs + button) */}
+            <div className="mt-3 border-t border-gray-100 pt-3 space-y-2">
+              <p className="text-[11px] font-semibold text-gray-700">
+                Attach new document
+              </p>
+              <input
+                type="text"
+                value={newDocName}
+                onChange={(e) => setNewDocName(e.target.value)}
+                className="border border-gray-300 rounded px-3 py-1.5 text-xs w-full"
+                placeholder="Document name (e.g. Invoice, Draft BL, Packing list)"
+              />
+              <input
+                type="url"
+                value={newDocUrl}
+                onChange={(e) => setNewDocUrl(e.target.value)}
+                className="border border-gray-300 rounded px-3 py-1.5 text-xs w-full"
+                placeholder="Public file URL (e.g. S3, Cloudinary, SharePoint link)"
+              />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleAddDocument}
+                  disabled={docSaving}
+                  className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#FFA500] hover:text-black transition disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {docSaving ? "Saving…" : "Add document"}
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Save button */}
