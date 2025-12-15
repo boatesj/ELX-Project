@@ -1,4 +1,3 @@
-// Admin/src/App.jsx
 import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
 import { useState } from "react";
 
@@ -22,6 +21,11 @@ import Elements from "./pages/Elements";
 import Ports from "./pages/Ports";
 import ServiceTypes from "./pages/ServiceTypes";
 import CargoCategories from "./pages/CargoCategories";
+import Settings from "./pages/Settings";
+import Backups from "./pages/Backups";
+import Charts from "./pages/Charts";
+import Logs from "./pages/Logs";
+import Calendar from "./pages/Calendar";
 
 // Layout wrapper for all authenticated/admin pages
 function Layout() {
@@ -31,14 +35,30 @@ function Layout() {
   const closeMenu = () => setIsMenuOpen(false);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div
+      className="
+        min-h-screen flex flex-col
+        text-white font-montserrat
+        bg-[#071013]
+        bg-[radial-gradient(900px_450px_at_20%_0%,rgba(255,165,0,0.14),transparent_55%),radial-gradient(700px_420px_at_90%_10%,rgba(56,189,248,0.12),transparent_55%),radial-gradient(800px_520px_at_55%_100%,rgba(16,185,129,0.10),transparent_60%)]
+      "
+    >
       {/* Navbar now needs a burger button on mobile */}
       <Navbar onMenuClick={openMenu} />
 
       <div className="flex flex-1 w-full">
         {/* Desktop sidebar (lg+) */}
-        <aside className="hidden lg:block lg:w-[280px] xl:w-[320px] border-r border-slate-200 bg-white">
-          <Menu />
+        <aside
+          className="
+            hidden lg:block lg:w-[280px] xl:w-[320px]
+            border-r border-white/10
+            bg-gradient-to-b from-[#0E1B20] to-[#0A1418]
+            shadow-[0_18px_60px_-28px_rgba(0,0,0,0.8)]
+          "
+        >
+          <div className="h-full">
+            <Menu />
+          </div>
         </aside>
 
         {/* Mobile drawer */}
@@ -48,17 +68,30 @@ function Layout() {
             <button
               aria-label="Close menu overlay"
               onClick={closeMenu}
-              className="absolute inset-0 bg-black/40"
+              className="absolute inset-0 bg-black/50"
             />
+
             {/* drawer */}
-            <div className="relative h-full w-[85%] max-w-[320px] bg-white shadow-xl border-r border-slate-200">
-              <div className="flex items-center justify-between px-4 py-4 border-b border-slate-200">
-                <div className="text-sm font-semibold tracking-wide text-slate-900">
-                  Ellcworth Admin
+            <div
+              className="
+                relative h-full w-[85%] max-w-[320px]
+                border-r border-white/10
+                bg-gradient-to-b from-[#0E1B20] to-[#0A1418]
+                shadow-[0_24px_70px_rgba(0,0,0,0.75)]
+              "
+            >
+              <div className="flex items-center justify-between px-4 py-4 border-b border-white/10">
+                <div className="text-sm font-semibold tracking-[0.16em] text-white">
+                  Ellcworth <span className="text-[#FFA500]">ADMIN</span>
                 </div>
+
                 <button
                   onClick={closeMenu}
-                  className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  className="
+                    rounded-lg px-3 py-2 text-sm font-semibold
+                    text-white/80 hover:text-white
+                    hover:bg-white/10 transition
+                  "
                 >
                   Close
                 </button>
@@ -109,6 +142,12 @@ const router = createBrowserRouter([
       { path: "elements/ports", element: <Ports /> },
       { path: "elements/service-types", element: <ServiceTypes /> },
       { path: "elements/cargo-categories", element: <CargoCategories /> },
+
+      { path: "settings", element: <Settings /> },
+      { path: "backups", element: <Backups /> },
+      { path: "charts", element: <Charts /> },
+      { path: "logs", element: <Logs /> },
+      { path: "calendar", element: <Calendar /> },
     ],
   },
   { path: "/login", element: <Login /> },
