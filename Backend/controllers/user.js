@@ -95,6 +95,75 @@ const getAllUsers = async (req, res) => {
 };
 
 /**
+ * GET SINGLE USER BY ID
+ * --------------------------------------------------
+ * Used by the admin "View" / "Edit" pages.
+ */
+const getUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const user = await User.findById(id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Frontend handles both { user } and raw object; raw is fine here
+    return res.status(200).json(user);
+  } catch (error) {
+    console.error("Error fetching user by id:", error);
+    return res.status(500).json({
+      message: "Failed to fetch user",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * UPDATE USER
+ * --------------------------------------------------
+ * Admin-only edit of CRM fields (not password).
+ */
+const updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+
+    const updates = { ...req.body };
+
+    // Never update password from this route
+    delete updates.password;
+
+    const updatedUser = await User.findByIdAndUpdate(id, updates, {
+      new: true,
+    }).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json({
+      message: "User updated successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Error updating user:", error);
+    return res.status(500).json({
+      message: "Failed to update user",
+      error: error.message,
+    });
+  }
+};
+
+/**
  * DELETE USER
  * --------------------------------------------------
  * Hard delete (for now). Can later convert to soft delete.
@@ -128,5 +197,7 @@ const deleteUser = async (req, res) => {
 module.exports = {
   createUser,
   getAllUsers,
+  getUserById,
+  updateUser,
   deleteUser,
 };

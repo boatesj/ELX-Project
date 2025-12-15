@@ -36,7 +36,7 @@ router.post(
 
 /**
  * @route   GET /shipments
- * @desc    Get all shipments (admin)
+ * @desc    Get all shipments (admin) (optionally filter by ?customer=<userId>)
  */
 router.get("/", requireAuth, getAllShipments);
 

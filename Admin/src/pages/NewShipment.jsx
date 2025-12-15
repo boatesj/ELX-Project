@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { authRequest } from "../requestMethods";
 
@@ -21,6 +21,32 @@ const MODE_OPTIONS = {
 
 // Use a real customer ObjectId from Mongo (Jake Boateng in this case)
 const HOUSE_CUSTOMER_ID = "68caa1eb3f0ac9795dc43238";
+
+const Section = ({ title, subtitle, open, onToggle, children }) => {
+  return (
+    <div className="bg-white rounded-md shadow-sm border border-slate-100">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-start justify-between gap-4 px-4 py-3 text-left"
+      >
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+            {title}
+          </h3>
+          {subtitle ? (
+            <p className="text-[11px] text-gray-500 mt-1">{subtitle}</p>
+          ) : null}
+        </div>
+        <span className="text-xs font-semibold text-[#1A2930]">
+          {open ? "Hide" : "Show"}
+        </span>
+      </button>
+
+      {open ? <div className="px-4 pb-4">{children}</div> : null}
+    </div>
+  );
+};
 
 const NewShipment = () => {
   const navigate = useNavigate();
@@ -55,6 +81,11 @@ const NewShipment = () => {
     notes: "",
   });
 
+  // Mobile accordion state (desktop can show all if you want, but this works everywhere)
+  const [openService, setOpenService] = useState(true);
+  const [openCargo, setOpenCargo] = useState(true);
+  const [openParties, setOpenParties] = useState(true);
+
   const handleChange = (field) => (e) => {
     const value = e.target.value;
     setForm((prev) => {
@@ -67,7 +98,10 @@ const NewShipment = () => {
     });
   };
 
-  const currentModeOptions = MODE_OPTIONS[form.serviceType] || [];
+  const currentModeOptions = useMemo(
+    () => MODE_OPTIONS[form.serviceType] || [],
+    [form.serviceType]
+  );
 
   // Map UI mode → backend Shipment.mode enum
   const mapModeToBackend = () => {
@@ -93,6 +127,12 @@ const NewShipment = () => {
     const refPrefix = form.serviceType === "sea_freight" ? "SEA" : "AIR";
     return `ELL-${refPrefix}-${ts}`;
   };
+
+  const submitLabel = saving
+    ? "Creating..."
+    : form.recordType === "quote"
+    ? "Create quote & open booking"
+    : "Create shipment & open booking";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -179,9 +219,6 @@ const NewShipment = () => {
 
       // To avoid "No routes matched /shipments/:id" until details route is ready
       if (created && created._id) {
-        // If you later add <Route path="/shipments/:id" ... />,
-        // you can switch this back:
-        // navigate(`/shipments/${created._id}`);
         navigate("/shipments");
       } else {
         navigate("/shipments");
@@ -213,21 +250,21 @@ const NewShipment = () => {
   };
 
   return (
-    <div className="m-[30px] bg-white p-[30px] rounded-md shadow-md font-montserrat">
+    <div className="bg-[#D9D9D9] rounded-md p-3 sm:p-5 lg:p-[30px] font-montserrat">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-[24px]">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
         <div>
-          <h2 className="text-[22px] font-semibold text-[#1A2930]">
+          <h2 className="text-[20px] sm:text-[22px] font-semibold text-[#1A2930]">
             New Shipment / Quote
           </h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-600 mt-1">
             Capture the enquiry, choose Quote or Shipment, and complete details
             on the next screen.
           </p>
         </div>
 
         {/* Record type toggle */}
-        <div className="inline-flex rounded-full bg-[#F3F4F6] p-1 text-xs font-semibold">
+        <div className="inline-flex rounded-full bg-[#F3F4F6] p-1 text-xs font-semibold self-start">
           <button
             type="button"
             onClick={() => setForm((f) => ({ ...f, recordType: "quote" }))}
@@ -259,235 +296,280 @@ const NewShipment = () => {
         </p>
       )}
 
-      <form
-        onSubmit={handleSubmit}
-        className="flex flex-col gap-[32px] lg:flex-row lg:items-start"
-      >
-        {/* LEFT COLUMN – Service & Route */}
-        <div className="flex-1 space-y-5">
-          <div>
-            <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-3">
-              Service & route
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Service type
-                </label>
-                <select
-                  value={form.serviceType}
-                  onChange={handleChange("serviceType")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm bg-white"
-                >
-                  {SERVICE_TYPE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+      <form onSubmit={handleSubmit}>
+        {/* Desktop two-column layout; Mobile single-column */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 lg:gap-6">
+          {/* LEFT: Service + Cargo */}
+          <div className="space-y-4">
+            <Section
+              title="Service & route"
+              subtitle="Service type, product/mode and ports/airports."
+              open={openService}
+              onToggle={() => setOpenService((v) => !v)}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Service type
+                  </label>
+                  <select
+                    value={form.serviceType}
+                    onChange={handleChange("serviceType")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+                  >
+                    {SERVICE_TYPE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Product / mode
+                  </label>
+                  <select
+                    value={form.mode}
+                    onChange={handleChange("mode")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+                  >
+                    {currentModeOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Ready date
+                  </label>
+                  <input
+                    type="date"
+                    value={form.readyDate}
+                    onChange={handleChange("readyDate")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm bg-white"
+                  />
+                  <p className="text-[10px] text-gray-500 mt-0.5">
+                    When cargo / documents will be ready.
+                  </p>
+                </div>
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Product / mode
-                </label>
-                <select
-                  value={form.mode}
-                  onChange={handleChange("mode")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm bg-white"
-                >
-                  {currentModeOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Origin
+                  </label>
+                  <input
+                    type="text"
+                    value={form.origin}
+                    onChange={handleChange("origin")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm"
+                    placeholder={
+                      form.serviceType === "sea_freight"
+                        ? "Southampton, UK"
+                        : "Heathrow (LHR)"
+                    }
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Destination
+                  </label>
+                  <input
+                    type="text"
+                    value={form.destination}
+                    onChange={handleChange("destination")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm"
+                    placeholder={
+                      form.serviceType === "sea_freight"
+                        ? "Tema, Ghana"
+                        : "Accra (ACC)"
+                    }
+                  />
+                </div>
               </div>
+            </Section>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Ready date
-                </label>
-                <input
-                  type="date"
-                  value={form.readyDate}
-                  onChange={handleChange("readyDate")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm bg-white"
-                />
-                <p className="text-[10px] text-gray-500 mt-0.5">
-                  When cargo / documents will be ready.
-                </p>
-              </div>
-            </div>
+            <Section
+              title="Cargo / quote info"
+              subtitle="Weight, estimated cost and internal notes."
+              open={openCargo}
+              onToggle={() => setOpenCargo((v) => !v)}
+            >
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Weight (kg)
+                  </label>
+                  <input
+                    type="number"
+                    value={form.weight}
+                    onChange={handleChange("weight")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm"
+                    placeholder="e.g. 2000"
+                  />
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Origin
-                </label>
-                <input
-                  type="text"
-                  value={form.origin}
-                  onChange={handleChange("origin")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder={
-                    form.serviceType === "sea_freight"
-                      ? "Southampton, UK"
-                      : "Heathrow (LHR)"
-                  }
-                />
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Est. cost (£)
+                  </label>
+                  <input
+                    type="number"
+                    value={form.estimatedCost}
+                    onChange={handleChange("estimatedCost")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm"
+                    placeholder="e.g. 950"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Internal notes
+                  </label>
+                  <input
+                    type="text"
+                    value={form.notes}
+                    onChange={handleChange("notes")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm"
+                    placeholder="Perishable, secure docs, etc."
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Destination
-                </label>
-                <input
-                  type="text"
-                  value={form.destination}
-                  onChange={handleChange("destination")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder={
-                    form.serviceType === "sea_freight"
-                      ? "Tema, Ghana"
-                      : "Accra (ACC)"
-                  }
-                />
-              </div>
-            </div>
+            </Section>
           </div>
 
-          <div>
-            <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-3">
-              Cargo / quote info
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Weight (kg)
-                </label>
-                <input
-                  type="number"
-                  value={form.weight}
-                  onChange={handleChange("weight")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="e.g. 2000"
-                />
+          {/* RIGHT: Parties + helper text (desktop), on mobile this just stacks */}
+          <div className="space-y-4">
+            <Section
+              title="Parties"
+              subtitle="Shipper and consignee contact details."
+              open={openParties}
+              onToggle={() => setOpenParties((v) => !v)}
+            >
+              <div className="space-y-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Shipper name
+                  </label>
+                  <input
+                    type="text"
+                    value={form.shipperName}
+                    onChange={handleChange("shipperName")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm"
+                    placeholder="Shipper / client name"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Shipper email
+                  </label>
+                  <input
+                    type="email"
+                    value={form.shipperEmail}
+                    onChange={handleChange("shipperEmail")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm"
+                    placeholder="client@example.com"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Shipper address
+                  </label>
+                  <input
+                    type="text"
+                    value={form.shipperAddress}
+                    onChange={handleChange("shipperAddress")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm"
+                    placeholder="32 Ashbourne Road, Romford"
+                  />
+                </div>
+
+                <div className="h-px bg-gray-200 my-2" />
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Consignee name
+                  </label>
+                  <input
+                    type="text"
+                    value={form.consigneeName}
+                    onChange={handleChange("consigneeName")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm"
+                    placeholder="Consignee at destination"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Consignee email
+                  </label>
+                  <input
+                    type="email"
+                    value={form.consigneeEmail}
+                    onChange={handleChange("consigneeEmail")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm"
+                    placeholder="consignee@example.com"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-gray-700">
+                    Consignee address
+                  </label>
+                  <input
+                    type="text"
+                    value={form.consigneeAddress}
+                    onChange={handleChange("consigneeAddress")}
+                    className="border border-gray-300 rounded px-3 py-2 text-sm"
+                    placeholder="Address at destination"
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Est. cost (£)
-                </label>
-                <input
-                  type="number"
-                  value={form.estimatedCost}
-                  onChange={handleChange("estimatedCost")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="e.g. 950"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Internal notes
-                </label>
-                <input
-                  type="text"
-                  value={form.notes}
-                  onChange={handleChange("notes")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="Perishable, secure docs, etc."
-                />
-              </div>
+            </Section>
+
+            {/* Desktop helper copy (kept), mobile users will see it above the sticky CTA too */}
+            <div className="hidden lg:block bg-white rounded-md p-4 border border-slate-100">
+              <p className="text-[11px] text-gray-600">
+                We’ll create a basic record and take you to the full booking
+                screen to add vessel, routing, documents and charges.
+              </p>
             </div>
           </div>
         </div>
 
-        {/* RIGHT COLUMN – Parties & Submit */}
-        <div className="w-full max-w-[360px] space-y-5">
-          <div>
-            <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-3">
-              Parties
-            </h3>
+        {/* Desktop submit (normal position) */}
+        <div className="hidden lg:block mt-6">
+          <button
+            type="submit"
+            disabled={saving}
+            className="
+              w-full 
+              bg-[#1A2930] text-white 
+              py-3 rounded-md 
+              font-semibold text-sm 
+              hover:bg-[#FFA500] hover:text-[#1A2930]
+              transition
+              disabled:opacity-60 disabled:cursor-not-allowed
+            "
+          >
+            {submitLabel}
+          </button>
+          <p className="mt-2 text-[10px] text-gray-600">
+            We’ll create a basic record and take you to the full booking screen
+            to add vessel, routing, documents and charges.
+          </p>
+        </div>
 
-            <div className="space-y-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Shipper name
-                </label>
-                <input
-                  type="text"
-                  value={form.shipperName}
-                  onChange={handleChange("shipperName")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="Shipper / client name"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Shipper email
-                </label>
-                <input
-                  type="email"
-                  value={form.shipperEmail}
-                  onChange={handleChange("shipperEmail")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="client@example.com"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Shipper address
-                </label>
-                <input
-                  type="text"
-                  value={form.shipperAddress}
-                  onChange={handleChange("shipperAddress")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="32 Ashbourne Road, Romford"
-                />
-              </div>
-
-              <div className="h-px bg-gray-200 my-2" />
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Consignee name
-                </label>
-                <input
-                  type="text"
-                  value={form.consigneeName}
-                  onChange={handleChange("consigneeName")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="Consignee at destination"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Consignee email
-                </label>
-                <input
-                  type="email"
-                  value={form.consigneeEmail}
-                  onChange={handleChange("consigneeEmail")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="consignee@example.com"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-gray-700">
-                  Consignee address
-                </label>
-                <input
-                  type="text"
-                  value={form.consigneeAddress}
-                  onChange={handleChange("consigneeAddress")}
-                  className="border border-gray-300 rounded px-3 py-2 text-sm"
-                  placeholder="Address at destination"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2">
+        {/* Mobile sticky action bar */}
+        <div className="lg:hidden sticky bottom-0 left-0 right-0 mt-6 pb-3">
+          <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-md p-3 shadow-lg">
             <button
               type="submit"
               disabled={saving}
@@ -501,15 +583,10 @@ const NewShipment = () => {
                 disabled:opacity-60 disabled:cursor-not-allowed
               "
             >
-              {saving
-                ? "Creating..."
-                : form.recordType === "quote"
-                ? "Create quote & open booking"
-                : "Create shipment & open booking"}
+              {submitLabel}
             </button>
-            <p className="mt-2 text-[10px] text-gray-500">
-              We’ll create a basic record and take you to the full booking
-              screen to add vessel, routing, documents and charges.
+            <p className="mt-2 text-[10px] text-gray-600">
+              Creates a basic record, then you complete booking details next.
             </p>
           </div>
         </div>

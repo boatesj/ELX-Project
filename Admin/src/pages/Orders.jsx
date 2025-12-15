@@ -7,6 +7,7 @@ const API_BASE_URL =
 
 const SHIPMENTS_API = `${API_BASE_URL}/shipments`;
 
+// Status chip styling
 const getStatusChipClass = (status) => {
   switch (status) {
     case "delivered":
@@ -24,6 +25,7 @@ const getStatusChipClass = (status) => {
   }
 };
 
+// Payment chip styling
 const getPaymentChipClass = (paymentStatus) => {
   switch (paymentStatus) {
     case "paid":
@@ -46,6 +48,7 @@ const Orders = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [modeFilter, setModeFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState(""); // 🔍 NEW
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
 
@@ -56,6 +59,7 @@ const Orders = () => {
 
     try {
       const token = localStorage.getItem("token");
+
       if (!token) {
         setLoadError("Please log in to view orders.");
         navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
@@ -77,12 +81,29 @@ const Orders = () => {
       }
 
       const data = await res.json();
+      console.log("Shipments API raw response:", data);
 
-      if (!res.ok || !data.ok) {
-        throw new Error(data.message || "Failed to load shipments");
+      if (!res.ok) {
+        throw new Error(data?.message || "Failed to load shipments");
       }
 
-      const list = Array.isArray(data.data) ? data.data : [];
+      // Normalise different payload shapes:
+      let list = [];
+
+      if (Array.isArray(data)) {
+        // e.g. backend returns just an array
+        list = data;
+      } else if (Array.isArray(data.data)) {
+        // e.g. { data: [...] }
+        list = data.data;
+      } else if (Array.isArray(data.shipments)) {
+        // e.g. { shipments: [...] }
+        list = data.shipments;
+      } else {
+        console.warn("Unexpected shipments response shape:", data);
+        list = [];
+      }
+
       setShipments(list);
     } catch (err) {
       console.error("Orders load error:", err);
@@ -99,6 +120,8 @@ const Orders = () => {
 
   // Client-side filters + mapping into rows
   const filteredRows = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+
     return shipments
       .filter((s) =>
         statusFilter === "all"
@@ -115,12 +138,37 @@ const Orders = () => {
           ? true
           : (s.paymentStatus || "").toLowerCase() === paymentFilter
       )
+      .filter((s) => {
+        if (!term) return true;
+
+        const customerName =
+          s.customer?.fullname ||
+          s.customer?.name ||
+          s.shipper?.name ||
+          s.customerName ||
+          "";
+        const origin = s.ports?.originPort || s.origin || "";
+        const destination = s.ports?.destinationPort || s.destination || "";
+        const ref = s.referenceNo || "";
+        const consigneeName = s.consignee?.name || "";
+
+        const haystack = [customerName, origin, destination, ref, consigneeName]
+          .join(" ")
+          .toLowerCase();
+
+        return haystack.includes(term);
+      })
       .map((s, index) => ({
         id: s._id || index,
         referenceNo: s.referenceNo,
-        customer: s.customer?.fullname || "—",
-        origin: s.ports?.originPort || "—",
-        destination: s.ports?.destinationPort || "—",
+        customer:
+          s.customer?.fullname ||
+          s.customer?.name ||
+          s.shipper?.name ||
+          s.customerName ||
+          "—",
+        origin: s.ports?.originPort || s.origin || "—",
+        destination: s.ports?.destinationPort || s.destination || "—",
         mode: s.mode || "—",
         paymentStatus: s.paymentStatus || "unpaid",
         status: s.status || "pending",
@@ -128,7 +176,7 @@ const Orders = () => {
           ? new Date(s.createdAt).toISOString().slice(0, 10)
           : "—",
       }));
-  }, [shipments, statusFilter, modeFilter, paymentFilter]);
+  }, [shipments, statusFilter, modeFilter, paymentFilter, searchTerm]);
 
   const columns = [
     {
@@ -156,42 +204,54 @@ const Orders = () => {
       headerName: "Mode",
       width: 120,
       renderCell: (params) => (
-        <span className="capitalize text-gray-100">{params.value}</span>
+        <span className="capitalize text-gray-100">{params.value || "—"}</span>
       ),
     },
     {
       field: "paymentStatus",
       headerName: "Payment",
       width: 150,
-      renderCell: (params) => (
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-semibold ${getPaymentChipClass(
-            (params.value || "").toLowerCase()
-          )}`}
-        >
-          {(params.value || "unpaid").replace("_", " ")}
-        </span>
-      ),
+      renderCell: (params) => {
+        const value = (params.value || "unpaid").toLowerCase();
+        return (
+          <span
+            className={`px-2 py-1 rounded-full text-xs font-semibold ${getPaymentChipClass(
+              value
+            )}`}
+          >
+            {value.replace("_", " ")}
+          </span>
+        );
+      },
     },
     {
       field: "status",
       headerName: "Status",
       width: 150,
-      renderCell: (params) => (
-        <span
-          className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${getStatusChipClass(
-            (params.value || "").toLowerCase()
-          )}`}
-        >
-          {params.value || "pending"}
-        </span>
-      ),
+      renderCell: (params) => {
+        const value = (params.value || "pending").toLowerCase();
+        return (
+          <span
+            className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${getStatusChipClass(
+              value
+            )}`}
+          >
+            {value}
+          </span>
+        );
+      },
     },
     { field: "createdAt", headerName: "Created", width: 130 },
   ];
 
   const handleRowClick = (params) => {
     const id = params.id;
+    if (!id) return;
+    navigate(`/shipments/${id}`);
+  };
+
+  // Mobile card click uses the same navigation behaviour
+  const handleCardClick = (id) => {
     if (!id) return;
     navigate(`/shipments/${id}`);
   };
@@ -259,24 +319,25 @@ const Orders = () => {
   };
 
   return (
-    <div className="p-8 bg-[#0F0F0F] min-h-screen text-white">
+    <div className="p-3 sm:p-6 lg:p-8 bg-[#0F0F0F] min-h-screen text-white">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">Orders</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold">Orders</h1>
           <p className="text-sm text-gray-400 mt-1">
             Commercial view of all shipments and their payment status.
           </p>
         </div>
 
         {/* Summary badges */}
-        <div className="flex gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs w-full lg:w-auto">
           <div className="px-3 py-2 rounded-lg bg-[#020617] border border-[#1f2937]">
             <span className="block text-gray-400 uppercase tracking-wide">
               Total Orders
             </span>
             <span className="text-xl font-semibold">{totalOrders}</span>
           </div>
+
           <div className="px-3 py-2 rounded-lg bg-[#020617] border border-[#1f2937]">
             <span className="block text-gray-400 uppercase tracking-wide">
               Delivered
@@ -285,6 +346,7 @@ const Orders = () => {
               {deliveredCount}
             </span>
           </div>
+
           <div className="px-3 py-2 rounded-lg bg-[#020617] border border-[#1f2937]">
             <span className="block text-gray-400 uppercase tracking-wide">
               Unpaid
@@ -302,13 +364,26 @@ const Orders = () => {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="mb-4 flex flex-wrap gap-4 items-center justify-between">
-        <div className="flex flex-wrap gap-4 items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-300">Status:</span>
+      {/* Filters + Search + Export */}
+      <div className="mb-4 grid grid-cols-1 lg:flex lg:flex-wrap gap-3 lg:gap-4 lg:items-center lg:justify-between">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {/* Search */}
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-gray-300">Search</span>
+            <input
+              type="text"
+              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-3 py-2 outline-none w-full"
+              placeholder="Ref, customer, shipper, route..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* Status filter */}
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-gray-300">Status</span>
             <select
-              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-2 py-1 outline-none"
+              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-3 py-2 outline-none w-full"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -324,10 +399,11 @@ const Orders = () => {
             </select>
           </div>
 
-          <div className="flex itemscenter gap-2">
-            <span className="text-sm text-gray-300">Mode:</span>
+          {/* Mode filter */}
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-gray-300">Mode</span>
             <select
-              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-2 py-1 outline-none"
+              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-3 py-2 outline-none w-full"
               value={modeFilter}
               onChange={(e) => setModeFilter(e.target.value)}
             >
@@ -342,10 +418,11 @@ const Orders = () => {
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-300">Payment:</span>
+          {/* Payment filter */}
+          <div className="flex flex-col gap-1">
+            <span className="text-sm text-gray-300">Payment</span>
             <select
-              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-2 py-1 outline-none"
+              className="bg-[#020617] border border-[#1f2937] text-sm rounded px-3 py-2 outline-none w-full"
               value={paymentFilter}
               onChange={(e) => setPaymentFilter(e.target.value)}
             >
@@ -359,18 +436,102 @@ const Orders = () => {
         </div>
 
         {/* Export button */}
-        <button
-          type="button"
-          onClick={handleExportCsv}
-          disabled={!filteredRows.length}
-          className="text-xs px-3 py-2 rounded-md border border-[#374151] bg-[#020617] text-gray-200 hover:bg-[#111827] disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Export CSV ({filteredRows.length || 0})
-        </button>
+        <div className="flex items-end justify-end">
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            disabled={!filteredRows.length}
+            className="w-full sm:w-auto text-xs px-3 py-2 rounded-md border border-[#374151] bg-[#020617] text-gray-200 hover:bg-[#111827] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Export CSV ({filteredRows.length || 0})
+          </button>
+        </div>
       </div>
 
-      {/* Table – re-styled for visibility */}
-      <div className="bg-[#020617] rounded-2xl p-4 shadow-2xl border border-[#1f2937]">
+      {/* MOBILE: Card view */}
+      <div className="grid gap-3 lg:hidden">
+        {loading ? (
+          <div className="bg-[#020617] rounded-2xl p-4 border border-[#1f2937] text-sm text-gray-400">
+            Loading orders…
+          </div>
+        ) : filteredRows.length === 0 ? (
+          <div className="bg-[#020617] rounded-2xl p-4 border border-[#1f2937] text-sm text-gray-400">
+            No orders found for the current filters.
+          </div>
+        ) : (
+          filteredRows.map((row) => {
+            const payment = (row.paymentStatus || "unpaid").toLowerCase();
+            const status = (row.status || "pending").toLowerCase();
+
+            return (
+              <button
+                key={row.id}
+                type="button"
+                onClick={() => handleCardClick(row.id)}
+                className="text-left bg-[#020617] rounded-2xl p-4 shadow-2xl border border-[#1f2937] hover:bg-[#111827] transition"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-[#FFA500] break-words">
+                      {row.referenceNo || "—"}
+                    </div>
+                    <div className="text-xs text-gray-300 mt-1 break-words">
+                      {row.customer || "—"}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${getStatusChipClass(
+                        status
+                      )}`}
+                    >
+                      {status}
+                    </span>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-semibold ${getPaymentChipClass(
+                        payment
+                      )}`}
+                    >
+                      {payment.replace("_", " ")}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-gray-400">Route</span>
+                    <span className="text-sm text-gray-100 font-medium text-right break-words">
+                      {(row.origin || "—") + " → " + (row.destination || "—")}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-gray-400">Mode</span>
+                    <span className="text-sm text-gray-100 font-medium capitalize">
+                      {row.mode || "—"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-gray-400">Created</span>
+                    <span className="text-sm text-gray-100 font-medium">
+                      {row.createdAt || "—"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-3 text-xs text-gray-500">
+                  Tap to view full shipment details
+                </div>
+              </button>
+            );
+          })
+        )}
+      </div>
+
+      {/* DESKTOP: Table */}
+      <div className="hidden lg:block bg-[#020617] rounded-2xl p-4 shadow-2xl border border-[#1f2937]">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold tracking-[0.16em] uppercase text-gray-300">
             Orders Table
@@ -398,13 +559,10 @@ const Orders = () => {
             color: "#E5E5E5",
             fontSize: "0.85rem",
 
-            // HEADER ROW container
             "& .MuiDataGrid-columnHeaders": {
               backgroundColor: "#0D121C",
               borderBottom: "1px solid #1F2937",
             },
-
-            // INDIVIDUAL HEADER CELLS
             "& .MuiDataGrid-columnHeader": {
               backgroundColor: "#0D121C",
               color: "#FFFFFF",
@@ -413,12 +571,10 @@ const Orders = () => {
               textTransform: "uppercase",
               letterSpacing: "0.14em",
             },
-
             "& .MuiDataGrid-columnHeaderTitle": {
               color: "#FFFFFF",
               fontWeight: 700,
             },
-
             "& .MuiDataGrid-cell": {
               borderBottom: "1px solid #1f2937",
             },
