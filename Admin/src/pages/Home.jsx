@@ -1,4 +1,3 @@
-// Admin/src/pages/Home.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { HiArrowTrendingUp, HiArrowTrendingDown } from "react-icons/hi2";
