@@ -1,17 +1,30 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { createLog } = require("../utils/createLog");
+
+// Unified secret helper (matches your other files)
+function jwtSecret() {
+  return process.env.JWT_SECRET || process.env.JWT_SEC;
+}
 
 /** Helper to sign JWT (for login/register) */
 function signToken(user) {
-  const secret = process.env.JWT_SECRET || process.env.JWT_SEC;
+  const secret = jwtSecret();
   if (!secret) throw new Error("JWT secret not configured");
 
-  return jwt.sign(
-    { id: user._id, role: user.role },
-    secret,
-    { expiresIn: process.env.JWT_EXPIRES || "10d" }
-  );
+  return jwt.sign({ id: user._id, role: user.role }, secret, {
+    expiresIn: process.env.JWT_EXPIRES || "10d",
+  });
+}
+
+// Create a lightweight "req-like" object for logging when no auth middleware ran yet
+function makeAuthLogReq({ userId, role, ip, ua }) {
+  return {
+    user: userId ? { id: String(userId), role } : undefined,
+    ip: ip || "",
+    headers: { "user-agent": ua || "" },
+  };
 }
 
 /** REGISTER */
@@ -25,7 +38,8 @@ const registerUser = async (req, res) => {
 
     const normalizedEmail = email.toLowerCase().trim();
     const existing = await User.findOne({ email: normalizedEmail });
-    if (existing) return res.status(409).json({ message: "Email already registered." });
+    if (existing)
+      return res.status(409).json({ message: "Email already registered." });
 
     const user = await User.create({
       fullname: fullname.trim(),
@@ -35,15 +49,37 @@ const registerUser = async (req, res) => {
       address: address.trim(),
       age,
       status: "pending",
-      welcomeMailSent: false
+      welcomeMailSent: false,
     });
+
+    // ✅ LOG: registration event
+    try {
+      await createLog(
+        makeAuthLogReq({
+          userId: user._id,
+          role: user.role,
+          ip: req.ip,
+          ua: req.headers["user-agent"],
+        }),
+        {
+          type: "auth",
+          action: "User registered",
+          ref: normalizedEmail,
+          meta: { ip: req.ip, ua: req.headers["user-agent"] },
+        }
+      );
+    } catch (_) {
+      // Logging should never block auth flows
+    }
 
     const { password: _pw, ...safe } = user.toObject();
     const accessToken = signToken(user);
     return res.status(201).json({ ...safe, accessToken });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Server error", error: err.message });
   }
 };
 
@@ -52,20 +88,83 @@ const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password)
-      return res.status(400).json({ message: "Email and password are required." });
+      return res
+        .status(400)
+        .json({ message: "Email and password are required." });
 
-    const user = await User.findOne({ email: email.toLowerCase().trim() }).select("+password");
-    if (!user) return res.status(401).json({ message: "Invalid credentials." });
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail }).select(
+      "+password"
+    );
+    if (!user) {
+      // ✅ LOG: failed login (unknown user)
+      try {
+        await createLog(
+          makeAuthLogReq({
+            userId: "",
+            role: "",
+            ip: req.ip,
+            ua: req.headers["user-agent"],
+          }),
+          {
+            type: "auth",
+            action: "Login failed (unknown email)",
+            ref: normalizedEmail,
+            meta: { ip: req.ip, ua: req.headers["user-agent"] },
+          }
+        );
+      } catch (_) {}
+      return res.status(401).json({ message: "Invalid credentials." });
+    }
 
     const ok = await user.comparePassword(password);
-    if (!ok) return res.status(401).json({ message: "Invalid credentials." });
+    if (!ok) {
+      // ✅ LOG: failed login (bad password)
+      try {
+        await createLog(
+          makeAuthLogReq({
+            userId: user._id,
+            role: user.role,
+            ip: req.ip,
+            ua: req.headers["user-agent"],
+          }),
+          {
+            type: "auth",
+            action: "Login failed (invalid password)",
+            ref: user.email,
+            meta: { ip: req.ip, ua: req.headers["user-agent"] },
+          }
+        );
+      } catch (_) {}
+      return res.status(401).json({ message: "Invalid credentials." });
+    }
+
+    // ✅ LOG: successful login
+    try {
+      await createLog(
+        makeAuthLogReq({
+          userId: user._id,
+          role: user.role,
+          ip: req.ip,
+          ua: req.headers["user-agent"],
+        }),
+        {
+          type: "auth",
+          action: "Login success",
+          ref: user.email,
+          meta: { ip: req.ip, ua: req.headers["user-agent"] },
+        }
+      );
+    } catch (_) {}
 
     const accessToken = signToken(user);
     const { password: _pw, ...safe } = user.toObject();
     return res.status(200).json({ ...safe, accessToken });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: "Server error", error: err.message });
+    return res
+      .status(500)
+      .json({ message: "Server error", error: err.message });
   }
 };
 
@@ -73,11 +172,17 @@ const loginUser = async (req, res) => {
 const requestPasswordReset = async (req, res) => {
   try {
     const { token } = req.params;
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const secret = jwtSecret();
+    if (!secret) throw new Error("JWT secret not configured");
+
+    const decoded = jwt.verify(token, secret);
 
     return res.status(200).json({ valid: true, userId: decoded.id });
   } catch (err) {
-    return res.status(400).json({ valid: false, message: "Invalid or expired token" });
+    return res
+      .status(400)
+      .json({ valid: false, message: "Invalid or expired token" });
   }
 };
 
@@ -91,8 +196,11 @@ const resetPassword = async (req, res) => {
       return res.status(400).json({ message: "Password is required" });
     }
 
+    const secret = jwtSecret();
+    if (!secret) throw new Error("JWT secret not configured");
+
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, secret);
 
     // Find user
     const user = await User.findById(decoded.id).select("+password");
@@ -104,7 +212,27 @@ const resetPassword = async (req, res) => {
     user.welcomeMailSent = true;
     await user.save();
 
-    return res.status(200).json({ message: "Password has been set successfully. You can now login." });
+    // ✅ LOG: password reset completed
+    try {
+      await createLog(
+        makeAuthLogReq({
+          userId: user._id,
+          role: user.role,
+          ip: req.ip,
+          ua: req.headers["user-agent"],
+        }),
+        {
+          type: "auth",
+          action: "Password reset completed",
+          ref: user.email,
+          meta: { ip: req.ip, ua: req.headers["user-agent"] },
+        }
+      );
+    } catch (_) {}
+
+    return res.status(200).json({
+      message: "Password has been set successfully. You can now login.",
+    });
   } catch (err) {
     return res.status(400).json({ message: "Invalid or expired token" });
   }
