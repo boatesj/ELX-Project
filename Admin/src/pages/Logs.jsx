@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageShell from "../components/PageShell";
+import { adminRequest } from "../requestMethods";
 
 const Input = (props) => (
   <input
@@ -40,62 +41,113 @@ const Button = ({ variant = "ghost", ...props }) => {
   );
 };
 
+const fmtTs = (isoOrDate) => {
+  if (!isoOrDate) return "";
+  try {
+    const d = new Date(isoOrDate);
+    if (Number.isNaN(d.getTime())) return String(isoOrDate);
+    // Keep a compact “YYYY-MM-DD HH:mm” feel
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+      d.getDate()
+    )} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return String(isoOrDate);
+  }
+};
+
 export default function Logs() {
   const [q, setQ] = useState("");
   const [type, setType] = useState("all");
 
-  const logs = useMemo(
-    () => [
-      {
-        id: "l1",
-        ts: "2025-12-14 18:22",
-        type: "shipment",
-        actor: "Ellcworth Admin",
-        action: "Updated status → Sailed",
-        ref: "ELX-LCL-251211-0001",
-      },
-      {
-        id: "l2",
-        ts: "2025-12-14 10:05",
-        type: "user",
-        actor: "Ellcworth Admin",
-        action: "Created user",
-        ref: "ellcworth.admin@example.com",
-      },
-      {
-        id: "l3",
-        ts: "2025-12-13 16:40",
-        type: "backup",
-        actor: "System",
-        action: "Auto backup completed",
-        ref: "Snapshot b2",
-      },
-      {
-        id: "l4",
-        ts: "2025-12-12 09:10",
-        type: "invoice",
-        actor: "Ellcworth Admin",
-        action: "Generated invoice",
-        ref: "INV-2025-1212-004",
-      },
-    ],
-    []
-  );
+  // server-side paging
+  const [page, setPage] = useState(1);
+  const limit = 20;
 
-  const filtered = logs.filter((l) => {
-    const matchType = type === "all" ? true : l.type === type;
-    const blob =
-      `${l.ts} ${l.type} ${l.actor} ${l.action} ${l.ref}`.toLowerCase();
-    const matchQ = blob.includes(q.toLowerCase());
-    return matchType && matchQ;
-  });
+  // data
+  const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
+
+  // UX
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const fetchLogs = async ({ pageOverride } = {}) => {
+    setErr("");
+    setLoading(true);
+    try {
+      const p = pageOverride ?? page;
+      const res = await adminRequest.get("/logs", {
+        params: { q, type, page: p, limit },
+      });
+
+      const data = res?.data || {};
+      setItems(Array.isArray(data.items) ? data.items : []);
+      setTotal(Number.isFinite(data.total) ? data.total : 0);
+      setPage(Number.isFinite(data.page) ? data.page : p);
+    } catch (e) {
+      setErr(
+        e?.response?.data?.message ||
+          "Failed to load logs (are you logged in as admin?)"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // initial load
+  useEffect(() => {
+    fetchLogs({ pageOverride: 1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const totalPages = useMemo(() => {
+    return Math.max(Math.ceil((total || 0) / limit), 1);
+  }, [total, limit]);
+
+  const rows = useMemo(() => {
+    // Keep the UI the same fields you display
+    return items.map((l) => ({
+      id: l._id,
+      ts: fmtTs(l.createdAt),
+      type: l.type || "",
+      actor: l.actorId || "",
+      action: l.action || "",
+      ref: l.ref || "",
+    }));
+  }, [items]);
+
+  const canPrev = page > 1;
+  const canNext = page < totalPages;
+
+  const exportJson = () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      filters: { q, type, page, limit },
+      total,
+      items,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ellcworth-logs-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-[calc(100dvh-64px)] bg-[#0B1118]">
       <PageShell
         title="All logs"
         subtitle="Audit trail for admin actions, exports, payments, backups and shipment changes."
-        right={<Button variant="primary">Export</Button>}
+        right={
+          <Button variant="primary" onClick={exportJson} disabled={loading}>
+            Export
+          </Button>
+        }
       >
         <div className="rounded-2xl bg-[#0F1720] border border-white/5 shadow-xl">
           <div className="p-5 border-b border-white/5">
@@ -107,18 +159,45 @@ export default function Logs() {
               />
               <Select value={type} onChange={(e) => setType(e.target.value)}>
                 <option value="all">All types</option>
+                <option value="auth">Auth</option>
+                <option value="settings">Settings</option>
                 <option value="shipment">Shipment</option>
                 <option value="user">User</option>
                 <option value="invoice">Invoice</option>
                 <option value="backup">Backup</option>
+                <option value="calendar">Calendar</option>
+                <option value="analytics">Analytics</option>
               </Select>
               <div className="flex gap-2">
-                <Button className="w-full">Clear</Button>
-                <Button className="w-full" variant="primary">
-                  Apply
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    setQ("");
+                    setType("all");
+                    setPage(1);
+                    // Fetch with cleared filters
+                    setTimeout(() => fetchLogs({ pageOverride: 1 }), 0);
+                  }}
+                  disabled={loading}
+                >
+                  Clear
+                </Button>
+                <Button
+                  className="w-full"
+                  variant="primary"
+                  onClick={() => fetchLogs({ pageOverride: 1 })}
+                  disabled={loading}
+                >
+                  {loading ? "Loading..." : "Apply"}
                 </Button>
               </div>
             </div>
+
+            {err ? (
+              <div className="mt-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 px-4 py-3 text-[12px]">
+                {err}
+              </div>
+            ) : null}
           </div>
 
           <div className="p-5 overflow-x-auto">
@@ -133,7 +212,7 @@ export default function Logs() {
                 </tr>
               </thead>
               <tbody className="text-[13px]">
-                {filtered.map((l) => (
+                {rows.map((l) => (
                   <tr key={l.id} className="border-t border-white/5">
                     <td className="py-3 pr-4 text-gray-100">{l.ts}</td>
                     <td className="py-3 pr-4">
@@ -146,13 +225,47 @@ export default function Logs() {
                     <td className="py-3 text-gray-300">{l.ref}</td>
                   </tr>
                 ))}
+
+                {!loading && rows.length === 0 ? (
+                  <tr className="border-t border-white/5">
+                    <td className="py-6 text-gray-400" colSpan={5}>
+                      No logs found.
+                    </td>
+                  </tr>
+                ) : null}
               </tbody>
             </table>
 
-            <p className="text-[11px] text-gray-500 mt-4">
-              Next step: wire this table to a `/logs` endpoint and paginate
-              server-side.
-            </p>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <p className="text-[11px] text-gray-500">
+                Showing page {page} of {totalPages} • Total {total}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    if (!canPrev) return;
+                    const nextPage = page - 1;
+                    setPage(nextPage);
+                    fetchLogs({ pageOverride: nextPage });
+                  }}
+                  disabled={!canPrev || loading}
+                >
+                  Prev
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    if (!canNext) return;
+                    const nextPage = page + 1;
+                    setPage(nextPage);
+                    fetchLogs({ pageOverride: nextPage });
+                  }}
+                  disabled={!canNext || loading}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </PageShell>
