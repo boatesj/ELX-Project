@@ -121,6 +121,12 @@ export default function Settings() {
   const webhookUrlRef = useRef(null);
   const [webhooksEnabled, setWebhooksEnabled] = useState(false);
 
+  // ✅ NEW (safe): modal state for recent logins
+  const [recentOpen, setRecentOpen] = useState(false);
+  const [recentBusy, setRecentBusy] = useState(false);
+  const [recentErr, setRecentErr] = useState("");
+  const [recentItems, setRecentItems] = useState([]);
+
   const showBanner = (type, text) => {
     setBanner({ type, text });
     window.clearTimeout(showBanner._t);
@@ -257,6 +263,65 @@ export default function Settings() {
     showBanner("success", `Preview: ${tn} • ${cn} • ${cur} • ${tz}`);
   };
 
+  // ✅ NEW: Download policy report (no backend needed)
+  const downloadPolicyReport = () => {
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      company: readCompanyPayload().company,
+      operations: readOperationsPayload().operations,
+      security: readSecurityPayload().security,
+      notifications: readNotificationsPayload().notifications,
+      integrations: readIntegrationsPayload().integrations,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ellcworth-policy-report-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showBanner("success", "Policy report downloaded");
+  };
+
+  // ✅ NEW: View recent logins (GET /admin/logs?type=auth)
+  const openRecentLogins = async () => {
+    setRecentOpen(true);
+    setRecentErr("");
+    setRecentBusy(true);
+    setRecentItems([]);
+
+    try {
+      const res = await adminRequest.get("/logs", {
+        params: { type: "auth", limit: 15, page: 1 },
+      });
+      const items = Array.isArray(res?.data?.items) ? res.data.items : [];
+      setRecentItems(items);
+    } catch (err) {
+      setRecentErr(
+        err?.response?.data?.message ||
+          "Failed to load recent logins (are you logged in as admin?)"
+      );
+    } finally {
+      setRecentBusy(false);
+    }
+  };
+
+  const fmtTs = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
+      d.getDate()
+    )} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
   return (
     <div className="min-h-[calc(100dvh-64px)] bg-[#0B1118]">
       <PageShell
@@ -284,6 +349,86 @@ export default function Settings() {
             ].join(" ")}
           >
             {banner.text}
+          </div>
+        ) : null}
+
+        {/* ✅ NEW: Recent logins modal (doesn’t affect anything else) */}
+        {recentOpen ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-3">
+            <button
+              aria-label="Close recent logins overlay"
+              onClick={() => setRecentOpen(false)}
+              className="absolute inset-0 bg-black/60"
+            />
+            <div className="relative w-full max-w-2xl rounded-2xl bg-[#0F1720] border border-white/10 shadow-2xl">
+              <div className="p-5 border-b border-white/10 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-white font-semibold text-[14px] tracking-[0.02em]">
+                    Recent logins
+                  </p>
+                  <p className="text-gray-400 text-[12px] mt-1">
+                    Pulled from audit logs (type: auth)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setRecentOpen(false)}
+                  className="rounded-lg px-3 py-2 text-sm font-semibold text-white/80 hover:text-white hover:bg-white/10 transition"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div className="p-5">
+                {recentErr ? (
+                  <div className="mb-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 px-4 py-3 text-[12px]">
+                    {recentErr}
+                  </div>
+                ) : null}
+
+                {recentBusy ? (
+                  <p className="text-gray-300 text-[13px]">Loading...</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[560px] w-full text-left">
+                      <thead>
+                        <tr className="text-[11px] uppercase tracking-[0.18em] text-gray-400">
+                          <th className="py-3 pr-4">Timestamp</th>
+                          <th className="py-3 pr-4">Actor</th>
+                          <th className="py-3 pr-4">Action</th>
+                          <th className="py-3">Reference</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-[13px]">
+                        {recentItems.map((l) => (
+                          <tr key={l._id} className="border-t border-white/5">
+                            <td className="py-3 pr-4 text-gray-100">
+                              {fmtTs(l.createdAt)}
+                            </td>
+                            <td className="py-3 pr-4 text-gray-300">
+                              {l.actorId || "—"}
+                            </td>
+                            <td className="py-3 pr-4 text-gray-100">
+                              {l.action || "—"}
+                            </td>
+                            <td className="py-3 text-gray-300">
+                              {l.ref || "—"}
+                            </td>
+                          </tr>
+                        ))}
+
+                        {!recentBusy && recentItems.length === 0 ? (
+                          <tr className="border-t border-white/5">
+                            <td className="py-6 text-gray-400" colSpan={4}>
+                              No auth logs found yet.
+                            </td>
+                          </tr>
+                        ) : null}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -516,14 +661,11 @@ export default function Settings() {
                       ? "Saving..."
                       : "Apply security policy"}
                   </Button>
+
+                  {/* ✅ now wired */}
                   <Button
                     variant="ghost"
-                    onClick={() =>
-                      showBanner(
-                        "error",
-                        "Download policy report: not wired yet"
-                      )
-                    }
+                    onClick={downloadPolicyReport}
                     disabled={busyKey === "security"}
                   >
                     Download policy report
@@ -582,12 +724,9 @@ export default function Settings() {
                     >
                       Rotate JWT secret
                     </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() =>
-                        showBanner("error", "Recent logins: not wired yet")
-                      }
-                    >
+
+                    {/* ✅ now wired */}
+                    <Button variant="ghost" onClick={openRecentLogins}>
                       View recent logins
                     </Button>
                   </div>
