@@ -19,6 +19,11 @@ const userRoute = require("./routes/user");
 const shipmentRoute = require("./routes/shipment");
 // NEW
 const configRoute = require("./routes/config");
+const settingsRoute = require("./routes/settings");
+const backupsRoute = require("./routes/backups");
+const analyticsRoute = require("./routes/analytics");
+const logsRoute = require("./routes/logs");
+const calendarRoute = require("./routes/calendar");
 
 dotenv.config();
 const app = express();
@@ -174,6 +179,12 @@ app.use("/shipments", shipmentRoute);
 app.use("/api/v1/shipments", shipmentRoute);
 // NEW: config (ports, service types, cargo categories)
 app.use("/config", configRoute);
+// --- ADMIN SYSTEM ROUTES (Settings → Calendar)
+app.use("/admin/settings", settingsRoute);
+app.use("/admin/backups", backupsRoute);
+app.use("/admin/analytics", analyticsRoute);
+app.use("/admin/logs", logsRoute);
+app.use("/admin/calendar", calendarRoute);
 
 // --- DB + SERVER START ---
 const PORT = Number(process.env.PORT) || 8000;

@@ -16,7 +16,43 @@ const Panel = ({ title, subtitle, children }) => (
 
 export default function Charts() {
   return (
-    <div className="min-h-[calc(100dvh-64px)] bg-[#0B1118]">
+    <div className="min-h-[calc(100dvh-64px)] bg-[#0B1118] elx-charts-page">
+      {/* 
+        MUI X Charts renders SVG <text> which ignores Tailwind container text colors.
+        This scoped style forces chart text + axes/legend to be visible on dark backgrounds.
+      */}
+      <style>{`
+          /* Force all SVG text inside this page to be light */
+          .elx-charts-page svg text { fill: #E5E7EB !important; }
+
+          /* Version-tolerant selectors for MUI X Charts (SVG text) */
+          .elx-charts-page [class*="MuiCharts"] text { fill: #E5E7EB !important; }
+          .elx-charts-page [class*="MuiChartsAxis"] text { fill: #CBD5E1 !important; }
+
+          /* Legend: some versions render legend labels as SVG text, others as HTML */
+          .elx-charts-page .MuiChartsLegend-label,
+          .elx-charts-page [class*="MuiChartsLegend"] .MuiChartsLegend-label {
+            fill: #E5E7EB !important;   /* SVG */
+            color: #E5E7EB !important;  /* HTML */
+          }
+
+          /* Fallback: legend might be outside the wrapper (portal / root overlay) */
+          body .MuiChartsLegend-label,
+          body [class*="MuiChartsLegend"] .MuiChartsLegend-label {
+            fill: #E5E7EB !important;
+            color: #E5E7EB !important;
+          }
+
+          /* Improve axis/grid contrast on dark */
+          .elx-charts-page [class*="MuiChartsAxis-line"],
+          .elx-charts-page [class*="MuiChartsAxis-tick"] {
+            stroke: rgba(255,255,255,0.28) !important;
+          }
+          .elx-charts-page [class*="MuiChartsGrid-line"] {
+            stroke: rgba(255,255,255,0.10) !important;
+          }
+`}</style>
+
       <PageShell
         title="Charts"
         subtitle="Operational insight: statuses, revenue trend, and throughput."
