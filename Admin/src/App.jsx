@@ -1,5 +1,11 @@
-import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
-import { useState } from "react";
+import {
+  createBrowserRouter,
+  Outlet,
+  RouterProvider,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
+import { useEffect, useState } from "react";
 
 import Home from "./pages/Home";
 import Shipments from "./pages/Shipments";
@@ -27,12 +33,44 @@ import Charts from "./pages/Charts";
 import Logs from "./pages/Logs";
 import Calendar from "./pages/Calendar";
 
+function RequireAuth({ children }) {
+  const location = useLocation();
+  const token = localStorage.getItem("token");
+  if (!token) {
+    const redirect = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirect=${redirect}`} replace />;
+  }
+  return children;
+}
+
 // Layout wrapper for all authenticated/admin pages
 function Layout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const openMenu = () => setIsMenuOpen(true);
   const closeMenu = () => setIsMenuOpen(false);
+
+  // ✅ Lock body scroll while drawer is open
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isMenuOpen]);
+
+  // ✅ ESC key closes the drawer (corporate UX standard)
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") closeMenu();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isMenuOpen]);
 
   return (
     <div
@@ -43,7 +81,7 @@ function Layout() {
         bg-[radial-gradient(900px_450px_at_20%_0%,rgba(255,165,0,0.14),transparent_55%),radial-gradient(700px_420px_at_90%_10%,rgba(56,189,248,0.12),transparent_55%),radial-gradient(800px_520px_at_55%_100%,rgba(16,185,129,0.10),transparent_60%)]
       "
     >
-      {/* Navbar now needs a burger button on mobile */}
+      {/* ✅ Navbar burger triggers the mobile drawer */}
       <Navbar onMenuClick={openMenu} />
 
       <div className="flex flex-1 w-full">
@@ -68,13 +106,16 @@ function Layout() {
             <button
               aria-label="Close menu overlay"
               onClick={closeMenu}
-              className="absolute inset-0 bg-black/50"
+              className="absolute inset-0 bg-black/55 backdrop-blur-[1px]"
             />
 
             {/* drawer */}
             <div
+              id="mobile-drawer"
+              role="dialog"
+              aria-modal="true"
               className="
-                relative h-full w-[85%] max-w-[320px]
+                relative h-full w-[86%] max-w-[340px]
                 border-r border-white/10
                 bg-gradient-to-b from-[#0E1B20] to-[#0A1418]
                 shadow-[0_24px_70px_rgba(0,0,0,0.75)]
@@ -88,16 +129,17 @@ function Layout() {
                 <button
                   onClick={closeMenu}
                   className="
-                    rounded-lg px-3 py-2 text-sm font-semibold
-                    text-white/80 hover:text-white
+                    rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em]
+                    text-white/85 hover:text-white
                     hover:bg-white/10 transition
+                    border border-white/10
                   "
                 >
                   Close
                 </button>
               </div>
 
-              {/* Make menu links close the drawer */}
+              {/* ✅ Menu links must close the drawer */}
               <div className="p-2">
                 <Menu onNavigate={closeMenu} />
               </div>
@@ -107,7 +149,6 @@ function Layout() {
 
         {/* Main content */}
         <main className="flex-1 min-w-0">
-          {/* consistent mobile padding + max width for “corporate” feel */}
           <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-4">
             <Outlet />
           </div>
@@ -122,7 +163,11 @@ function Layout() {
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Layout />,
+    element: (
+      <RequireAuth>
+        <Layout />
+      </RequireAuth>
+    ),
     children: [
       { index: true, element: <Home /> },
 

@@ -6,7 +6,9 @@ const LogSchema = new mongoose.Schema(
     actorId: { type: String, default: "" },
     action: { type: String, required: true },
     ref: { type: String, default: "" },
-    meta: { type: Object, default: {} },
+
+    // Mixed is safer than Object for arbitrary payloads
+    meta: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   { timestamps: true }
 );

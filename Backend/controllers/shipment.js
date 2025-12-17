@@ -500,9 +500,28 @@ async function updateStatus(req, res) {
  *      }
  *    })
  */
+
+/**
+ * DASHBOARD STATS (Extended for Charts page)
+ * --------------------------------------------------
+ * @route   GET /shipments/dashboard
+ * @desc    Analytics for admin dashboard + charts exports
+ * @access  Authenticated + admin
+ *
+ * Returns existing Home.jsx fields unchanged, plus:
+ *  - statusCounts: alias of byStatus
+ *  - monthlyBookings: last 6 months [{ month:"YYYY-MM", count }]
+ *  - rows: lightweight shipment rows for chart filtering + exports
+ */
 async function getDashboardStats(req, res) {
   try {
     const baseFilter = { isDeleted: false };
+
+    // last 6 months window start
+    const start6Months = new Date();
+    start6Months.setMonth(start6Months.getMonth() - 5);
+    start6Months.setDate(1);
+    start6Months.setHours(0, 0, 0, 0);
 
     const [
       totalShipments,
@@ -511,27 +530,19 @@ async function getDashboardStats(req, res) {
       latestShipments,
       last30DaysShipments,
       routesAgg,
+      monthlyAgg,
+      exportRowsRaw,
     ] = await Promise.all([
       Shipment.countDocuments(baseFilter),
 
       Shipment.aggregate([
         { $match: baseFilter },
-        {
-          $group: {
-            _id: "$status",
-            count: { $sum: 1 },
-          },
-        },
+        { $group: { _id: "$status", count: { $sum: 1 } } },
       ]),
 
       Shipment.aggregate([
         { $match: baseFilter },
-        {
-          $group: {
-            _id: "$mode",
-            count: { $sum: 1 },
-          },
-        },
+        { $group: { _id: "$mode", count: { $sum: 1 } } },
       ]),
 
       Shipment.find(baseFilter)
@@ -544,14 +555,11 @@ async function getDashboardStats(req, res) {
 
       Shipment.find({
         ...baseFilter,
-        createdAt: {
-          $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        },
+        createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
       })
         .select("createdAt")
         .lean(),
 
-      // Top routes (origin → destination)
       Shipment.aggregate([
         { $match: baseFilter },
         {
@@ -566,9 +574,30 @@ async function getDashboardStats(req, res) {
         { $sort: { count: -1 } },
         { $limit: 5 },
       ]),
+
+      // Monthly bookings: last 6 months based on createdAt
+      Shipment.aggregate([
+        { $match: { ...baseFilter, createdAt: { $gte: start6Months } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m", date: "$createdAt" } },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
+
+      // Lightweight rows for charts export/filtering (cap it)
+      Shipment.find(baseFilter)
+        .sort({ createdAt: -1 })
+        .limit(500)
+        .select(
+          "referenceNo status mode createdAt ports.originPort ports.destinationPort consignee.name shipper.name charges"
+        )
+        .lean(),
     ]);
 
-    // Transform aggregates to friendly maps
+    // Friendly maps
     const byStatus = groupedByStatus.reduce((acc, cur) => {
       acc[cur._id || "unknown"] = cur.count;
       return acc;
@@ -579,6 +608,7 @@ async function getDashboardStats(req, res) {
       return acc;
     }, {});
 
+    // existing totals logic (kept)
     const delivered = byStatus.delivered || 0;
     const cancelled = byStatus.cancelled || 0;
     const pending = byStatus.pending || 0;
@@ -598,17 +628,52 @@ async function getDashboardStats(req, res) {
     };
 
     const topRoutes = routesAgg.map((r) => ({
-      route: `${r._id.origin} \u2192 ${r._id.destination}`, // → arrow
+      route: `${r._id.origin} \u2192 ${r._id.destination}`,
       count: r.count,
     }));
 
+    // monthlyBookings normalized to {month, count}
+    const monthlyBookings = monthlyAgg.map((m) => ({
+      month: m._id,
+      count: m.count,
+    }));
+
+    // rows normalized for frontend (charges is an ARRAY in your schema)
+    const rows = exportRowsRaw.map((s) => {
+      const chargesArr = Array.isArray(s.charges) ? s.charges : [];
+      const amountTotal = chargesArr.reduce(
+        (sum, c) => sum + (Number(c.amount) || 0),
+        0
+      );
+      const currency = chargesArr.find((c) => c?.currency)?.currency || "GBP";
+
+      return {
+        referenceNo: s.referenceNo || "",
+        status: s.status || "unknown",
+        mode: s.mode || "",
+        createdAt: s.createdAt || null,
+        origin: s?.ports?.originPort || "",
+        destination: s?.ports?.destinationPort || "",
+        shipperName: s?.shipper?.name || "",
+        consigneeName: s?.consignee?.name || "",
+        amount: Number(amountTotal.toFixed(2)),
+        currency,
+      };
+    });
+
     return res.status(200).json({
       data: {
+        // existing fields (for Home.jsx)
         totals,
         byStatus,
         byMode,
         topRoutes,
         recent: latestShipments,
+
+        // NEW fields (for Charts.jsx)
+        statusCounts: byStatus, // alias
+        monthlyBookings,
+        rows,
       },
     });
   } catch (err) {
