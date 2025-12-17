@@ -1,11 +1,18 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-import Home from "./pages/Home.jsx";
-import Login from "./pages/Login.jsx";
-import Myshipments from "./pages/Myshipments";
-import ShipmentDetails from "./pages/ShipmentDetails";
-import Shipments from "./pages/Shipments";
-import RootLayout from "./layouts/RootLayout.jsx";
-import NotFound from "./pages/NotFound";
+
+import RootLayout from "@/components/layout/RootLayout.jsx";
+
+// Public
+import Home from "./pages/Home.jsx"; // keep as-is for now
+import NotFound from "./pages/public/NotFound.jsx";
+
+// Auth
+import CustomerLogin from "./pages/auth/CustomerLogin.jsx";
+
+// Customer
+import MyShipments from "./pages/customer/MyShipments.jsx";
+import ShipmentDetails from "./pages/customer/ShipmentDetails.jsx";
+import AllShipments from "./pages/customer/AllShipments.jsx";
 
 function App() {
   const router = createBrowserRouter([
@@ -13,10 +20,10 @@ function App() {
       element: <RootLayout />, // Navbar mounted ONCE here
       children: [
         { path: "/", element: <Home /> },
-        { path: "/login", element: <Login /> },
-        { path: "/myshipments", element: <Myshipments /> },
+        { path: "/login", element: <CustomerLogin /> },
+        { path: "/myshipments", element: <MyShipments /> },
         { path: "/shipmentdetails/:id", element: <ShipmentDetails /> },
-        { path: "/allshipments", element: <Shipments /> },
+        { path: "/allshipments", element: <AllShipments /> },
         { path: "*", element: <NotFound /> },
       ],
     },

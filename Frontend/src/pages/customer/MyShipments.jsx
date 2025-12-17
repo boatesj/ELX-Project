@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FaUser, FaListUl, FaFileAlt, FaSignOutAlt } from "react-icons/fa";
 import { Link } from "react-router-dom";
-import { shipments } from "../assets/shipments"; // NEW: shared data
+import { shipments } from "@/assets/shipments";
 
 const Myshipments = () => {
   const [open, setOpen] = useState(false);
