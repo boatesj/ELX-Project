@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import PageShell from "../components/PageShell";
 import { adminRequest } from "../requestMethods";
 
+/* ----------------------------- UI Primitives ----------------------------- */
+
 const SectionCard = ({ title, hint, children }) => (
   <div className="rounded-2xl bg-[#0F1720] border border-white/5 shadow-xl">
     <div className="p-5 border-b border-white/5">
@@ -48,7 +50,7 @@ const Select = (props) => (
 
 const Button = ({ variant = "primary", ...props }) => {
   const base =
-    "rounded-xl px-4 py-2.5 text-[13px] font-semibold transition-all active:scale-[0.99]";
+    "rounded-xl px-4 py-2.5 text-[13px] font-semibold transition-all active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed";
   const styles =
     variant === "primary"
       ? "bg-[#FFA500] text-[#0B1118] hover:brightness-110 shadow-[0_10px_30px_rgba(255,165,0,0.18)]"
@@ -63,6 +65,8 @@ const Button = ({ variant = "primary", ...props }) => {
     />
   );
 };
+
+/* ------------------------------- Component ------------------------------- */
 
 export default function Settings() {
   const tabs = useMemo(
@@ -83,6 +87,7 @@ export default function Settings() {
   // UX
   const [busyKey, setBusyKey] = useState("");
   const [banner, setBanner] = useState(null); // { type: 'success'|'error', text }
+  const bannerTimerRef = useRef(null);
 
   // --- Refs (uncontrolled inputs; safest upgrade) ---
   // Company
@@ -121,21 +126,87 @@ export default function Settings() {
   const webhookUrlRef = useRef(null);
   const [webhooksEnabled, setWebhooksEnabled] = useState(false);
 
-  // ✅ NEW (safe): modal state for recent logins
-  const [recentOpen, setRecentOpen] = useState(false);
-  const [recentBusy, setRecentBusy] = useState(false);
-  const [recentErr, setRecentErr] = useState("");
-  const [recentItems, setRecentItems] = useState([]);
-
   const showBanner = (type, text) => {
     setBanner({ type, text });
-    window.clearTimeout(showBanner._t);
-    showBanner._t = window.setTimeout(() => setBanner(null), 3500);
+
+    if (bannerTimerRef.current) {
+      window.clearTimeout(bannerTimerRef.current);
+      bannerTimerRef.current = null;
+    }
+
+    bannerTimerRef.current = window.setTimeout(() => {
+      setBanner(null);
+      bannerTimerRef.current = null;
+    }, 3500);
   };
 
   const safeNum = (v, fallback) => {
     const n = Number(v);
     return Number.isFinite(n) ? n : fallback;
+  };
+
+  // IMPORTANT: defaultValue does NOT update when loaded changes.
+  // So we hydrate refs manually once settings are fetched.
+  const hydrateRefsFromSettings = (s) => {
+    if (!s) return;
+
+    // Company
+    if (companyNameRef.current)
+      companyNameRef.current.value =
+        s?.company?.companyName ?? "Ellcworth Express Ltd";
+    if (tradingNameRef.current)
+      tradingNameRef.current.value =
+        s?.company?.tradingName ?? "Ellcworth Express";
+    if (currencyRef.current)
+      currencyRef.current.value = s?.company?.currency ?? "GBP";
+    if (timezoneRef.current)
+      timezoneRef.current.value = s?.company?.timezone ?? "Europe/London";
+
+    // Operations
+    if (originCountryRef.current)
+      originCountryRef.current.value =
+        s?.operations?.defaultOriginCountry ?? "UK";
+    if (destinationCountryRef.current)
+      destinationCountryRef.current.value =
+        s?.operations?.defaultDestinationCountry ?? "GH";
+    if (refPrefixRef.current)
+      refPrefixRef.current.value = s?.operations?.refPrefix ?? "ELX";
+    if (incotermRef.current)
+      incotermRef.current.value = s?.operations?.defaultIncoterm ?? "CIF";
+
+    // Security
+    if (requireMfaRef.current)
+      requireMfaRef.current.value = s?.security?.requireMfa ?? "recommended";
+    if (sessionTimeoutRef.current)
+      sessionTimeoutRef.current.value = String(
+        s?.security?.sessionTimeoutMinutes ?? 60
+      );
+    if (passwordMinLengthRef.current)
+      passwordMinLengthRef.current.value = String(
+        s?.security?.passwordMinLength ?? 10
+      );
+    if (lockoutThresholdRef.current)
+      lockoutThresholdRef.current.value = String(
+        s?.security?.lockoutThreshold ?? 5
+      );
+
+    // Notifications
+    if (fromNameRef.current)
+      fromNameRef.current.value =
+        s?.notifications?.fromName ?? "Ellcworth Express";
+    if (replyToRef.current)
+      replyToRef.current.value =
+        s?.notifications?.replyTo ?? "support@ellcworth.com";
+    if (overdueHoursRef.current)
+      overdueHoursRef.current.value = String(
+        s?.notifications?.overdueHours ?? 48
+      );
+    if (digestTimeRef.current)
+      digestTimeRef.current.value = s?.notifications?.digestTime ?? "08:30";
+
+    // Integrations
+    if (webhookUrlRef.current)
+      webhookUrlRef.current.value = s?.integrations?.webhookUrl ?? "";
   };
 
   // Load settings on mount
@@ -148,9 +219,14 @@ export default function Settings() {
         if (ignore) return;
 
         const s = res?.data || null;
+
+        // snapshot
         setLoaded(s);
 
-        // Sync checkbox/toggle state that isn't driven by defaultValue
+        // hydrate all refs (uncontrolled inputs)
+        hydrateRefsFromSettings(s);
+
+        // Sync checkbox/toggle state (these ARE controlled)
         setLogAllAdminActions(!!s?.security?.logAllAdminActions);
 
         setShipmentStatusUpdates(!!s?.notifications?.shipmentStatusUpdates);
@@ -163,7 +239,6 @@ export default function Settings() {
         setPortSchedulesEnabled(!!s?.integrations?.portSchedulesEnabled);
         setWebhooksEnabled(!!s?.integrations?.webhooksEnabled);
       } catch (err) {
-        // If token missing/invalid, don’t crash the page — just message
         showBanner(
           "error",
           err?.response?.data?.message ||
@@ -174,10 +249,16 @@ export default function Settings() {
 
     return () => {
       ignore = true;
+      if (bannerTimerRef.current) {
+        window.clearTimeout(bannerTimerRef.current);
+        bannerTimerRef.current = null;
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Helpers to read current UI values
+  /* -------------------------- Payload Readers -------------------------- */
+
   const readCompanyPayload = () => ({
     company: {
       companyName: companyNameRef.current?.value ?? "Ellcworth Express Ltd",
@@ -229,11 +310,31 @@ export default function Settings() {
     },
   });
 
+  /* ------------------------------ Actions ------------------------------ */
+
   const save = async (key, payload) => {
     try {
       setBusyKey(key);
       const res = await adminRequest.put("/settings", payload);
-      setLoaded(res?.data || loaded);
+      const s = res?.data || loaded;
+
+      setLoaded(s);
+      // keep UI aligned with DB response
+      hydrateRefsFromSettings(s);
+
+      // controlled toggles aligned too
+      setLogAllAdminActions(!!s?.security?.logAllAdminActions);
+
+      setShipmentStatusUpdates(!!s?.notifications?.shipmentStatusUpdates);
+      setPaymentConfirmations(!!s?.notifications?.paymentConfirmations);
+      setDocumentRequests(!!s?.notifications?.documentRequests);
+
+      setGoogleMapsEnabled(!!s?.integrations?.googleMapsEnabled);
+      setPaymentsEnabled(!!s?.integrations?.paymentsEnabled);
+      setVinLookupEnabled(!!s?.integrations?.vinLookupEnabled);
+      setPortSchedulesEnabled(!!s?.integrations?.portSchedulesEnabled);
+      setWebhooksEnabled(!!s?.integrations?.webhooksEnabled);
+
       showBanner("success", "Settings saved successfully");
     } catch (err) {
       showBanner(
@@ -246,7 +347,7 @@ export default function Settings() {
   };
 
   const resetOperationsRecommended = () => {
-    // Recommended == your schema defaults (keep your current defaults)
+    // Recommended == schema defaults
     if (originCountryRef.current) originCountryRef.current.value = "UK";
     if (destinationCountryRef.current)
       destinationCountryRef.current.value = "GH";
@@ -263,64 +364,41 @@ export default function Settings() {
     showBanner("success", `Preview: ${tn} • ${cn} • ${cur} • ${tz}`);
   };
 
-  // ✅ NEW: Download policy report (no backend needed)
-  const downloadPolicyReport = () => {
-    const payload = {
-      generatedAt: new Date().toISOString(),
-      company: readCompanyPayload().company,
-      operations: readOperationsPayload().operations,
-      security: readSecurityPayload().security,
-      notifications: readNotificationsPayload().notifications,
-      integrations: readIntegrationsPayload().integrations,
-    };
-
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ellcworth-policy-report-${new Date()
-      .toISOString()
-      .slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    showBanner("success", "Policy report downloaded");
-  };
-
-  // ✅ NEW: View recent logins (GET /admin/logs?type=auth)
-  const openRecentLogins = async () => {
-    setRecentOpen(true);
-    setRecentErr("");
-    setRecentBusy(true);
-    setRecentItems([]);
-
+  // ✅ WIRED: Send test email (Backend should implement POST /admin/settings/test-email)
+  const sendTestEmail = async () => {
     try {
-      const res = await adminRequest.get("/logs", {
-        params: { type: "auth", limit: 15, page: 1 },
-      });
-      const items = Array.isArray(res?.data?.items) ? res.data.items : [];
-      setRecentItems(items);
+      setBusyKey("testEmail");
+      const res = await adminRequest.post("/settings/test-email");
+      showBanner("success", res?.data?.message || "Test email sent");
     } catch (err) {
-      setRecentErr(
-        err?.response?.data?.message ||
-          "Failed to load recent logins (are you logged in as admin?)"
+      showBanner(
+        "error",
+        err?.response?.data?.message || "Failed to send test email"
       );
     } finally {
-      setRecentBusy(false);
+      setBusyKey("");
     }
   };
 
-  const fmtTs = (iso) => {
-    if (!iso) return "";
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return String(iso);
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-      d.getDate()
-    )} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
+  // Still not wired (safe placeholders)
+  const downloadPolicyReport = () =>
+    showBanner("error", "Download policy report: not wired yet");
+
+  const configureIpAllowlist = () =>
+    showBanner("error", "IP allowlist: not wired yet");
+
+  const rotateJwtSecret = () =>
+    showBanner("error", "Rotate JWT secret: not wired yet");
+
+  const viewRecentLogins = () =>
+    showBanner("error", "Recent logins: not wired yet");
+
+  const viewApiKeys = () => showBanner("error", "View API keys: not wired yet");
+
+  const sendTestWebhook = () =>
+    showBanner("error", "Send test payload: not wired yet");
+
+  /* ------------------------------- Render ------------------------------- */
 
   return (
     <div className="min-h-[calc(100dvh-64px)] bg-[#0B1118]">
@@ -352,86 +430,6 @@ export default function Settings() {
           </div>
         ) : null}
 
-        {/* ✅ NEW: Recent logins modal (doesn’t affect anything else) */}
-        {recentOpen ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-3">
-            <button
-              aria-label="Close recent logins overlay"
-              onClick={() => setRecentOpen(false)}
-              className="absolute inset-0 bg-black/60"
-            />
-            <div className="relative w-full max-w-2xl rounded-2xl bg-[#0F1720] border border-white/10 shadow-2xl">
-              <div className="p-5 border-b border-white/10 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-white font-semibold text-[14px] tracking-[0.02em]">
-                    Recent logins
-                  </p>
-                  <p className="text-gray-400 text-[12px] mt-1">
-                    Pulled from audit logs (type: auth)
-                  </p>
-                </div>
-                <button
-                  onClick={() => setRecentOpen(false)}
-                  className="rounded-lg px-3 py-2 text-sm font-semibold text-white/80 hover:text-white hover:bg-white/10 transition"
-                >
-                  Close
-                </button>
-              </div>
-
-              <div className="p-5">
-                {recentErr ? (
-                  <div className="mb-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-200 px-4 py-3 text-[12px]">
-                    {recentErr}
-                  </div>
-                ) : null}
-
-                {recentBusy ? (
-                  <p className="text-gray-300 text-[13px]">Loading...</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-[560px] w-full text-left">
-                      <thead>
-                        <tr className="text-[11px] uppercase tracking-[0.18em] text-gray-400">
-                          <th className="py-3 pr-4">Timestamp</th>
-                          <th className="py-3 pr-4">Actor</th>
-                          <th className="py-3 pr-4">Action</th>
-                          <th className="py-3">Reference</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-[13px]">
-                        {recentItems.map((l) => (
-                          <tr key={l._id} className="border-t border-white/5">
-                            <td className="py-3 pr-4 text-gray-100">
-                              {fmtTs(l.createdAt)}
-                            </td>
-                            <td className="py-3 pr-4 text-gray-300">
-                              {l.actorId || "—"}
-                            </td>
-                            <td className="py-3 pr-4 text-gray-100">
-                              {l.action || "—"}
-                            </td>
-                            <td className="py-3 text-gray-300">
-                              {l.ref || "—"}
-                            </td>
-                          </tr>
-                        ))}
-
-                        {!recentBusy && recentItems.length === 0 ? (
-                          <tr className="border-t border-white/5">
-                            <td className="py-6 text-gray-400" colSpan={4}>
-                              No auth logs found yet.
-                            </td>
-                          </tr>
-                        ) : null}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : null}
-
         {/* Tabs */}
         <div className="flex gap-2 overflow-x-auto pb-2">
           {tabs.map((t) => (
@@ -451,6 +449,7 @@ export default function Settings() {
         </div>
 
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* ------------------------------ COMPANY ------------------------------ */}
           {active === "company" && (
             <>
               <SectionCard
@@ -584,11 +583,7 @@ export default function Settings() {
                   </Button>
                   <Button
                     variant="ghost"
-                    onClick={() => {
-                      resetOperationsRecommended();
-                      // optional: persist immediately
-                      // save("operations", readOperationsPayload());
-                    }}
+                    onClick={resetOperationsRecommended}
                     disabled={busyKey === "operations"}
                   >
                     Reset to recommended
@@ -598,6 +593,7 @@ export default function Settings() {
             </>
           )}
 
+          {/* ------------------------------ SECURITY ------------------------------ */}
           {active === "security" && (
             <>
               <SectionCard
@@ -661,8 +657,6 @@ export default function Settings() {
                       ? "Saving..."
                       : "Apply security policy"}
                   </Button>
-
-                  {/* ✅ now wired */}
                   <Button
                     variant="ghost"
                     onClick={downloadPolicyReport}
@@ -705,28 +699,16 @@ export default function Settings() {
                         Restrict admin access to known networks (office/VPN).
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      onClick={() =>
-                        showBanner("error", "IP allowlist: not wired yet")
-                      }
-                    >
+                    <Button variant="ghost" onClick={configureIpAllowlist}>
                       Configure
                     </Button>
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <Button
-                      variant="danger"
-                      onClick={() =>
-                        showBanner("error", "Rotate JWT secret: not wired yet")
-                      }
-                    >
+                    <Button variant="danger" onClick={rotateJwtSecret}>
                       Rotate JWT secret
                     </Button>
-
-                    {/* ✅ now wired */}
-                    <Button variant="ghost" onClick={openRecentLogins}>
+                    <Button variant="ghost" onClick={viewRecentLogins}>
                       View recent logins
                     </Button>
                   </div>
@@ -735,6 +717,7 @@ export default function Settings() {
             </>
           )}
 
+          {/* ---------------------------- NOTIFICATIONS ---------------------------- */}
           {active === "notifications" && (
             <>
               <SectionCard
@@ -814,14 +797,18 @@ export default function Settings() {
                         ? "Saving..."
                         : "Save notification rules"}
                     </Button>
+
+                    {/* ✅ Wired */}
                     <Button
                       variant="ghost"
-                      onClick={() =>
-                        showBanner("error", "Send test email: not wired yet")
+                      onClick={sendTestEmail}
+                      disabled={
+                        busyKey === "testEmail" || busyKey === "notifications"
                       }
-                      disabled={busyKey === "notifications"}
                     >
-                      Send test email
+                      {busyKey === "testEmail"
+                        ? "Sending..."
+                        : "Send test email"}
                     </Button>
                   </div>
                 </div>
@@ -875,6 +862,7 @@ export default function Settings() {
             </>
           )}
 
+          {/* ---------------------------- INTEGRATIONS ---------------------------- */}
           {active === "integrations" && (
             <>
               <SectionCard title="Integrations" hint="Plug in, don’t patch">
@@ -939,9 +927,7 @@ export default function Settings() {
                   </Button>
                   <Button
                     variant="ghost"
-                    onClick={() =>
-                      showBanner("error", "View API keys: not wired yet")
-                    }
+                    onClick={viewApiKeys}
                     disabled={busyKey === "integrations"}
                   >
                     View API keys
@@ -963,6 +949,7 @@ export default function Settings() {
                       updated, document uploaded.
                     </p>
                   </div>
+
                   <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
                     <div>
                       <p className="text-gray-100 text-[13px] font-semibold">
@@ -991,9 +978,7 @@ export default function Settings() {
                     </Button>
                     <Button
                       variant="ghost"
-                      onClick={() =>
-                        showBanner("error", "Send test payload: not wired yet")
-                      }
+                      onClick={sendTestWebhook}
                       disabled={busyKey === "webhooks"}
                     >
                       Send test payload
