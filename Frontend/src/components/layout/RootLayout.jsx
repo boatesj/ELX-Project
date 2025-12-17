@@ -1,4 +1,4 @@
-import Navbar from "@/components/Navbar";
+import Navbar from "@/components/NavbarPublic";
 import Footer from "@/components/Footer";
 import PreFooterCTA from "@/components/PreFooterCTA";
 import { Outlet, useLocation } from "react-router-dom";
