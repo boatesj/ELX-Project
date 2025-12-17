@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import {
   FaShip,
   FaCarSide,
@@ -49,7 +50,7 @@ const SERVICES = [
 const ServiceOverview = () => {
   return (
     <section
-      id="services-overview"
+      id="services"
       className="
         w-full
         bg-[#E5E7EB]
@@ -57,8 +58,10 @@ const ServiceOverview = () => {
         border-t border-gray-300
       "
     >
+      {/* Back-compat anchor (in case anything links to the old id) */}
+      <span id="services-overview" className="block relative -top-[140px]" />
+
       <div className="mx-auto w-full max-w-6xl px-4 md:px-6 lg:px-8">
-        {/* Gradient panel */}
         <div
           className="
             relative
@@ -71,10 +74,8 @@ const ServiceOverview = () => {
             shadow-[0_18px_40px_rgba(15,23,42,0.45)]
           "
         >
-          {/* Decorative accent bar */}
           <div className="absolute inset-y-0 right-0 w-24 bg-[#FFA500]/10 blur-3xl pointer-events-none" />
 
-          {/* Text block */}
           <div className="relative max-w-3xl">
             <h2 className="text-2xl md:text-[2.1rem] font-semibold tracking-tight mb-3 uppercase">
               Deliveries with Added Value.
@@ -87,7 +88,6 @@ const ServiceOverview = () => {
             </p>
           </div>
 
-          {/* Service pills strip */}
           <div
             className="
               relative
@@ -98,16 +98,27 @@ const ServiceOverview = () => {
               px-4 py-4
             "
           >
-            <p className="text-[11px] md:text-xs font-semibold uppercase tracking-[0.18em] text-[#9A9EAB] mb-3 text-center md:text-left">
-              Ellcworth service range
-            </p>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <p className="text-[11px] md:text-xs font-semibold uppercase tracking-[0.18em] text-[#9A9EAB]">
+                Ellcworth service range
+              </p>
+
+              {/* ✅ New route entry-point (does not affect landing page) */}
+              <Link
+                to="/services"
+                className="text-[11px] md:text-xs font-semibold tracking-[0.14em] uppercase text-[#1A2930] hover:opacity-80"
+              >
+                View all →
+              </Link>
+            </div>
 
             <div className="grid gap-3 md:gap-4 md:grid-cols-3">
               {SERVICES.map((service) => {
                 const Icon = service.icon;
                 return (
-                  <div
+                  <Link
                     key={service.id}
+                    to={`/services/${service.id}`}
                     className="
                       flex items-start gap-3
                       rounded-2xl
@@ -116,6 +127,7 @@ const ServiceOverview = () => {
                       px-3.5 py-3
                       shadow-sm
                       hover:border-[#FFA500]/80
+                      hover:shadow-md
                       transition
                     "
                   >
@@ -130,7 +142,7 @@ const ServiceOverview = () => {
                         {service.body}
                       </p>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
