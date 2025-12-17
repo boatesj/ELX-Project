@@ -10,7 +10,7 @@ import {
   FaFileAlt,
 } from "react-icons/fa";
 import { Link, useParams } from "react-router-dom";
-import { shipments } from "../assets/shipments";
+import { shipments } from "@/assets/shipments";
 
 const getStatusClasses = (status) => {
   switch (status) {
