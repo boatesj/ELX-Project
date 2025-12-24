@@ -13,6 +13,7 @@ import CustomerLogin from "@/pages/auth/CustomerLogin.jsx";
 import MyShipments from "@/pages/customer/MyShipments.jsx";
 import ShipmentDetails from "@/pages/customer/ShipmentDetails.jsx";
 import AllShipments from "@/pages/customer/AllShipments.jsx";
+import RequireCustomerAuth from "@/components/auth/RequireCustomerAuth.jsx";
 
 const router = createBrowserRouter([
   {
@@ -29,9 +30,30 @@ const router = createBrowserRouter([
       { path: "login", element: <CustomerLogin /> },
 
       // Customer (we'll protect later)
-      { path: "myshipments", element: <MyShipments /> },
-      { path: "shipmentdetails/:id", element: <ShipmentDetails /> },
-      { path: "allshipments", element: <AllShipments /> },
+      {
+        path: "myshipments",
+        element: (
+          <RequireCustomerAuth>
+            <MyShipments />
+          </RequireCustomerAuth>
+        ),
+      },
+      {
+        path: "shipmentdetails/:id",
+        element: (
+          <RequireCustomerAuth>
+            <ShipmentDetails />
+          </RequireCustomerAuth>
+        ),
+      },
+      {
+        path: "allshipments",
+        element: (
+          <RequireCustomerAuth>
+            <AllShipments />
+          </RequireCustomerAuth>
+        ),
+      },
 
       // 404 (last)
       { path: "*", element: <NotFound /> },

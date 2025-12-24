@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   FaLock,
   FaEye,
@@ -6,8 +6,140 @@ import {
   FaCheckCircle,
   FaPhoneAlt,
   FaEnvelope,
+  FaSignOutAlt,
 } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+
+/**
+ * ✅ Customer-only keys (prevents Admin portal collisions)
+ * IMPORTANT: Customer login must NEVER accept Admin/legacy tokens as "signed in".
+ */
+const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
+const CUSTOMER_TOKEN_KEY = "elx_customer_token";
+const CUSTOMER_USER_KEY = "elx_customer_user";
+
+/**
+ * Legacy keys (read-only fallback)
+ * We ONLY migrate legacy auth if the legacy user is explicitly role==="customer".
+ */
+const LEGACY_TOKEN_KEY = "elx_token";
+const LEGACY_USER_KEY = "elx_user";
+
+function clearCustomerAuth() {
+  localStorage.removeItem(CUSTOMER_SESSION_KEY);
+  localStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  localStorage.removeItem(CUSTOMER_USER_KEY);
+  sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  sessionStorage.removeItem(CUSTOMER_USER_KEY);
+}
+
+function readJson(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCustomerSession({ remember, token, user }) {
+  const session = {
+    isAuthenticated: true,
+    token,
+    user,
+    createdAt: new Date().toISOString(),
+    expiresAt: remember
+      ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      : new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+  };
+
+  localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(session));
+
+  if (remember) {
+    localStorage.setItem(CUSTOMER_TOKEN_KEY, token);
+    localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(user));
+    sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
+    sessionStorage.removeItem(CUSTOMER_USER_KEY);
+  } else {
+    sessionStorage.setItem(CUSTOMER_TOKEN_KEY, token);
+    sessionStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(user));
+    localStorage.removeItem(CUSTOMER_TOKEN_KEY);
+    localStorage.removeItem(CUSTOMER_USER_KEY);
+  }
+}
+
+/**
+ * ✅ Customer auth reader:
+ * - Uses customer keys ONLY for customer auth
+ * - Optionally migrates legacy keys ONLY if legacy user role === "customer"
+ * - Enforces expiry if session has expiresAt
+ */
+function readCustomerSession() {
+  // 1) Strictly customer-only token
+  const token =
+    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
+    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
+
+  const session = readJson(CUSTOMER_SESSION_KEY);
+
+  // 2) Expiry enforcement
+  if (session?.expiresAt) {
+    const exp = new Date(session.expiresAt).getTime();
+    if (!Number.isNaN(exp) && Date.now() > exp) {
+      clearCustomerAuth();
+      return { token: null, user: null, session: null };
+    }
+  }
+
+  // 3) Customer-only user
+  const userRaw =
+    localStorage.getItem(CUSTOMER_USER_KEY) ||
+    sessionStorage.getItem(CUSTOMER_USER_KEY);
+
+  let user = null;
+  if (userRaw) {
+    try {
+      user = JSON.parse(userRaw);
+    } catch {
+      user = null;
+    }
+  }
+  if (!user && session?.user) user = session.user;
+
+  // 4) Optional legacy migration — ONLY if legacy user is customer
+  if (!token && !user) {
+    const legacyToken =
+      localStorage.getItem(LEGACY_TOKEN_KEY) ||
+      sessionStorage.getItem(LEGACY_TOKEN_KEY);
+
+    const legacyUserRaw =
+      localStorage.getItem(LEGACY_USER_KEY) ||
+      sessionStorage.getItem(LEGACY_USER_KEY);
+
+    if (legacyToken && legacyUserRaw) {
+      try {
+        const legacyUser = JSON.parse(legacyUserRaw);
+        if (legacyUser?.role === "customer") {
+          // migrate into customer session keys (default remember=true)
+          writeCustomerSession({
+            remember: true,
+            token: legacyToken,
+            user: legacyUser,
+          });
+          return {
+            token: legacyToken,
+            user: legacyUser,
+            session: readJson(CUSTOMER_SESSION_KEY),
+          };
+        }
+      } catch {
+        // ignore legacy values
+      }
+    }
+  }
+
+  return { token: token || null, user, session };
+}
 
 const CustomerLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -17,10 +149,34 @@ const CustomerLogin = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = useMemo(
-    () => location.state?.from || "/myshipments",
-    [location]
-  );
+  const from = useMemo(() => {
+    const raw = location.state?.from;
+    if (!raw) return "/myshipments";
+    if (typeof raw === "string") return raw;
+    if (typeof raw === "object" && raw?.pathname) return raw.pathname;
+    return "/myshipments";
+  }, [location.state]);
+
+  // Compute auth state
+  const [existing, setExisting] = useState(() => readCustomerSession());
+
+  // Keep in sync if storage changes across tabs/windows
+  useEffect(() => {
+    const onStorage = () => setExisting(readCustomerSession());
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  /**
+   * Signed-in means:
+   * - has token AND
+   * - user is either explicitly role === "customer" OR user is missing (token-only dev mode)
+   *
+   * (Never let Admin role trigger signed-in state here.)
+   */
+  const alreadySignedIn =
+    Boolean(existing.token) &&
+    (existing.user?.role === "customer" || existing.user == null);
 
   const handleTogglePassword = () => setShowPassword((prev) => !prev);
 
@@ -30,36 +186,45 @@ const CustomerLogin = () => {
     if (status.error) setStatus((s) => ({ ...s, error: "" }));
   };
 
+  const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
   const onSubmit = async (e) => {
     e.preventDefault();
 
-    // Minimal client-side validation (production-safe, not overbearing)
-    if (!form.email.trim() || !form.password.trim()) {
+    const email = form.email.trim().toLowerCase();
+    const password = form.password.trim();
+
+    if (!email || !password) {
       setStatus({ loading: false, error: "Please enter email and password." });
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setStatus({
+        loading: false,
+        error: "Please enter a valid email address.",
+      });
       return;
     }
 
     setStatus({ loading: true, error: "" });
 
     try {
-      // ✅ Placeholder "original" login flow:
-      // Replace this block with your real API call when backend auth is ready.
-      // Example later:
-      // const data = await loginCustomer({ email: form.email, password: form.password });
-      // login({ token: data.token, user: data.user });
-      await new Promise((r) => setTimeout(r, 500));
+      // ✅ TEMP LOGIN (Frontend-only)
+      await new Promise((r) => setTimeout(r, 450));
 
-      // Simulate session token for now (keeps ProtectedRoute plan consistent later)
-      const token = "dev-token";
-      const user = { email: form.email };
+      // Always overwrite stale customer sessions before writing new one
+      clearCustomerAuth();
 
-      if (form.remember) {
-        localStorage.setItem("elx_token", token);
-        localStorage.setItem("elx_user", JSON.stringify(user));
-      } else {
-        sessionStorage.setItem("elx_token", token);
-        sessionStorage.setItem("elx_user", JSON.stringify(user));
-      }
+      const token = "customer-dev-token";
+      const user = {
+        email,
+        role: "customer",
+        accountHolderName: "Derry Morgan",
+      };
+
+      writeCustomerSession({ remember: form.remember, token, user });
+      setExisting({ token, user, session: readJson(CUSTOMER_SESSION_KEY) });
 
       navigate(from, { replace: true });
     } catch (err) {
@@ -67,14 +232,44 @@ const CustomerLogin = () => {
         loading: false,
         error: err?.message || "Login failed. Please try again.",
       });
+    } finally {
+      setStatus((s) => ({ ...s, loading: false }));
     }
+  };
+
+  const handleContinue = () => {
+    // extra safety: if somehow we are not (customer) signed in, show form
+    const current = readCustomerSession();
+    const ok =
+      Boolean(current.token) &&
+      (current.user?.role === "customer" || current.user == null);
+
+    if (!ok) {
+      clearCustomerAuth();
+      setExisting(readCustomerSession());
+      setStatus({
+        loading: false,
+        error:
+          "Your session is not valid for the customer portal. Please sign in.",
+      });
+      return;
+    }
+
+    navigate(from, { replace: true });
+  };
+
+  const handleSignOut = () => {
+    clearCustomerAuth();
+    setExisting(readCustomerSession());
+    setForm({ email: "", password: "", remember: true });
+    setStatus({ loading: false, error: "" });
   };
 
   return (
     <div className="bg-[#1A2930] text-white">
       <div className="max-w-6xl mx-auto px-4 md:px-8 lg:px-10 py-10 md:py-16">
         <div className="grid gap-10 md:grid-cols-2 items-center">
-          {/* LEFT: Marketing / value prop */}
+          {/* LEFT */}
           <section className="space-y-6">
             <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[#FFA500]">
               ELLCWORTH CUSTOMER PORTAL
@@ -123,7 +318,6 @@ const CustomerLogin = () => {
               </span>
             </div>
 
-            {/* Help / contact */}
             <div className="pt-3 border-t border-white/10 text-xs md:text-sm space-y-2">
               <p className="text-gray-300">Need help accessing your account?</p>
               <div className="flex flex-wrap gap-4">
@@ -145,116 +339,156 @@ const CustomerLogin = () => {
             </div>
           </section>
 
-          {/* RIGHT: Login card */}
+          {/* RIGHT */}
           <section className="w-full">
             <div className="w-full bg-white rounded-xl shadow-2xl px-7 py-8 md:px-8 md:py-10 text-[#1A2930]">
               <h2 className="text-xl md:text-2xl font-bold mb-6 text-center">
                 Sign in to your account
               </h2>
 
-              <form onSubmit={onSubmit}>
-                {/* Email */}
-                <div className="mb-5">
-                  <label className="text-sm font-semibold mb-2 block">
-                    Email address
-                  </label>
-                  <div className="flex items-center bg-gray-100 rounded-md px-3">
-                    <FaEnvelope className="text-[#1A2930] opacity-70 text-sm" />
-                    <input
-                      value={form.email}
-                      onChange={onChange("email")}
-                      type="email"
-                      autoComplete="email"
-                      placeholder="name@company.com"
-                      className="w-full bg-transparent outline-none px-3 py-3 text-sm md:text-base placeholder-gray-500"
-                      required
-                    />
+              {/* ✅ Already signed in panel (customer-only) */}
+              {alreadySignedIn ? (
+                <div className="space-y-4">
+                  <div className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800">
+                    You’re already signed in as{" "}
+                    <span className="font-semibold">
+                      {existing.user?.email || "your account"}
+                    </span>
+                    .
                   </div>
-                </div>
 
-                {/* Password */}
-                <div className="mb-4">
-                  <label className="text-sm font-semibold mb-2 block">
-                    Password
-                  </label>
-                  <div className="flex items-center bg-gray-100 rounded-md px-3">
-                    <FaLock className="text-[#1A2930] opacity-70 text-sm" />
-                    <input
-                      value={form.password}
-                      onChange={onChange("password")}
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      placeholder="Enter your password"
-                      className="w-full bg-transparent outline-none px-3 py-3 text-sm md:text-base placeholder-gray-500"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={handleTogglePassword}
-                      className="text-[#1A2930] opacity-70 hover:opacity-100 text-sm md:text-base"
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      {showPassword ? <FaEyeSlash /> : <FaEye />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Remember + Forgot */}
-                <div className="flex items-center justify-between mb-4 text-xs md:text-sm">
-                  <label className="flex items-center gap-2">
-                    <input
-                      checked={form.remember}
-                      onChange={onChange("remember")}
-                      type="checkbox"
-                      className="accent-[#FFA500] h-4 w-4"
-                    />
-                    <span>Remember me on this device</span>
-                  </label>
-
-                  <Link
-                    to="/forgot-password"
-                    className="text-[#FFA500] hover:text-[#ffb733] transition"
+                  <button
+                    type="button"
+                    onClick={handleContinue}
+                    className="w-full bg-[#FFA500] text-[#1A2930] py-3 rounded-md font-semibold hover:bg-[#ffb733] transition shadow-md"
                   >
-                    Forgot password?
-                  </Link>
+                    Continue
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSignOut}
+                    className="w-full border border-[#9A9EAB]/60 text-[#1A2930] py-3 rounded-md font-semibold hover:border-[#BF2918] hover:text-[#BF2918] transition flex items-center justify-center gap-2"
+                  >
+                    <FaSignOutAlt />
+                    Sign out and use another account
+                  </button>
                 </div>
-
-                {status.error ? (
-                  <div className="mb-4 rounded-md border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-700">
-                    {status.error}
+              ) : (
+                <form onSubmit={onSubmit}>
+                  {/* Email */}
+                  <div className="mb-5">
+                    <label className="text-sm font-semibold mb-2 block">
+                      Email address
+                    </label>
+                    <div className="flex items-center bg-gray-100 rounded-md px-3">
+                      <FaEnvelope className="text-[#1A2930] opacity-70 text-sm" />
+                      <input
+                        value={form.email}
+                        onChange={onChange("email")}
+                        type="email"
+                        autoComplete="email"
+                        placeholder="name@company.com"
+                        className="w-full bg-transparent outline-none px-3 py-3 text-sm md:text-base placeholder-gray-500"
+                        required
+                      />
+                    </div>
                   </div>
-                ) : null}
 
-                {/* Submit */}
-                <button
-                  type="submit"
-                  disabled={status.loading}
-                  className="
-                    w-full 
-                    bg-[#FFA500] 
-                    text-[#1A2930]
-                    py-3 
-                    rounded-md 
-                    font-semibold 
-                    tracking-wide 
-                    hover:bg-[#ffb733]
-                    transition
-                    shadow-md
-                    text-sm md:text-base
-                    disabled:opacity-60
-                  "
-                >
-                  {status.loading ? "Signing in..." : "Sign in"}
-                </button>
+                  {/* Password */}
+                  <div className="mb-4">
+                    <label className="text-sm font-semibold mb-2 block">
+                      Password
+                    </label>
+                    <div className="flex items-center bg-gray-100 rounded-md px-3">
+                      <FaLock className="text-[#1A2930] opacity-70 text-sm" />
+                      <input
+                        value={form.password}
+                        onChange={onChange("password")}
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        placeholder="Enter your password"
+                        className="w-full bg-transparent outline-none px-3 py-3 text-sm md:text-base placeholder-gray-500"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={handleTogglePassword}
+                        className="text-[#1A2930] opacity-70 hover:opacity-100 text-sm md:text-base"
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
+                      >
+                        {showPassword ? <FaEyeSlash /> : <FaEye />}
+                      </button>
+                    </div>
+                  </div>
 
-                <p className="mt-4 text-[11px] md:text-xs text-gray-500 text-center leading-relaxed">
-                  By signing in you confirm that you are authorised to access
-                  this portal and agree to Ellcworth Express&apos; terms of use
-                  and privacy policy.
+                  {/* Remember + Forgot */}
+                  <div className="flex items-center justify-between mb-4 text-xs md:text-sm">
+                    <label className="flex items-center gap-2">
+                      <input
+                        checked={form.remember}
+                        onChange={onChange("remember")}
+                        type="checkbox"
+                        className="accent-[#FFA500] h-4 w-4"
+                      />
+                      <span>Remember me on this device</span>
+                    </label>
+
+                    <Link
+                      to="/forgot-password"
+                      className="text-[#FFA500] hover:text-[#ffb733] transition"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+
+                  {status.error ? (
+                    <div className="mb-4 rounded-md border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-700">
+                      {status.error}
+                    </div>
+                  ) : null}
+
+                  {/* Submit */}
+                  <button
+                    type="submit"
+                    disabled={status.loading}
+                    className="
+                      w-full 
+                      bg-[#FFA500] 
+                      text-[#1A2930]
+                      py-3 
+                      rounded-md 
+                      font-semibold 
+                      tracking-wide 
+                      hover:bg-[#ffb733]
+                      transition
+                      shadow-md
+                      text-sm md:text-base
+                      disabled:opacity-60
+                    "
+                  >
+                    {status.loading ? "Signing in..." : "Sign in"}
+                  </button>
+
+                  <p className="mt-4 text-[11px] md:text-xs text-gray-500 text-center leading-relaxed">
+                    By signing in you confirm that you are authorised to access
+                    this portal and agree to Ellcworth Express&apos; terms of
+                    use and privacy policy.
+                  </p>
+                </form>
+              )}
+
+              {/* Extra hint if admin session is present (helps you debug in dev) */}
+              {!alreadySignedIn &&
+              (localStorage.getItem(LEGACY_TOKEN_KEY) ||
+                sessionStorage.getItem(LEGACY_TOKEN_KEY)) ? (
+                <p className="mt-5 text-[11px] md:text-xs text-gray-500 text-center">
+                  Note: An Admin session may be present in this browser.
+                  Customer login ignores Admin tokens by design.
                 </p>
-              </form>
+              ) : null}
             </div>
           </section>
         </div>
