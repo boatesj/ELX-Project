@@ -1,4 +1,3 @@
-// src/pages/Shipments.jsx
 import { useState } from "react";
 import { FaArrowLeft, FaSearch } from "react-icons/fa";
 import { Link } from "react-router-dom";
@@ -257,8 +256,7 @@ const ShipmentsTable = ({ rows }) => {
 /* ------------------------------------------
    PAGE CONTAINER: /allshipments
 ------------------------------------------- */
-const Shipments = () => {
-  // Map full shipment objects into the shape we need for the table
+const AllShipments = () => {
   const rows = shipments.map((s) => ({
     id: s.id,
     reference: s.reference,
@@ -289,10 +287,10 @@ const Shipments = () => {
       <div className="max-w-6xl mx-auto px-4 md:px-8">
         {/* Top bar */}
         <div className="flex items-center justify-between mb-6">
-          <Link to="/dashboard">
+          <Link to="/myshipments">
             <button className="inline-flex items-center gap-2 text-xs md:text-sm text-slate-200 hover:text-[#FFA500] transition">
               <FaArrowLeft />
-              Back to Dashboard
+              Back to My Shipments
             </button>
           </Link>
 
@@ -340,11 +338,10 @@ const Shipments = () => {
           </div>
         </div>
 
-        {/* TABLE */}
         <ShipmentsTable rows={rows} />
       </div>
     </div>
   );
 };
 
-export default Shipments;
+export default AllShipments;

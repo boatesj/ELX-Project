@@ -1,18 +1,94 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FaUser, FaListUl, FaFileAlt, FaSignOutAlt } from "react-icons/fa";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { shipments } from "@/assets/shipments";
 
-const Myshipments = () => {
+// ✅ Customer-only keys (must match CustomerLogin.jsx)
+const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
+const CUSTOMER_TOKEN_KEY = "elx_customer_token";
+const CUSTOMER_USER_KEY = "elx_customer_user";
+
+// Legacy keys (read-only fallback so older sessions don’t explode)
+const LEGACY_TOKEN_KEY = "elx_token";
+const LEGACY_USER_KEY = "elx_user";
+
+function safeJsonParse(raw) {
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearCustomerAuth() {
+  localStorage.removeItem(CUSTOMER_SESSION_KEY);
+  localStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  localStorage.removeItem(CUSTOMER_USER_KEY);
+  sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  sessionStorage.removeItem(CUSTOMER_USER_KEY);
+}
+
+function readCustomerAuth() {
+  const token =
+    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
+    sessionStorage.getItem(CUSTOMER_TOKEN_KEY) ||
+    // legacy fallback (read-only)
+    localStorage.getItem(LEGACY_TOKEN_KEY) ||
+    sessionStorage.getItem(LEGACY_TOKEN_KEY);
+
+  const session = safeJsonParse(localStorage.getItem(CUSTOMER_SESSION_KEY));
+
+  // expiry enforcement (customer session only)
+  if (session?.expiresAt) {
+    const exp = new Date(session.expiresAt).getTime();
+    if (!Number.isNaN(exp) && Date.now() > exp) {
+      clearCustomerAuth();
+      return { token: null, user: null };
+    }
+  }
+
+  const userRaw =
+    localStorage.getItem(CUSTOMER_USER_KEY) ||
+    sessionStorage.getItem(CUSTOMER_USER_KEY) ||
+    // legacy fallback (read-only)
+    localStorage.getItem(LEGACY_USER_KEY) ||
+    sessionStorage.getItem(LEGACY_USER_KEY);
+
+  const user = safeJsonParse(userRaw) || session?.user || null;
+
+  return { token: token || null, user };
+}
+
+const MyShipments = () => {
   const [open, setOpen] = useState(false);
+
+  // ✅ Single source of truth for auth during this render
+  const [auth, setAuth] = useState(() => readCustomerAuth());
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // ✅ Guard: redirect ONLY when we are sure there is no token
+  useEffect(() => {
+    const current = readCustomerAuth();
+    setAuth(current);
+
+    if (!current.token) {
+      navigate("/login", {
+        replace: true,
+        state: { from: location.pathname },
+      });
+    }
+  }, [navigate, location.pathname]);
 
   const handleOpen = () => setOpen((prev) => !prev);
 
-  const accountHolderName = "Derry Morgan";
+  const accountHolderName = auth.user?.accountHolderName || "Derry Morgan";
 
   // BUSINESS: only show shipments that belong to this account holder
-  const myShipments = shipments.filter(
-    (s) => s.accountHolder === accountHolderName
+  const myShipments = useMemo(
+    () => shipments.filter((s) => s.accountHolder === accountHolderName),
+    [accountHolderName]
   );
 
   const getStatusClasses = (status) => {
@@ -37,6 +113,13 @@ const Myshipments = () => {
           border border-[#FFA500]/60
         `;
     }
+  };
+
+  const handleLogout = () => {
+    clearCustomerAuth();
+    setOpen(false);
+    setAuth({ token: null, user: null });
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -73,8 +156,8 @@ const Myshipments = () => {
               <span
                 className="
                   flex h-8 w-8 items-center justify-center
-                  rounded-full 
-                  bg-[#FFA500]/10 
+                  rounded-full
+                  bg-[#FFA500]/10
                   text-[#FFA500]
                   text-sm
                 "
@@ -103,11 +186,21 @@ const Myshipments = () => {
                       <span>All shipments (internal)</span>
                     </li>
                   </Link>
+
                   <li className="px-4 py-2 hover:bg-[#9A9EAB]/10 cursor-pointer flex items-center gap-2">
                     <FaFileAlt className="text-xs" />
                     <span>Statements</span>
                   </li>
-                  <li className="px-4 py-2 hover:bg-[#FFA500]/10 cursor-pointer flex items-center gap-2 text-[#BF2918]">
+
+                  <li
+                    onClick={handleLogout}
+                    className="px-4 py-2 hover:bg-[#FFA500]/10 cursor-pointer flex items-center gap-2 text-[#BF2918]"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") handleLogout();
+                    }}
+                  >
                     <FaSignOutAlt className="text-xs" />
                     <span>Logout</span>
                   </li>
@@ -214,4 +307,4 @@ const Myshipments = () => {
   );
 };
 
-export default Myshipments;
+export default MyShipments;
