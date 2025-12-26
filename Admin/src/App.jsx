@@ -244,15 +244,15 @@ const router = createBrowserRouter([
       // Shipments
       { path: "shipments", element: <Shipments /> },
       { path: "newshipment", element: <NewShipment /> },
-      { path: "shipments/:shipmentId", element: <Shipment /> }, // ✅ Phase 3A required
+      { path: "shipments/:shipmentId", element: <Shipment /> },
 
       // Users
-      { path: "users", element: <Users /> }, // ✅ Phase 3A required
+      { path: "users", element: <Users /> },
       { path: "newuser", element: <NewUser /> },
-      { path: "users/:id", element: <UserDetails /> }, // ✅ Phase 3A required
+      { path: "users/:id", element: <UserDetails /> },
       { path: "users/:id/edit", element: <EditUser /> },
 
-      // Other admin pages (already wired)
+      // Other admin pages
       { path: "profile", element: <Profile /> },
       { path: "orders", element: <Orders /> },
 
@@ -283,9 +283,6 @@ const router = createBrowserRouter([
       </RequireNoAuth>
     ),
   },
-
-  // Global fallback (anything else)
-  { path: "*", element: <Navigate to="/" replace /> },
 ]);
 
 function App() {
