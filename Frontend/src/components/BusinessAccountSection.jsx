@@ -3,14 +3,16 @@ import { FaHandshake, FaUserTie, FaChartLine } from "react-icons/fa";
 const BusinessAccountSection = () => {
   return (
     <section
-      id="business"
+      id="booking"
       className="
         w-full
         bg-gradient-to-r from-[#1A2930] via-[#1A2930] to-[#121826]
         text-white
         py-14 md:py-18
         border-t border-slate-800
+        scroll-mt-[120px] md:scroll-mt-[160px]
       "
+      aria-label="Business shipping profile"
     >
       <div className="mx-auto max-w-6xl px-4 md:px-6 lg:px-8">
         <div className="grid gap-10 md:grid-cols-[1.4fr,1fr] items-center">
@@ -137,7 +139,7 @@ const BusinessAccountSection = () => {
               border border-[#9A9EAB]/50
               p-5 md:p-6
               shadow-[0_18px_40px_rgba(15,23,42,0.7)]
-          "
+            "
           >
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9A9EAB] mb-2">
               How it simplifies your logistics
