@@ -4,20 +4,45 @@ import { DataGrid } from "@mui/x-data-grid";
 import { FaTrash, FaEye, FaEdit } from "react-icons/fa";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 
-const USERS_API =
-  (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000") + "/users";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const USERS_API = `${API_BASE}/users`;
+
+// Normalize status (backend tends to be "pending/active/suspended")
+const normalizeStatus = (status) => {
+  const s = String(status || "pending")
+    .trim()
+    .toLowerCase();
+  if (s === "active") return "active";
+  if (s === "suspended") return "suspended";
+  return "pending";
+};
+
+const statusLabel = (status) => {
+  const s = normalizeStatus(status);
+  return s.replace(/^\w/, (c) => c.toUpperCase());
+};
 
 const getStatusClasses = (status) => {
-  switch (status) {
-    case "Active":
+  const s = normalizeStatus(status);
+  switch (s) {
+    case "active":
       return "bg-green-100 text-green-700 border border-green-300";
-    case "Pending":
+    case "pending":
       return "bg-yellow-100 text-yellow-700 border border-yellow-300";
-    case "Suspended":
+    case "suspended":
       return "bg-red-100 text-red-700 border border-red-300";
     default:
       return "bg-gray-100 text-gray-700 border border-gray-300";
   }
+};
+
+// Pick array from many possible API shapes
+const pickUsersArray = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.users)) return payload.users;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.results)) return payload.results;
+  return [];
 };
 
 const Users = () => {
@@ -32,25 +57,33 @@ const Users = () => {
   const fallbackRows = useMemo(
     () => [
       {
-        id: 1,
+        id: "demo-1",
         name: "OceanGate Logistics Ltd",
         email: "ops@oceangate.co.uk",
         phone: "+44 20 8801 9900",
         type: "Shipper",
+        accountType: "Business",
         country: "United Kingdom",
         city: "London",
-        status: "Active",
+        postcode: "EC1A 1BB",
+        address: "1 Example Street, London",
+        notes: "Demo record",
+        status: "active",
         registered: "2024-01-08",
       },
       {
-        id: 2,
+        id: "demo-2",
         name: "Global Tech Supplies Inc.",
         email: "contact@globaltechsupplies.com",
         phone: "+1 415 227 9002",
         type: "Shipper",
+        accountType: "Business",
         country: "United States",
         city: "San Francisco",
-        status: "Active",
+        postcode: "94105",
+        address: "10 Market Street, San Francisco",
+        notes: "Demo record",
+        status: "active",
         registered: "2023-12-18",
       },
     ],
@@ -65,11 +98,10 @@ const Users = () => {
     try {
       const token = localStorage.getItem("token");
 
-      // 🔐 No token → send to login with redirect back to this page
       if (!token) {
         setLoadError("Please log in to view users.");
-        setLoading(false);
         navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+        setLoading(false);
         return;
       }
 
@@ -84,43 +116,48 @@ const Users = () => {
         setLoadError("Your session has expired. Please log in again.");
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        setLoading(false);
         navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+        setLoading(false);
         return;
       }
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to load users");
+        throw new Error(data?.message || "Failed to load users");
       }
 
-      const data = await res.json();
-      console.log("🔎 Raw users response:", data);
+      const list = pickUsersArray(data);
 
-      const mapped = (Array.isArray(data) ? data : data.users || []).map(
-        (user, index) => ({
-          id: user._id || user.id || index + 1,
-          name: user.fullname || user.name,
-          email: user.email,
-          phone: user.phone,
+      const mapped = list.map((user, index) => {
+        const id = user._id || user.id || `${index + 1}`;
+        const name = user.fullname || user.name || "—";
+
+        return {
+          id,
+          name,
+          email: user.email || "—",
+          phone: user.phone || "—",
           type: user.role || "N/A",
           accountType: user.accountType || "",
-          country: user.country,
+          country: user.country || "",
           city: user.city || "",
           postcode: user.postcode || "",
           address: user.address || "",
           notes: user.notes || "",
-          status: user.status || "Pending",
+          status: normalizeStatus(user.status),
           registered: user.createdAt
             ? new Date(user.createdAt).toISOString().slice(0, 10)
             : "",
-        })
-      );
+        };
+      });
 
-      setRows(mapped.length ? mapped : fallbackRows);
+      // If backend returns empty, show "No users found" instead of demo
+      setRows(mapped);
     } catch (err) {
       console.error(err);
       setLoadError(err.message || "Something went wrong loading users.");
+      // Only use fallback if the API failed (not merely empty)
       setRows(fallbackRows);
     } finally {
       setLoading(false);
@@ -172,9 +209,10 @@ const Users = () => {
         return;
       }
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to delete user");
+        throw new Error(data?.message || "Failed to delete user");
       }
 
       setRows((prev) => prev.filter((row) => row.id !== id));
@@ -202,7 +240,7 @@ const Users = () => {
           <span className="text-gray-600 text-xs">
             {params.value?.length > 40
               ? params.value.slice(0, 40) + "..."
-              : params.value}
+              : params.value || ""}
           </span>
         ),
       },
@@ -217,7 +255,7 @@ const Users = () => {
                 params.value
               )}`}
             >
-              {params.value}
+              {statusLabel(params.value)}
             </span>
           </div>
         ),
@@ -316,7 +354,7 @@ const Users = () => {
                     row.status
                   )}`}
                 >
-                  {row.status}
+                  {statusLabel(row.status)}
                 </span>
               </div>
 
