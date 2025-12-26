@@ -1,7 +1,6 @@
-//Admin/src/pages/Shipments.jsx
 import { DataGrid } from "@mui/x-data-grid";
 import { FaTrash } from "react-icons/fa";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
 import { authRequest } from "../requestMethods";
 
@@ -37,7 +36,26 @@ const getStatusClasses = (status) => {
 };
 
 const Shipments = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  // ✅ Controlled pagination (fixes “stuck” pagination issues)
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 5,
+  });
+
+  const redirectToLogin = (message) => {
+    setLoadError(message || "Please log in to view shipments.");
+    localStorage.removeItem("token");
+    localStorage.removeItem("ellcworth_token");
+    localStorage.removeItem("user");
+    navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+  };
 
   const handleDelete = async (id) => {
     const confirm = window.confirm(
@@ -47,9 +65,13 @@ const Shipments = () => {
 
     try {
       await authRequest.delete(`/api/v1/shipments/${id}`);
-      // Remove from local state so the grid updates
       setRows((prev) => prev.filter((row) => row._id !== id));
     } catch (error) {
+      const status = error?.response?.status;
+      if (status === 401) {
+        redirectToLogin("Your session has expired. Please log in again.");
+        return;
+      }
       console.error(
         "❌ Error deleting shipment:",
         error.response?.data || error
@@ -95,6 +117,7 @@ const Shipments = () => {
             <div className="flex items-center h-full gap-3">
               <Link to={`/shipments/${id}`}>
                 <button
+                  type="button"
                   className="
                     px-3 py-1 rounded-md font-semibold text-xs
                     bg-[#FFA500] text-black
@@ -106,9 +129,10 @@ const Shipments = () => {
               </Link>
 
               <button
+                type="button"
                 onClick={() => handleDelete(id)}
                 className="
-                  flex items-center gap-2 
+                  flex items-center gap-2
                   px-3 py-1 rounded-md font-semibold text-xs
                   bg-[#E53935] text-white
                   hover:bg-[#c62828] transition
@@ -127,21 +151,24 @@ const Shipments = () => {
 
   useEffect(() => {
     const getShipments = async () => {
+      setLoading(true);
+      setLoadError("");
+
       try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          redirectToLogin("Please log in to view shipments.");
+          setLoading(false);
+          return;
+        }
+
         const res = await authRequest.get("/api/v1/shipments");
-        console.log("🔎 Raw shipments response:", res.data);
 
         let shipmentsArray = [];
-
-        if (Array.isArray(res.data)) {
-          shipmentsArray = res.data;
-        } else if (Array.isArray(res.data.shipments)) {
+        if (Array.isArray(res.data)) shipmentsArray = res.data;
+        else if (Array.isArray(res.data.shipments))
           shipmentsArray = res.data.shipments;
-        } else if (Array.isArray(res.data.data)) {
-          shipmentsArray = res.data.data;
-        } else {
-          console.warn("⚠ No shipments array found in response");
-        }
+        else if (Array.isArray(res.data.data)) shipmentsArray = res.data.data;
 
         const normalised = shipmentsArray.map((s) => ({
           _id: s._id,
@@ -156,17 +183,27 @@ const Shipments = () => {
           raw: s,
         }));
 
-        console.log("✅ Normalised rows for grid:", normalised);
         setRows(normalised);
       } catch (error) {
+        const status = error?.response?.status;
+        if (status === 401) {
+          redirectToLogin("Your session has expired. Please log in again.");
+          return;
+        }
         console.error(
           "❌ Error fetching shipments:",
           error.response?.data || error
         );
+        setLoadError(
+          error?.response?.data?.message || "Failed to load shipments."
+        );
+      } finally {
+        setLoading(false);
       }
     };
 
     getShipments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -183,9 +220,19 @@ const Shipments = () => {
         </Link>
       </div>
 
+      {loadError ? (
+        <div className="mb-3 bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700">
+          {loadError}
+        </div>
+      ) : null}
+
       {/* MOBILE: Card list */}
       <div className="grid gap-3 lg:hidden">
-        {rows.length === 0 ? (
+        {loading ? (
+          <div className="bg-white rounded-md p-4 shadow-md text-sm text-gray-600">
+            Loading shipments...
+          </div>
+        ) : rows.length === 0 ? (
           <div className="bg-white rounded-md p-4 shadow-md text-sm text-gray-600">
             No shipments found.
           </div>
@@ -264,12 +311,13 @@ const Shipments = () => {
           rows={rows}
           getRowId={(row) => row._id}
           columns={columns}
-          checkboxSelection
+          loading={loading}
+          disableRowSelectionOnClick
+          pagination
+          pageSizeOptions={[5, 10, 25]}
+          paginationModel={paginationModel}
+          onPaginationModelChange={setPaginationModel}
           autoHeight
-          pageSizeOptions={[5, 10]}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 5, page: 0 } },
-          }}
         />
       </div>
     </div>
