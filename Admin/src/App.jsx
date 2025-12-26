@@ -4,8 +4,9 @@ import {
   RouterProvider,
   Navigate,
   useLocation,
+  Link,
 } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import Home from "./pages/Home";
 import Shipments from "./pages/Shipments";
@@ -22,7 +23,7 @@ import Orders from "./pages/Orders";
 import UserDetails from "./pages/UserDetails";
 import EditUser from "./pages/EditUser";
 
-// NEW: elements / master-data pages
+// elements / master-data pages
 import Elements from "./pages/Elements";
 import Ports from "./pages/Ports";
 import ServiceTypes from "./pages/ServiceTypes";
@@ -33,24 +34,93 @@ import Charts from "./pages/Charts";
 import Logs from "./pages/Logs";
 import Calendar from "./pages/Calendar";
 
+// -------------------- route guards --------------------
 function RequireAuth({ children }) {
   const location = useLocation();
   const token = localStorage.getItem("token");
+
   if (!token) {
     const redirect = encodeURIComponent(location.pathname + location.search);
     return <Navigate to={`/login?redirect=${redirect}`} replace />;
   }
+
   return children;
 }
 
-// Layout wrapper for all authenticated/admin pages
+/**
+ * If already authenticated, keep users out of /login.
+ * Honors an incoming redirect query if present (useful for manual /login navigation).
+ */
+function RequireNoAuth({ children }) {
+  const location = useLocation();
+  const token = localStorage.getItem("token");
+
+  const params = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search]
+  );
+  const redirect = params.get("redirect") || "/";
+
+  if (token) return <Navigate to={redirect} replace />;
+  return children;
+}
+
+// -------------------- ui: not found --------------------
+function NotFound() {
+  return (
+    <div className="w-full">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 sm:p-8 shadow-[0_18px_60px_-28px_rgba(0,0,0,0.8)]">
+        <div className="text-xs font-semibold tracking-[0.18em] text-white/60 uppercase">
+          Admin
+        </div>
+
+        <h1 className="mt-2 text-xl sm:text-2xl font-semibold text-white">
+          Page not found
+        </h1>
+
+        <p className="mt-2 text-sm text-white/70 max-w-prose">
+          The page you’re trying to reach doesn’t exist (or the route hasn’t
+          been wired yet).
+        </p>
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Link
+            to="/"
+            className="
+              inline-flex items-center justify-center
+              rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em]
+              bg-[#FFA500] text-[#071013]
+              hover:brightness-105 active:brightness-95 transition
+            "
+          >
+            Back to dashboard
+          </Link>
+
+          <Link
+            to="/shipments"
+            className="
+              inline-flex items-center justify-center
+              rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em]
+              border border-white/15 text-white/85
+              hover:bg-white/10 hover:text-white transition
+            "
+          >
+            Go to shipments
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// -------------------- layout: authenticated/admin shell --------------------
 function Layout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const openMenu = () => setIsMenuOpen(true);
   const closeMenu = () => setIsMenuOpen(false);
 
-  // ✅ Lock body scroll while drawer is open
+  // Lock body scroll while drawer is open
   useEffect(() => {
     if (!isMenuOpen) return;
     const originalOverflow = document.body.style.overflow;
@@ -60,7 +130,7 @@ function Layout() {
     };
   }, [isMenuOpen]);
 
-  // ✅ ESC key closes the drawer (corporate UX standard)
+  // ESC key closes the drawer
   useEffect(() => {
     if (!isMenuOpen) return;
 
@@ -81,7 +151,6 @@ function Layout() {
         bg-[radial-gradient(900px_450px_at_20%_0%,rgba(255,165,0,0.14),transparent_55%),radial-gradient(700px_420px_at_90%_10%,rgba(56,189,248,0.12),transparent_55%),radial-gradient(800px_520px_at_55%_100%,rgba(16,185,129,0.10),transparent_60%)]
       "
     >
-      {/* ✅ Navbar burger triggers the mobile drawer */}
       <Navbar onMenuClick={openMenu} />
 
       <div className="flex flex-1 w-full">
@@ -139,7 +208,7 @@ function Layout() {
                 </button>
               </div>
 
-              {/* ✅ Menu links must close the drawer */}
+              {/* Menu links close the drawer */}
               <div className="p-2">
                 <Menu onNavigate={closeMenu} />
               </div>
@@ -160,6 +229,7 @@ function Layout() {
   );
 }
 
+// -------------------- router map --------------------
 const router = createBrowserRouter([
   {
     path: "/",
@@ -171,31 +241,51 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
 
+      // Shipments
       { path: "shipments", element: <Shipments /> },
       { path: "newshipment", element: <NewShipment /> },
-      { path: "shipments/:shipmentId", element: <Shipment /> },
+      { path: "shipments/:shipmentId", element: <Shipment /> }, // ✅ Phase 3A required
 
-      { path: "users", element: <Users /> },
+      // Users
+      { path: "users", element: <Users /> }, // ✅ Phase 3A required
       { path: "newuser", element: <NewUser /> },
-      { path: "users/:id", element: <UserDetails /> },
+      { path: "users/:id", element: <UserDetails /> }, // ✅ Phase 3A required
       { path: "users/:id/edit", element: <EditUser /> },
 
+      // Other admin pages (already wired)
       { path: "profile", element: <Profile /> },
       { path: "orders", element: <Orders /> },
 
+      // Elements / master data
       { path: "elements", element: <Elements /> },
       { path: "elements/ports", element: <Ports /> },
       { path: "elements/service-types", element: <ServiceTypes /> },
       { path: "elements/cargo-categories", element: <CargoCategories /> },
 
+      // System pages
       { path: "settings", element: <Settings /> },
       { path: "backups", element: <Backups /> },
       { path: "charts", element: <Charts /> },
       { path: "logs", element: <Logs /> },
       { path: "calendar", element: <Calendar /> },
+
+      // 404 inside the authenticated shell
+      { path: "*", element: <NotFound /> },
     ],
   },
-  { path: "/login", element: <Login /> },
+
+  // Auth
+  {
+    path: "/login",
+    element: (
+      <RequireNoAuth>
+        <Login />
+      </RequireNoAuth>
+    ),
+  },
+
+  // Global fallback (anything else)
+  { path: "*", element: <Navigate to="/" replace /> },
 ]);
 
 function App() {

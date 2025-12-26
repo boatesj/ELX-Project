@@ -5,8 +5,17 @@ import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 const USERS_API = `${API_BASE}/users`;
 
+const normalizeStatus = (status) => {
+  const s = String(status || "pending")
+    .trim()
+    .toLowerCase();
+  if (s === "active") return "active";
+  if (s === "suspended") return "suspended";
+  return "pending";
+};
+
 const getUserStatusClasses = (status) => {
-  const s = (status || "").toLowerCase();
+  const s = normalizeStatus(status);
   switch (s) {
     case "active":
       return "bg-green-100 text-green-700 border border-green-300";
@@ -19,7 +28,7 @@ const getUserStatusClasses = (status) => {
 };
 
 const getStatusLabel = (status) => {
-  const s = (status || "pending").toString().trim().toLowerCase();
+  const s = normalizeStatus(status);
   return s.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 };
 
@@ -97,12 +106,12 @@ const UserDetails = () => {
         return;
       }
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to load user details");
+        throw new Error(data?.message || "Failed to load user details");
       }
 
-      const data = await res.json();
       setUser(data.user || data);
     } catch (err) {
       console.error(err);
@@ -148,7 +157,7 @@ const UserDetails = () => {
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
             <span
               className={`px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getUserStatusClasses(
-                user.status || "pending"
+                user.status
               )}`}
             >
               {statusLabel}
@@ -227,7 +236,7 @@ const UserDetails = () => {
                   <FieldRow label="User role" value={user.role || "Shipper"} />
                   <FieldRow
                     label="Status"
-                    value={getStatusLabel(user.status || "pending")}
+                    value={getStatusLabel(user.status)}
                   />
                   <FieldRow label="Ellcworth ID" value={userId} mono />
                 </div>

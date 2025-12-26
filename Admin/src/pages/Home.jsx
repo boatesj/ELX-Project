@@ -222,6 +222,7 @@ const Home = () => {
   const redirectToLogin = (message) => {
     setLoadError(message || "Please log in to view dashboard analytics.");
     localStorage.removeItem("token");
+    localStorage.removeItem("ellcworth_token");
     localStorage.removeItem("user");
     navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
   };
@@ -239,11 +240,11 @@ const Home = () => {
           return;
         }
 
-        // Fetch users, shipment dashboard stats, and latest shipments in parallel
+        // ✅ Standardise Admin API calls to /api/v1
         const [usersRes, dashboardRes, shipmentsRes] = await Promise.all([
-          authRequest.get("/users"),
-          authRequest.get("/shipments/dashboard"),
-          authRequest.get("/shipments"),
+          authRequest.get("/api/v1/users"),
+          authRequest.get("/api/v1/shipments/dashboard"),
+          authRequest.get("/api/v1/shipments"),
         ]);
 
         // ----- USERS -----
@@ -289,7 +290,6 @@ const Home = () => {
           total: total ?? pending + delivered + active,
         });
 
-        // Keep MUI pie colors explicit (Ellcworth palette accents)
         setPieData([
           { id: 0, value: pending, label: "Pending", color: "#FFA500" },
           { id: 1, value: delivered, label: "Delivered", color: "#22C55E" },
@@ -303,15 +303,13 @@ const Home = () => {
 
         setTopRoutes(routes);
 
-        // ----- LATEST SHIPMENTS (from full list endpoint) -----
+        // ----- LATEST SHIPMENTS -----
         const shipmentsArray = pickShipmentsArray(shipmentsRes?.data);
-
         const sortedShipments = [...shipmentsArray].sort((a, b) => {
           const da = a?.createdAt ? new Date(a.createdAt).getTime() : 0;
           const db = b?.createdAt ? new Date(b.createdAt).getTime() : 0;
           return db - da;
         });
-
         setLatestShipments(sortedShipments.slice(0, 5));
       } catch (err) {
         const status = err?.response?.status;
@@ -336,7 +334,6 @@ const Home = () => {
 
   return (
     <div className="min-h-screen font-montserrat text-white">
-      {/* Corporate mogul backdrop (replaces any white container) */}
       <div
         className="
           min-h-screen
@@ -346,7 +343,6 @@ const Home = () => {
         "
       >
         <div className="mx-auto w-full max-w-7xl">
-          {/* PAGE HEADER */}
           <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-start gap-3">
               <div
@@ -388,14 +384,12 @@ const Home = () => {
             </div>
           </div>
 
-          {/* ERROR */}
           {loadError && (
             <div className="mb-4 rounded-xl border border-red-300/40 bg-red-500/10 px-4 py-3 text-xs sm:text-sm text-red-200">
               {loadError}
             </div>
           )}
 
-          {/* TOP METRICS (was metricCard) */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               title="Total Users"
@@ -440,9 +434,7 @@ const Home = () => {
             />
           </div>
 
-          {/* MIDDLE ROW: PIE + RECENT USERS + TOP ROUTES */}
           <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-            {/* PIE CHART */}
             <div className="xl:col-span-2">
               <SectionCard
                 title="Shipment Breakdown"
@@ -487,7 +479,6 @@ const Home = () => {
                       />
                     </div>
 
-                    {/* LEGEND */}
                     <div className="mt-2 flex flex-wrap gap-4 text-[11px] sm:text-xs text-white/70">
                       <button
                         type="button"
@@ -519,7 +510,6 @@ const Home = () => {
               </SectionCard>
             </div>
 
-            {/* RECENT USERS */}
             <SectionCard
               title="Recent Users"
               subtitle="Newest CRM accounts."
@@ -560,7 +550,6 @@ const Home = () => {
               )}
             </SectionCard>
 
-            {/* TOP ROUTES */}
             <SectionCard
               title="Top Routes"
               subtitle="Most frequent lanes in the system."
@@ -622,7 +611,6 @@ const Home = () => {
             </SectionCard>
           </div>
 
-          {/* BOTTOM ROW: LATEST SHIPMENTS TABLE */}
           <div className="mt-10">
             <SectionCard
               title="Latest Shipments"
