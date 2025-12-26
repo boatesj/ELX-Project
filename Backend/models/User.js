@@ -22,11 +22,13 @@ const UserSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      index: true,
     },
 
     phone: {
       type: String,
       trim: true,
+      required: true,
     },
 
     country: {
@@ -60,6 +62,7 @@ const UserSchema = new mongoose.Schema(
     // System + Access Control
     role: {
       type: String,
+      // Keep legacy values (Admin/Shipper/etc) + "user"
       enum: ["Shipper", "Consignee", "Both", "Admin", "user"],
       default: "Shipper",
       trim: true,
@@ -70,6 +73,7 @@ const UserSchema = new mongoose.Schema(
       enum: ["pending", "active", "suspended"],
       default: "pending",
       trim: true,
+      index: true,
     },
 
     // Password (optional — required only for login users)
@@ -82,7 +86,7 @@ const UserSchema = new mongoose.Schema(
     age: { type: Number, min: 0, max: 130 },
 
     // Soft delete + onboarding
-    isDeleted: { type: Boolean, default: false },
+    isDeleted: { type: Boolean, default: false, index: true },
     welcomeMailSent: { type: Boolean, default: false },
   },
   { timestamps: true }
@@ -93,11 +97,15 @@ const UserSchema = new mongoose.Schema(
  * Allows admin-created CRM users (no password yet).
  */
 UserSchema.pre("save", async function (next) {
-  if (!this.password) return next(); // No password provided
-  if (!this.isModified("password")) return next();
+  try {
+    if (!this.password) return next(); // No password provided
+    if (!this.isModified("password")) return next();
 
-  this.password = await bcrypt.hash(this.password, 12);
-  next();
+    this.password = await bcrypt.hash(this.password, 12);
+    return next();
+  } catch (err) {
+    return next(err);
+  }
 });
 
 /**

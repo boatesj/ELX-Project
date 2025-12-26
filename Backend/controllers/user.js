@@ -1,21 +1,13 @@
 const mongoose = require("mongoose");
 const User = require("../models/User");
 
+const isValidId = (id) => mongoose.isValidObjectId(id);
+
+const normalizeEmail = (email) =>
+  typeof email === "string" ? email.trim().toLowerCase() : "";
+
 /**
  * CREATE USER (Admin creates a CRM record)
- * --------------------------------------------------
- * Supports:
- * - accountType: Business / Individual
- * - fullname
- * - email
- * - phone
- * - country
- * - city
- * - postcode
- * - address
- * - role: Shipper / Consignee / Both / Admin
- * - notes
- * - status: active / pending / suspended
  */
 const createUser = async (req, res) => {
   try {
@@ -33,26 +25,31 @@ const createUser = async (req, res) => {
       status,
     } = req.body;
 
-    // Basic validation (backend safety net)
-    if (!fullname || !email || !phone) {
-      return res
-        .status(400)
-        .json({ message: "fullname, email and phone are required." });
+    const safeFullname = typeof fullname === "string" ? fullname.trim() : "";
+    const safePhone = typeof phone === "string" ? phone.trim() : "";
+    const safeEmail = normalizeEmail(email);
+
+    // Backend safety net (admin form should still validate on frontend)
+    if (!safeFullname || !safeEmail || !safePhone) {
+      return res.status(400).json({
+        ok: false,
+        message: "fullname, email and phone are required.",
+      });
     }
 
-    // Optional: prevent duplicate email accounts
-    const existing = await User.findOne({ email });
+    const existing = await User.findOne({ email: safeEmail });
     if (existing) {
-      return res
-        .status(409)
-        .json({ message: "A user with this email already exists." });
+      return res.status(409).json({
+        ok: false,
+        message: "A user with this email already exists.",
+      });
     }
 
     const newUser = await User.create({
       accountType: accountType || "Business",
-      fullname,
-      email,
-      phone,
+      fullname: safeFullname,
+      email: safeEmail,
+      phone: safePhone,
       country,
       city,
       postcode,
@@ -63,12 +60,15 @@ const createUser = async (req, res) => {
     });
 
     return res.status(201).json({
+      ok: true,
       message: "User created successfully.",
-      user: newUser,
+      data: newUser,
+      user: newUser, // backward-friendly
     });
   } catch (error) {
     console.error("Error creating user:", error);
     return res.status(500).json({
+      ok: false,
       message: "Failed to create user",
       error: error.message,
     });
@@ -76,18 +76,21 @@ const createUser = async (req, res) => {
 };
 
 /**
- * GET ALL USERS
- * --------------------------------------------------
- * Returns full CRM list sorted by newest.
+ * GET ALL USERS (admin)
  */
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().sort({ createdAt: -1 });
+    // default: exclude password (it’s select:false anyway)
+    const users = await User.find({}).sort({ createdAt: -1 });
 
-    return res.status(200).json(users);
+    return res.status(200).json({
+      ok: true,
+      data: users,
+    });
   } catch (error) {
     console.error("Error fetching users:", error);
     return res.status(500).json({
+      ok: false,
       message: "Failed to fetch users",
       error: error.message,
     });
@@ -95,29 +98,30 @@ const getAllUsers = async (req, res) => {
 };
 
 /**
- * GET SINGLE USER BY ID
- * --------------------------------------------------
- * Used by the admin "View" / "Edit" pages.
+ * GET SINGLE USER BY ID (admin)
  */
 const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: "Invalid user id" });
+    if (!isValidId(id)) {
+      return res.status(400).json({ ok: false, message: "Invalid user id" });
     }
 
     const user = await User.findById(id).select("-password");
-
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ ok: false, message: "User not found" });
     }
 
-    // Frontend handles both { user } and raw object; raw is fine here
-    return res.status(200).json(user);
+    return res.status(200).json({
+      ok: true,
+      data: user,
+      user, // backward-friendly
+    });
   } catch (error) {
     console.error("Error fetching user by id:", error);
     return res.status(500).json({
+      ok: false,
       message: "Failed to fetch user",
       error: error.message,
     });
@@ -125,38 +129,59 @@ const getUserById = async (req, res) => {
 };
 
 /**
- * UPDATE USER
- * --------------------------------------------------
- * Admin-only edit of CRM fields (not password).
+ * UPDATE USER (admin)
+ * - Never update password from this route
  */
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-
-    if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: "Invalid user id" });
+    if (!isValidId(id)) {
+      return res.status(400).json({ ok: false, message: "Invalid user id" });
     }
 
     const updates = { ...req.body };
 
-    // Never update password from this route
+    // Never update password here
     delete updates.password;
+
+    // Normalize email if it’s being updated
+    if (typeof updates.email === "string") {
+      updates.email = normalizeEmail(updates.email);
+    }
+
+    // If email changed, prevent duplicates
+    if (updates.email) {
+      const dupe = await User.findOne({
+        email: updates.email,
+        _id: { $ne: id },
+      });
+      if (dupe) {
+        return res.status(409).json({
+          ok: false,
+          message: "A user with this email already exists.",
+        });
+      }
+    }
 
     const updatedUser = await User.findByIdAndUpdate(id, updates, {
       new: true,
+      runValidators: true,
     }).select("-password");
 
     if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ ok: false, message: "User not found" });
     }
 
     return res.status(200).json({
+      ok: true,
       message: "User updated successfully",
-      user: updatedUser,
+      data: updatedUser,
+      user: updatedUser, // backward-friendly
     });
   } catch (error) {
     console.error("Error updating user:", error);
     return res.status(500).json({
+      ok: false,
       message: "Failed to update user",
       error: error.message,
     });
@@ -164,30 +189,30 @@ const updateUser = async (req, res) => {
 };
 
 /**
- * DELETE USER
- * --------------------------------------------------
- * Hard delete (for now). Can later convert to soft delete.
+ * DELETE USER (admin)
+ * Hard delete for now (as originally). (Later can become soft delete.)
  */
 const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: "Invalid user id" });
+    if (!isValidId(id)) {
+      return res.status(400).json({ ok: false, message: "Invalid user id" });
     }
 
     const deleted = await User.findByIdAndDelete(id);
-
     if (!deleted) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ ok: false, message: "User not found" });
     }
 
     return res.status(200).json({
+      ok: true,
       message: "The user has been deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting user:", error);
     return res.status(500).json({
+      ok: false,
       message: "Failed to delete user",
       error: error.message,
     });
