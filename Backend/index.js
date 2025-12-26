@@ -14,10 +14,12 @@ const rateLimit = require("express-rate-limit");
 const swaggerUI = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
 
+// ROUTES (your repo uses singular filenames)
 const authRoute = require("./routes/auth");
 const userRoute = require("./routes/user");
 const shipmentRoute = require("./routes/shipment");
-// NEW
+
+// Admin system routes (already present in your build)
 const configRoute = require("./routes/config");
 const settingsRoute = require("./routes/settings");
 const backupsRoute = require("./routes/backups");
@@ -28,7 +30,12 @@ const calendarRoute = require("./routes/calendar");
 dotenv.config();
 const app = express();
 
-// --- RATE LIMITERS (auth endpoints) ---
+// If deployed behind a proxy (Render/Heroku/Nginx), this helps rate-limit + IP correctness
+app.set("trust proxy", 1);
+
+// --------------------
+// RATE LIMITERS
+// --------------------
 const authLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
   max: 20,
@@ -36,23 +43,81 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// --- MIDDLEWARES ---
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: Number(process.env.RATE_LIMIT_PER_MINUTE) || 240,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// --------------------
+// CORS (hardened)
+// --------------------
+const parseOrigins = (val) =>
+  String(val || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+const envAllow = [
+  ...parseOrigins(process.env.CLIENT_URL),
+  ...parseOrigins(process.env.ADMIN_URL),
+  ...parseOrigins(process.env.ALLOWED_ORIGINS),
+];
+
+const devAllow = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5173",
+];
+
+const allowlist = new Set(
+  (process.env.NODE_ENV === "production"
+    ? envAllow
+    : [...envAllow, ...devAllow]
+  ).filter(Boolean)
+);
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin(origin, cb) {
+      // Allow same-origin / curl / server-to-server (no Origin header)
+      if (!origin) return cb(null, true);
+
+      if (allowlist.size === 0) {
+        // If nothing configured, fail-open in dev, fail-closed in prod
+        if (process.env.NODE_ENV === "production")
+          return cb(new Error("CORS blocked"));
+        return cb(null, true);
+      }
+
+      if (allowlist.has(origin)) return cb(null, true);
+      return cb(new Error("CORS blocked"));
+    },
     credentials: true,
   })
 );
-app.use(express.json());
+
+// --------------------
+// MIDDLEWARES
+// --------------------
+app.use(express.json({ limit: "1mb" }));
 app.use(helmet());
+app.use(apiLimiter);
+
 if (process.env.NODE_ENV === "development" && morgan) app.use(morgan("dev"));
 
-// --- HEALTH CHECK ---
+// --------------------
+// HEALTH CHECK
+// --------------------
 app.get("/health", (req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
 });
 
-// --- ROOT ---
+// --------------------
+// ROOT
+// --------------------
 app.get("/", (req, res) => {
   res.json({
     ok: true,
@@ -63,9 +128,9 @@ app.get("/", (req, res) => {
       register: "POST /auth/register",
       login: "POST /auth/login",
       me: "GET /auth/me (Bearer token required)",
-      users: "GET /users (admin), DELETE /users/:id (admin)",
-      shipments: "CRUD /shipments, admin ops at /shipments/:id/*",
-      // NEW: quick hint in root payload (optional)
+      users: "CRUD /api/v1/users (admin only) + legacy /users (temporary)",
+      shipments:
+        "CRUD /api/v1/shipments (auth) + admin ops at /api/v1/shipments/:id/* + legacy /shipments (temporary)",
       config: {
         ports: "/config/ports",
         serviceTypes: "/config/service-types",
@@ -77,7 +142,9 @@ app.get("/", (req, res) => {
   });
 });
 
-// --- SWAGGER SETUP ---
+// --------------------
+// SWAGGER SETUP
+// --------------------
 const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: "3.0.3",
@@ -123,40 +190,6 @@ const swaggerSpec = swaggerJsdoc({
             accessToken: { type: "string" },
           },
         },
-        TrackingEvent: {
-          type: "object",
-          properties: {
-            code: { type: "string", example: "SAILED" },
-            description: { type: "string", example: "Vessel sailed from SOU" },
-            at: { type: "string", format: "date-time" },
-            location: { type: "string", example: "Southampton" },
-            meta: { type: "object" },
-          },
-        },
-        Document: {
-          type: "object",
-          properties: {
-            type: { type: "string", example: "BOL" },
-            url: {
-              type: "string",
-              example: "https://cdn.example.com/bol123.pdf",
-            },
-          },
-        },
-        ShipmentMinimal: {
-          type: "object",
-          properties: {
-            customer: { type: "string", example: "64f1e2c7a1b2c3d4e5f6a7b8" },
-            cargoType: { type: "string", example: "vehicle" },
-            ports: {
-              type: "object",
-              properties: {
-                originPort: { type: "string", example: "Southampton" },
-                destinationPort: { type: "string", example: "Tema" },
-              },
-            },
-          },
-        },
       },
     },
     paths: {
@@ -172,23 +205,87 @@ app.use(
   swaggerUI.setup(swaggerSpec, { explorer: true })
 );
 
-// --- ROUTES ---
+// --------------------
+// ROUTES
+// --------------------
 app.use("/auth", authLimiter, authRoute);
-app.use("/users", userRoute);
-app.use("/shipments", shipmentRoute);
+
+// Canonical (v1) — plural URLs, singular filenames
+app.use("/api/v1/users", userRoute);
 app.use("/api/v1/shipments", shipmentRoute);
-// NEW: config (ports, service types, cargo categories)
+
+// Legacy aliases (temporary) + logging
+app.use(
+  "/users",
+  (req, _res, next) => {
+    console.warn("LEGACY HIT:", req.method, req.originalUrl);
+    next();
+  },
+  userRoute
+);
+
+app.use(
+  "/shipments",
+  (req, _res, next) => {
+    console.warn("LEGACY HIT:", req.method, req.originalUrl);
+    next();
+  },
+  shipmentRoute
+);
+
+// Config (ports, service types, cargo categories)
 app.use("/config", configRoute);
-// --- ADMIN SYSTEM ROUTES (Settings → Calendar)
+
+// Admin system routes
 app.use("/admin/settings", settingsRoute);
 app.use("/admin/backups", backupsRoute);
 app.use("/admin/analytics", analyticsRoute);
 app.use("/admin/logs", logsRoute);
 app.use("/admin/calendar", calendarRoute);
 
-// --- DB + SERVER START ---
+// --------------------
+// 404 (in JSON)
+// --------------------
+app.use((req, res) => {
+  res.status(404).json({
+    ok: false,
+    message: "Not found",
+    path: req.originalUrl,
+  });
+});
+
+// --------------------
+// ERROR HANDLER (hardened)
+// --------------------
+app.use((err, req, res, next) => {
+  const status = Number(err.statusCode || err.status || 500);
+
+  const payload = {
+    ok: false,
+    message: err.publicMessage || err.message || "Something went wrong",
+  };
+
+  if (process.env.NODE_ENV !== "production") {
+    payload.error = err.message;
+    payload.stack = err.stack;
+  }
+
+  console.error("API ERROR:", {
+    status,
+    method: req.method,
+    url: req.originalUrl,
+    message: err.message,
+  });
+
+  return res.status(status).json(payload);
+});
+
+// --------------------
+// DB + SERVER START
+// --------------------
 const PORT = Number(process.env.PORT) || 8000;
 const MONGO_URI = process.env.MONGO_URI || process.env.DB;
+
 if (!MONGO_URI) {
   console.error("❌ No Mongo URI found. Set MONGO_URI (or DB) in your .env.");
   process.exit(1);
@@ -206,13 +303,5 @@ mongoose
     console.error("❌ DB connection failed:", err.message);
     process.exit(1);
   });
-
-// --- ERROR HANDLER ---
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res
-    .status(500)
-    .json({ ok: false, message: "Something went wrong", error: err.message });
-});
 
 module.exports = app;

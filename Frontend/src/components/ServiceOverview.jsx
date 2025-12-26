@@ -56,11 +56,10 @@ const ServiceOverview = () => {
         bg-[#E5E7EB]
         py-12 md:py-16
         border-t border-gray-300
+        scroll-mt-[120px] md:scroll-mt-[160px]
       "
+      aria-label="Ellcworth services overview"
     >
-      {/* Back-compat anchor (in case anything links to the old id) */}
-      <span id="services-overview" className="block relative -top-[140px]" />
-
       <div className="mx-auto w-full max-w-6xl px-4 md:px-6 lg:px-8">
         <div
           className="
@@ -103,7 +102,6 @@ const ServiceOverview = () => {
                 Ellcworth service range
               </p>
 
-              {/* ✅ New route entry-point (does not affect landing page) */}
               <Link
                 to="/services"
                 className="text-[11px] md:text-xs font-semibold tracking-[0.14em] uppercase text-[#1A2930] hover:opacity-80"

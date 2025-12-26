@@ -9,15 +9,16 @@ function NotFound() {
         </h1>
         <p className="text-sm text-slate-600 mb-6">
           The page you&apos;re looking for doesn&apos;t exist or may have moved.
-          Please return to your Ellcworth dashboard or home page.
+          Use the links below to get back on track.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Link to="/myshipments">
+          <Link to="/login">
             <button className="w-full sm:w-auto px-4 py-2 rounded-full text-sm font-semibold bg-[#1A2930] text-white hover:bg-[#FFA500] hover:text-[#1A2930] transition">
-              Go to My Shipments
+              Customer Login
             </button>
           </Link>
+
           <Link to="/">
             <button className="w-full sm:w-auto px-4 py-2 rounded-full text-sm font-semibold border border-[#1A2930] text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">
               Back to Home

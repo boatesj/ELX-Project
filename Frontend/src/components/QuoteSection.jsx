@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 const SERVICE_TABS = [
   { id: "container", label: "Container shipping" },
@@ -8,13 +8,22 @@ const SERVICE_TABS = [
 
 const QuoteSection = () => {
   const [activeService, setActiveService] = useState("container");
+  const [submitted, setSubmitted] = useState(false);
+
+  const serviceLabel = useMemo(
+    () => getServiceLabel(activeService),
+    [activeService]
+  );
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Quote form submitted for:", activeService);
-    alert(
-      "Thanks! In the next iteration this will send your details to Ellcworth for a tailored quote."
-    );
+
+    // Phase 4: UI-only lead capture (no backend wiring yet).
+    // Keep it quiet + professional.
+    setSubmitted(true);
+
+    // Optional: auto-hide the success notice after a bit
+    window.setTimeout(() => setSubmitted(false), 6500);
   };
 
   return (
@@ -25,7 +34,9 @@ const QuoteSection = () => {
         bg-gradient-to-b from-[#E5E7EB] via-[#F9FAFB] to-[#E5E7EB]
         py-14 md:py-20
         border-t border-gray-200
+        scroll-mt-[120px] md:scroll-mt-[160px]
       "
+      aria-label="Get a shipping quote"
     >
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-4 md:px-6 lg:px-8">
         {/* Heading */}
@@ -43,44 +54,53 @@ const QuoteSection = () => {
         </div>
 
         {/* Tabs */}
-        {/* Tabs */}
         <div className="mb-8 w-full">
           <div
             className="
-      flex flex-col items-stretch gap-2
-      sm:inline-flex sm:flex-row sm:items-center sm:justify-center
-      rounded-2xl sm:rounded-full
-      bg-[#1A2930]/95
-      p-1.5
-      border border-[#1A2930]
-      shadow-lg shadow-slate-900/20
-      max-w-md sm:max-w-none
-      mx-auto
-    "
+              flex flex-col items-stretch gap-2
+              sm:inline-flex sm:flex-row sm:items-center sm:justify-center
+              rounded-2xl sm:rounded-full
+              bg-[#1A2930]/95
+              p-1.5
+              border border-[#1A2930]
+              shadow-lg shadow-slate-900/20
+              max-w-md sm:max-w-none
+              mx-auto
+            "
+            role="tablist"
+            aria-label="Quote service tabs"
           >
-            {SERVICE_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveService(tab.id)}
-                className={`
-          w-full sm:w-auto
-          rounded-full
-          px-4 sm:px-5 md:px-7
-          py-2 sm:py-2.5
-          text-[11px] sm:text-xs md:text-sm
-          font-medium
-          transition
-          ${
-            activeService === tab.id
-              ? "bg-[#FFA500] text-black shadow-md shadow-black/20"
-              : "bg-transparent text-slate-100 hover:bg-white/10"
-          }
-        `}
-              >
-                {tab.label}
-              </button>
-            ))}
+            {SERVICE_TABS.map((tab) => {
+              const active = activeService === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => {
+                    setActiveService(tab.id);
+                    setSubmitted(false);
+                  }}
+                  className={`
+                    w-full sm:w-auto
+                    rounded-full
+                    px-4 sm:px-5 md:px-7
+                    py-2 sm:py-2.5
+                    text-[11px] sm:text-xs md:text-sm
+                    font-medium
+                    transition
+                    ${
+                      active
+                        ? "bg-[#FFA500] text-black shadow-md shadow-black/20"
+                        : "bg-transparent text-slate-100 hover:bg-white/10"
+                    }
+                  `}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -95,15 +115,71 @@ const QuoteSection = () => {
             shadow-[0_22px_45px_rgba(15,23,42,0.18)]
           "
         >
+          {submitted ? (
+            <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left">
+              <p className="text-sm md:text-base font-semibold text-emerald-900">
+                Thank you — we’ve received your request.
+              </p>
+              <p className="text-xs md:text-sm text-emerald-800 mt-1">
+                In the next iteration this will submit directly to Ellcworth.
+                For now, it confirms the UX flow is working.
+              </p>
+            </div>
+          ) : null}
+
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* SERVICE-SPECIFIC FIELDS (full width) */}
-            <div className="grid gap-6 md:grid-cols-2">
-              {activeService === "container" && <ContainerFields />}
-              {activeService === "roro" && <RoroFields />}
-              {activeService === "air" && <AirFields />}
+            {/* Lead capture (shared) */}
+            <div className="grid gap-6 md:grid-cols-3">
+              <div className="md:col-span-1">
+                <label className={labelClasses} htmlFor="lead_name">
+                  Your name
+                </label>
+                <input
+                  id="lead_name"
+                  type="text"
+                  name="lead_name"
+                  placeholder="e.g. Jake Boateng"
+                  className={commonInputClasses}
+                  required
+                />
+              </div>
+
+              <div className="md:col-span-1">
+                <label className={labelClasses} htmlFor="lead_email">
+                  Email
+                </label>
+                <input
+                  id="lead_email"
+                  type="email"
+                  name="lead_email"
+                  placeholder="e.g. you@company.com"
+                  className={commonInputClasses}
+                  required
+                />
+              </div>
+
+              <div className="md:col-span-1">
+                <label className={labelClasses} htmlFor="lead_phone">
+                  Phone (optional)
+                </label>
+                <input
+                  id="lead_phone"
+                  type="tel"
+                  name="lead_phone"
+                  placeholder="e.g. +44 7..."
+                  className={commonInputClasses}
+                />
+              </div>
             </div>
 
-            {/* CTA BELOW FORM - CENTERED */}
+            {/* Service-specific fields */}
+            <div className="grid gap-6 md:grid-cols-2">
+              {activeService === "container" ? <ContainerFields /> : null}
+              {activeService === "roro" ? <RoroFields /> : null}
+              {activeService === "air" ? <AirFields /> : null}
+            </div>
+
+            {/* CTA */}
             <div className="pt-4 text-center">
               <button
                 type="submit"
@@ -122,7 +198,7 @@ const QuoteSection = () => {
                   focus:ring-offset-2 focus:ring-offset-white
                 "
               >
-                Start your {getServiceLabel(activeService)} quote
+                Start your {serviceLabel} quote
               </button>
 
               <p className="text-xs md:text-sm text-gray-500 mt-3">
@@ -171,6 +247,7 @@ const ContainerFields = () => {
           name="container_from"
           placeholder="e.g. London, Tilbury, Felixstowe"
           className={commonInputClasses}
+          required
         />
       </div>
 
@@ -181,6 +258,7 @@ const ContainerFields = () => {
           name="container_to"
           placeholder="e.g. Tema, Lagos, Freetown"
           className={commonInputClasses}
+          required
         />
       </div>
 
@@ -190,6 +268,7 @@ const ContainerFields = () => {
           name="container_cargo_type"
           className={commonInputClasses}
           defaultValue=""
+          required
         >
           <option value="" disabled>
             Select option
@@ -221,7 +300,7 @@ const ContainerFields = () => {
         </div>
       </div>
 
-      <div>
+      <div className="md:col-span-2">
         <label className={labelClasses}>What are you shipping?</label>
         <input
           type="text"
@@ -244,6 +323,7 @@ const RoroFields = () => {
           name="roro_from"
           placeholder="e.g. Tilbury, Sheerness, Southampton"
           className={commonInputClasses}
+          required
         />
       </div>
 
@@ -254,6 +334,7 @@ const RoroFields = () => {
           name="roro_to"
           placeholder="e.g. Tema, Lagos, Cotonou"
           className={commonInputClasses}
+          required
         />
       </div>
 
@@ -263,6 +344,7 @@ const RoroFields = () => {
           name="roro_vehicle_type"
           className={commonInputClasses}
           defaultValue=""
+          required
         >
           <option value="" disabled>
             Select vehicle
@@ -283,10 +365,11 @@ const RoroFields = () => {
           name="roro_make_model"
           placeholder="e.g. Toyota RAV4 2018"
           className={commonInputClasses}
+          required
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm md:text-base text-gray-800">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm md:text-base text-gray-800 md:col-span-2">
         <div>
           <span className="block text-sm md:text-base font-medium text-gray-800 mb-1.5">
             Running condition
@@ -342,7 +425,7 @@ const RoroFields = () => {
         </div>
       </div>
 
-      <div>
+      <div className="md:col-span-2">
         <label className={labelClasses}>
           Vehicle dimensions (L × W × H, metres)
         </label>
@@ -367,6 +450,7 @@ const AirFields = () => {
           name="air_from"
           placeholder="e.g. London, Heathrow"
           className={commonInputClasses}
+          required
         />
       </div>
 
@@ -377,12 +461,18 @@ const AirFields = () => {
           name="air_to"
           placeholder="e.g. Accra, Kotoka"
           className={commonInputClasses}
+          required
         />
       </div>
 
       <div>
         <label className={labelClasses}>Shipment type</label>
-        <select name="air_type" className={commonInputClasses} defaultValue="">
+        <select
+          name="air_type"
+          className={commonInputClasses}
+          defaultValue=""
+          required
+        >
           <option value="" disabled>
             Select type
           </option>
@@ -414,7 +504,7 @@ const AirFields = () => {
         </div>
       </div>
 
-      <div>
+      <div className="md:col-span-2">
         <label className={labelClasses}>
           Latest delivery date (if time-critical)
         </label>

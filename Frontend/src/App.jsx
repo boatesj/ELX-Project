@@ -1,6 +1,6 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
-import RootLayout from "@/components/layout/RootLayout.jsx";
+import RootLayout from "@/components/layouts/RootLayout.jsx";
 
 // Pages
 import Home from "@/pages/Home.jsx";
@@ -17,10 +17,10 @@ import RequireCustomerAuth from "@/components/auth/RequireCustomerAuth.jsx";
 
 const router = createBrowserRouter([
   {
-    path: "/", // ✅ parent must be anchored
+    path: "/",
     element: <RootLayout />,
     children: [
-      { index: true, element: <Home /> }, // ✅ "/" renders Home reliably
+      { index: true, element: <Home /> },
 
       // Public
       { path: "services", element: <Services /> },
@@ -29,7 +29,7 @@ const router = createBrowserRouter([
       // Auth
       { path: "login", element: <CustomerLogin /> },
 
-      // Customer (we'll protect later)
+      // Customer (protected)
       {
         path: "myshipments",
         element: (

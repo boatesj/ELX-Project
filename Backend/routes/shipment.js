@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+
 const {
   createShipment,
   getAllShipments,
@@ -12,6 +13,7 @@ const {
   updateStatus,
   getDashboardStats,
 } = require("../controllers/shipment");
+
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { handleValidation } = require("../middleware/validate");
 const {
@@ -20,11 +22,13 @@ const {
   validateDocument,
   validateShipmentCreate,
 } = require("../utils/validators");
+
 const Shipment = require("../models/Shipment");
 
 /**
  * @route   POST /shipments
  * @desc    Create a new shipment
+ * @access  Auth (customer or admin). Controller should enforce ownership rules.
  */
 router.post(
   "/",
@@ -35,24 +39,24 @@ router.post(
 );
 
 /**
- * @route   GET /shipments
- * @desc    Get all shipments (admin) (optionally filter by ?customer=<userId>)
- */
-router.get("/", requireAuth, getAllShipments);
-
-/**
  * @route   GET /shipments/dashboard
  * @desc    Admin dashboard analytics
+ * @access  Admin
  */
 router.get("/dashboard", requireAuth, requireRole("admin"), getDashboardStats);
 
 /**
  * @route   GET /shipments/track/:ref
- * @desc    Track a shipment by reference number (public or auth – your choice)
+ * @desc    Track a shipment by reference number
+ * @access  Public (as currently implemented)
  */
 router.get("/track/:ref", async (req, res) => {
   try {
-    const ref = req.params.ref.trim();
+    const ref = String(req.params.ref || "").trim();
+    if (!ref)
+      return res
+        .status(400)
+        .json({ ok: false, message: "Reference is required" });
 
     const shipment = await Shipment.findOne({
       referenceNo: { $regex: `^${ref}$`, $options: "i" },
@@ -77,12 +81,21 @@ router.get("/track/:ref", async (req, res) => {
 /**
  * @route   GET /shipments/me/list
  * @desc    Get logged-in user's shipments
+ * @access  Auth
  */
 router.get("/me/list", requireAuth, getUserShipment);
 
 /**
+ * @route   GET /shipments
+ * @desc    Get all shipments (admin) (optionally filter by ?customer=<userId>)
+ * @access  Admin
+ */
+router.get("/", requireAuth, requireRole("admin"), getAllShipments);
+
+/**
  * @route   GET /shipments/:id
  * @desc    Get shipment by ID
+ * @access  Auth (controller should enforce access; route validates id)
  */
 router.get(
   "/:id",
@@ -95,6 +108,7 @@ router.get(
 /**
  * @route   PUT /shipments/:id
  * @desc    Update shipment
+ * @access  Auth (controller should enforce access; route validates id)
  */
 router.put(
   "/:id",
@@ -107,6 +121,7 @@ router.put(
 /**
  * @route   DELETE /shipments/:id
  * @desc    Soft-delete shipment
+ * @access  Auth (controller should enforce access; route validates id)
  */
 router.delete(
   "/:id",
@@ -118,7 +133,8 @@ router.delete(
 
 /**
  * @route   POST /shipments/:id/tracking
- * @desc    Add tracking event (admin only)
+ * @desc    Add tracking event
+ * @access  Admin only
  */
 router.post(
   "/:id/tracking",
@@ -132,7 +148,8 @@ router.post(
 
 /**
  * @route   POST /shipments/:id/documents
- * @desc    Add document to shipment (admin only)
+ * @desc    Add document to shipment
+ * @access  Admin only
  */
 router.post(
   "/:id/documents",
@@ -146,7 +163,8 @@ router.post(
 
 /**
  * @route   PATCH /shipments/:id/status
- * @desc    Update shipment status (admin only)
+ * @desc    Update shipment status
+ * @access  Admin only
  */
 router.patch(
   "/:id/status",
