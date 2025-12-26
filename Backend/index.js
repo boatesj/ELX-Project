@@ -174,9 +174,13 @@ app.use(
 
 // --- ROUTES ---
 app.use("/auth", authLimiter, authRoute);
-app.use("/users", userRoute);
-app.use("/shipments", shipmentRoute);
-app.use("/api/v1/shipments", shipmentRoute);
+
+app.use("/users", userRoute); // legacy (keep for now)
+app.use("/api/v1/users", userRoute); //
+
+app.use("/shipments", shipmentRoute); // legacy
+app.use("/api/v1/shipments", shipmentRoute); //
+
 // NEW: config (ports, service types, cargo categories)
 app.use("/config", configRoute);
 // --- ADMIN SYSTEM ROUTES (Settings → Calendar)
