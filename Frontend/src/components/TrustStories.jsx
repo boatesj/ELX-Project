@@ -42,29 +42,29 @@ const testimonials = [
   },
 ];
 
-const renderStars = (rating = 5) => {
-  return (
-    <div className="flex items-center gap-1">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <FaStar
-          key={index}
-          className={index < rating ? "text-[#FFA500]" : "text-gray-300"}
-        />
-      ))}
-    </div>
-  );
-};
+const renderStars = (rating = 5) => (
+  <div className="flex items-center gap-1">
+    {Array.from({ length: 5 }).map((_, index) => (
+      <FaStar
+        key={index}
+        className={index < rating ? "text-[#FFA500]" : "text-gray-300"}
+      />
+    ))}
+  </div>
+);
 
 const TrustStories = () => {
   return (
     <section
-      id="stories"
+      id="testimonials"
       className="
         w-full
         bg-[#F9FAFB]
         py-16 md:py-20
         border-t border-gray-200
+        scroll-mt-[120px] md:scroll-mt-[160px]
       "
+      aria-label="Ellcworth customer reviews"
     >
       <div className="mx-auto w-full max-w-6xl px-4 md:px-6 lg:px-8">
         {/* Heading + rating summary */}
@@ -101,7 +101,7 @@ const TrustStories = () => {
           </div>
         </div>
 
-        {/* Trust pillars (kept, but tightened) */}
+        {/* Trust pillars */}
         <div className="mb-10 grid gap-6 md:grid-cols-3">
           <div className="rounded-2xl border border-[#9A9EAB]/40 bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9A9EAB] mb-2">

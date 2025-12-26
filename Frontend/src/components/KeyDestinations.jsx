@@ -67,13 +67,15 @@ const DESTINATIONS = [
 const KeyDestinations = () => {
   return (
     <section
-      id="destinations"
+      id="services"
       className="
         w-full
         bg-gradient-to-b from-[#1A2930] via-[#9A9EAB] to-[#F3F4F6]
         py-14 md:py-20
         border-t border-slate-700
+        scroll-mt-[120px] md:scroll-mt-[160px]
       "
+      aria-label="Key destinations and services"
     >
       <div className="mx-auto w-full max-w-6xl px-4 md:px-6 lg:px-8">
         {/* Heading */}
