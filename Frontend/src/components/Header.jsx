@@ -77,9 +77,9 @@ const Header = () => {
     if (typeof window === "undefined") return;
 
     const mq = window.matchMedia("(max-width: 768px)");
-
     const handleChange = (e) => setIsMobile(e.matches);
-    handleChange(mq); // set initial
+
+    handleChange(mq); // initial
     mq.addEventListener("change", handleChange);
 
     return () => mq.removeEventListener("change", handleChange);
@@ -99,7 +99,6 @@ const Header = () => {
   if (!slides.length) return null;
 
   const goToSlide = (index) => setCurrentIndex(index);
-
   const currentSlide = slides[currentIndex];
 
   return (
@@ -116,7 +115,7 @@ const Header = () => {
         pb-10
         overflow-hidden
         text-white
-        scroll-mt-[120px]     /* NEW: offset for fixed navbar when linking to #Header */
+        scroll-mt-[120px] md:scroll-mt-[160px]
       "
       aria-label="Ellcworth Express hero"
     >
@@ -137,12 +136,10 @@ const Header = () => {
             aria-hidden={index !== currentIndex}
           >
             <picture>
-              {/* Mobile first */}
-              {slide.imageMobile && (
+              {slide.imageMobile ? (
                 <source srcSet={slide.imageMobile} media="(max-width: 768px)" />
-              )}
+              ) : null}
 
-              {/* Desktop / fallback */}
               <img
                 src={slide.image}
                 alt={slide.alt}
@@ -172,22 +169,21 @@ const Header = () => {
         <div className="mx-auto flex w-full max-w-6xl flex-col justify-center px-4 md:px-6 lg:px-8">
           {/* Text block */}
           <div className="max-w-2xl space-y-5">
-            {currentSlide.badge && (
+            {currentSlide.badge ? (
               <span className="inline-flex items-center rounded-full border border-[#FFA500] bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-100">
                 {currentSlide.badge}
               </span>
-            )}
+            ) : null}
 
-            {/* H1 unchanged */}
             <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-[2.20rem] font-semibold leading-tight lg:leading-snug uppercase">
               {currentSlide.title}
             </h1>
 
-            {currentSlide.subtitle && (
+            {currentSlide.subtitle ? (
               <p className="text-base md:text-xl font-medium text-gray-200">
                 {currentSlide.subtitle}
               </p>
-            )}
+            ) : null}
 
             <p className="text-base md:text-lg text-gray-200">
               {currentSlide.body}
