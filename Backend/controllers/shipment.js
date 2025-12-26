@@ -3,7 +3,21 @@ const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
 
 /**
- * Helper: normalise filters from query string
+ * Role helpers (your requireAuth normalizes role to lower-case)
+ * Admin in token may be "admin"; in DB enum you also have "Admin".
+ */
+function isAdmin(req) {
+  const role = String(req?.user?.role || "").toLowerCase();
+  return role === "admin";
+}
+
+function requireUserId(req) {
+  const id = req?.user?.id;
+  return id ? String(id) : null;
+}
+
+/**
+ * Helper: normalise filters from query string (ADMIN USE)
  */
 function buildShipmentFilter(query = {}) {
   const {
@@ -17,29 +31,13 @@ function buildShipmentFilter(query = {}) {
     search,
   } = query;
 
-  const filter = {
-    isDeleted: false,
-  };
+  const filter = { isDeleted: false };
 
-  if (customer) {
-    filter.customer = customer; // expects ObjectId string
-  }
-
-  if (status) {
-    filter.status = status;
-  }
-
-  if (mode) {
-    filter.mode = mode;
-  }
-
-  if (originPort) {
-    filter["ports.originPort"] = originPort;
-  }
-
-  if (destinationPort) {
-    filter["ports.destinationPort"] = destinationPort;
-  }
+  if (customer) filter.customer = customer; // expects ObjectId string
+  if (status) filter.status = status;
+  if (mode) filter.mode = mode;
+  if (originPort) filter["ports.originPort"] = originPort;
+  if (destinationPort) filter["ports.destinationPort"] = destinationPort;
 
   if (fromDate || toDate) {
     filter.shippingDate = {};
@@ -48,7 +46,7 @@ function buildShipmentFilter(query = {}) {
   }
 
   if (search) {
-    const regex = new RegExp(search.trim(), "i");
+    const regex = new RegExp(String(search).trim(), "i");
     filter.$or = [
       { referenceNo: regex },
       { "shipper.name": regex },
@@ -63,6 +61,65 @@ function buildShipmentFilter(query = {}) {
 }
 
 /**
+ * Helper: ensure shipment exists and caller can access it
+ * - Admin: can access any non-deleted shipment
+ * - Customer: only their own (customer == req.user.id)
+ */
+async function findAccessibleShipmentById(req, id, opts = {}) {
+  const { lean = false, populateCustomer = true } = opts;
+
+  if (!mongoose.isValidObjectId(id)) return { error: "Invalid shipment id" };
+
+  const base = { _id: id, isDeleted: false };
+  const userId = requireUserId(req);
+
+  if (!isAdmin(req)) {
+    if (!userId) return { error: "Unauthorized" };
+    base.customer = userId;
+  }
+
+  let q = Shipment.findOne(base);
+  if (populateCustomer) q = q.populate("customer", "fullname email country");
+  if (lean) q = q.lean();
+
+  const shipment = await q;
+  if (!shipment) return { error: "Shipment not found" };
+
+  return { shipment };
+}
+
+/**
+ * Helper: restrict update fields for customers
+ * Admin can update anything except a few protected internal fields.
+ */
+function sanitizeUpdatesForRole(req, updates) {
+  const clean = { ...updates };
+
+  // Always protected, regardless of role:
+  delete clean.isDeleted; // never directly
+  delete clean.__v;
+
+  // Reference number should not be mutated via update route
+  delete clean.referenceNo;
+
+  // These should never be client-controlled:
+  delete clean.createdBy;
+
+  if (!isAdmin(req)) {
+    // Customers can never change ownership or financial/audit/admin-only areas
+    delete clean.customer;
+    delete clean.trackingEvents;
+    delete clean.documents;
+    delete clean.charges;
+    delete clean.notifications;
+    delete clean.paymentStatus;
+    delete clean.status; // status updates are admin-only via PATCH status route anyway
+  }
+
+  return clean;
+}
+
+/**
  * CREATE SHIPMENT
  * --------------------------------------------------
  * @route   POST /shipments
@@ -73,25 +130,31 @@ async function createShipment(req, res) {
   try {
     const payload = { ...req.body };
 
-    // Always let the backend generate the business reference
-    // unless you explicitly opt out via a special flag (for data migration etc.)
+    // Never allow client to force isDeleted/referenceNo unless migration flag is explicitly set
+    payload.isDeleted = false;
+
     if (!req.query.keepRef) {
       delete payload.referenceNo;
     }
 
-    // Ensure logical flags
-    payload.isDeleted = false;
+    const userId = requireUserId(req);
+    const admin = isAdmin(req);
 
-    // Attach ownership / audit fields
-    if (req.user && req.user.id) {
-      // If the booking is coming from a portal customer:
-      if (!payload.customer) {
-        payload.customer = req.user.id;
+    // Ownership rules:
+    // - Customer: customer MUST be req.user.id (ignore any supplied customer)
+    // - Admin: can create for a specified customer; if not provided, default to admin user id
+    if (!admin) {
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
       }
-      payload.createdBy = req.user.id;
+      payload.customer = userId;
+    } else {
+      if (!payload.customer) payload.customer = userId; // admin creating for self by default
     }
 
-    // Let pre-save hook handle referenceNo generation.
+    // createdBy should always be the authenticated actor if present
+    if (userId) payload.createdBy = userId;
+
     const shipment = await Shipment.create(payload);
 
     return res.status(201).json({
@@ -111,18 +174,22 @@ async function createShipment(req, res) {
  * GET ALL SHIPMENTS (with optional filters)
  * --------------------------------------------------
  * @route   GET /shipments
- * @desc    Get shipments (admin) or filtered by ?customer= for profile view
+ * @desc    Admin-only list (route is gated). Defensive here too.
  * @access  Authenticated
  *
  * NOTE:
- *  - Still returns a plain ARRAY for backwards compatibility.
- *  - Supports optional ?page=&limit=, but UI can ignore it for now.
+ *  - Returns a plain ARRAY for backwards compatibility.
+ *  - Supports optional ?page=&limit=
  */
 async function getAllShipments(req, res) {
   try {
+    // Defensive: should already be admin-gated in routes
+    if (!isAdmin(req)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
     const filter = buildShipmentFilter(req.query);
 
-    // Simple pagination support with safe defaults
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(
       Math.max(parseInt(req.query.limit, 10) || 200, 1),
@@ -137,7 +204,6 @@ async function getAllShipments(req, res) {
       .populate("customer", "fullname email country")
       .lean();
 
-    // For now we return just the array, as before
     return res.status(200).json(shipments);
   } catch (err) {
     console.error("Error fetching shipments:", err);
@@ -152,26 +218,23 @@ async function getAllShipments(req, res) {
  * GET ONE SHIPMENT BY ID
  * --------------------------------------------------
  * @route   GET /shipments/:id
- * @access  Authenticated
+ * @access  Authenticated (admin or owner)
  */
 async function getOneShipment(req, res) {
   try {
     const { id } = req.params;
 
-    if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: "Invalid shipment id" });
-    }
+    const { shipment, error } = await findAccessibleShipmentById(req, id, {
+      lean: true,
+      populateCustomer: true,
+    });
 
-    const shipment = await Shipment.findOne({
-      _id: id,
-      isDeleted: false,
-    })
-      .populate("customer", "fullname email country")
-      .lean();
-
-    if (!shipment) {
-      return res.status(404).json({ message: "Shipment not found" });
-    }
+    if (error === "Invalid shipment id")
+      return res.status(400).json({ message: error });
+    if (error === "Unauthorized")
+      return res.status(401).json({ message: error });
+    if (error === "Shipment not found")
+      return res.status(404).json({ message: error });
 
     return res.status(200).json(shipment);
   } catch (err) {
@@ -187,12 +250,12 @@ async function getOneShipment(req, res) {
  * GET LOGGED-IN USER'S SHIPMENTS
  * --------------------------------------------------
  * @route   GET /shipments/me/list
- * @desc    Used by customer portal to show "My Shipments"
+ * @desc    Customer portal "My Shipments"
  * @access  Authenticated
  */
 async function getUserShipment(req, res) {
   try {
-    const userId = req.user && req.user.id;
+    const userId = requireUserId(req);
 
     if (!userId) {
       return res
@@ -200,12 +263,10 @@ async function getUserShipment(req, res) {
         .json({ message: "User context missing from request." });
     }
 
-    const filter = {
+    const shipments = await Shipment.find({
       customer: userId,
       isDeleted: false,
-    };
-
-    const shipments = await Shipment.find(filter)
+    })
       .sort({ createdAt: -1 })
       .limit(100)
       .populate("customer", "fullname email country")
@@ -225,32 +286,31 @@ async function getUserShipment(req, res) {
  * UPDATE SHIPMENT
  * --------------------------------------------------
  * @route   PUT /shipments/:id
- * @access  Authenticated (typically admin/ops users via Admin panel)
+ * @access  Authenticated (admin or owner) — with role-based field restrictions
  */
 async function updateShipment(req, res) {
   try {
     const { id } = req.params;
-    const updates = { ...req.body };
 
-    if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: "Invalid shipment id" });
-    }
+    // Ensure shipment exists + caller is allowed to touch it
+    const { shipment, error } = await findAccessibleShipmentById(req, id, {
+      lean: false,
+      populateCustomer: false,
+    });
 
-    // Never allow direct toggling of isDeleted via this route:
-    delete updates.isDeleted;
+    if (error === "Invalid shipment id")
+      return res.status(400).json({ message: error });
+    if (error === "Unauthorized")
+      return res.status(401).json({ message: error });
+    if (error === "Shipment not found")
+      return res.status(404).json({ message: error });
 
-    // Find + update
-    const shipment = await Shipment.findOneAndUpdate(
-      { _id: id, isDeleted: false },
-      updates,
-      {
-        new: true,
-      }
-    );
+    const updates = sanitizeUpdatesForRole(req, req.body || {});
 
-    if (!shipment) {
-      return res.status(404).json({ message: "Shipment not found" });
-    }
+    // Apply updates safely
+    Object.assign(shipment, updates);
+
+    await shipment.save();
 
     return res.status(200).json({
       message: "Shipment updated successfully",
@@ -269,26 +329,27 @@ async function updateShipment(req, res) {
  * SOFT DELETE SHIPMENT
  * --------------------------------------------------
  * @route   DELETE /shipments/:id
- * @desc    Soft-delete (mark isDeleted=true)
- * @access  Authenticated (admin / ops)
+ * @desc    Soft-delete (isDeleted=true)
+ * @access  Authenticated (admin or owner)
  */
 async function deleteShipment(req, res) {
   try {
     const { id } = req.params;
 
-    if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: "Invalid shipment id" });
-    }
+    const { shipment, error } = await findAccessibleShipmentById(req, id, {
+      lean: false,
+      populateCustomer: false,
+    });
 
-    const shipment = await Shipment.findOneAndUpdate(
-      { _id: id, isDeleted: false },
-      { isDeleted: true },
-      { new: true }
-    );
+    if (error === "Invalid shipment id")
+      return res.status(400).json({ message: error });
+    if (error === "Unauthorized")
+      return res.status(401).json({ message: error });
+    if (error === "Shipment not found")
+      return res.status(404).json({ message: error });
 
-    if (!shipment) {
-      return res.status(404).json({ message: "Shipment not found" });
-    }
+    shipment.isDeleted = true;
+    await shipment.save();
 
     return res.status(200).json({
       message: "Shipment deleted (soft delete) successfully",
@@ -303,11 +364,7 @@ async function deleteShipment(req, res) {
 }
 
 /**
- * ADD TRACKING EVENT
- * --------------------------------------------------
- * @route   POST /shipments/:id/tracking
- * @desc    Add tracking event (admin only)
- * @access  Authenticated + admin (enforced in route)
+ * ADD TRACKING EVENT (admin only — route enforces)
  */
 async function addTrackingEvent(req, res) {
   try {
@@ -334,7 +391,6 @@ async function addTrackingEvent(req, res) {
 
     shipment.trackingEvents.push(trackingEvent);
 
-    // If a recognised shipment lifecycle status is included, update main status
     const allowedStatuses = [
       "pending",
       "booked",
@@ -366,11 +422,7 @@ async function addTrackingEvent(req, res) {
 }
 
 /**
- * ADD DOCUMENT
- * --------------------------------------------------
- * @route   POST /shipments/:id/documents
- * @desc    Attach a document record to shipment (file already stored elsewhere)
- * @access  Authenticated + admin (enforced in route)
+ * ADD DOCUMENT (admin only — route enforces)
  */
 async function addDocument(req, res) {
   try {
@@ -391,11 +443,8 @@ async function addDocument(req, res) {
       name,
       fileUrl,
       uploadedAt: new Date(),
+      uploadedBy: req?.user?.id || undefined,
     };
-
-    if (req.user && req.user.id) {
-      docEntry.uploadedBy = req.user.id;
-    }
 
     shipment.documents.push(docEntry);
     await shipment.save();
@@ -414,11 +463,7 @@ async function addDocument(req, res) {
 }
 
 /**
- * UPDATE STATUS
- * --------------------------------------------------
- * @route   PATCH /shipments/:id/status
- * @desc    Update shipment status only (plus auto tracking note)
- * @access  Authenticated + admin
+ * UPDATE STATUS (admin only — route enforces)
  */
 async function updateStatus(req, res) {
   try {
@@ -453,7 +498,6 @@ async function updateStatus(req, res) {
 
     shipment.status = status;
 
-    // Automatically log a tracking event for audit trail
     shipment.trackingEvents.push({
       status,
       event:
@@ -462,7 +506,7 @@ async function updateStatus(req, res) {
       location: location || "",
       date: new Date(),
       meta: {
-        updatedBy: req.user ? req.user.id : null,
+        updatedBy: req?.user?.id || null,
         source: "admin_panel_status_update",
       },
     });
@@ -483,41 +527,13 @@ async function updateStatus(req, res) {
 }
 
 /**
- * DASHBOARD STATS
- * --------------------------------------------------
- * @route   GET /shipments/dashboard
- * @desc    Lightweight analytics for admin dashboard cards
- * @access  Authenticated + admin
- *
- * Shape is aligned with Home.jsx expectations:
- *  - res.json({
- *      data: {
- *        totals,
- *        byStatus,
- *        byMode,
- *        topRoutes,
- *        recent,
- *      }
- *    })
- */
-
-/**
- * DASHBOARD STATS (Extended for Charts page)
- * --------------------------------------------------
- * @route   GET /shipments/dashboard
- * @desc    Analytics for admin dashboard + charts exports
- * @access  Authenticated + admin
- *
- * Returns existing Home.jsx fields unchanged, plus:
- *  - statusCounts: alias of byStatus
- *  - monthlyBookings: last 6 months [{ month:"YYYY-MM", count }]
- *  - rows: lightweight shipment rows for chart filtering + exports
+ * DASHBOARD STATS (admin only — route enforces)
+ * Shape aligned with Home.jsx expectations.
  */
 async function getDashboardStats(req, res) {
   try {
     const baseFilter = { isDeleted: false };
 
-    // last 6 months window start
     const start6Months = new Date();
     start6Months.setMonth(start6Months.getMonth() - 5);
     start6Months.setDate(1);
@@ -575,7 +591,6 @@ async function getDashboardStats(req, res) {
         { $limit: 5 },
       ]),
 
-      // Monthly bookings: last 6 months based on createdAt
       Shipment.aggregate([
         { $match: { ...baseFilter, createdAt: { $gte: start6Months } } },
         {
@@ -587,7 +602,6 @@ async function getDashboardStats(req, res) {
         { $sort: { _id: 1 } },
       ]),
 
-      // Lightweight rows for charts export/filtering (cap it)
       Shipment.find(baseFilter)
         .sort({ createdAt: -1 })
         .limit(500)
@@ -597,7 +611,6 @@ async function getDashboardStats(req, res) {
         .lean(),
     ]);
 
-    // Friendly maps
     const byStatus = groupedByStatus.reduce((acc, cur) => {
       acc[cur._id || "unknown"] = cur.count;
       return acc;
@@ -608,7 +621,6 @@ async function getDashboardStats(req, res) {
       return acc;
     }, {});
 
-    // existing totals logic (kept)
     const delivered = byStatus.delivered || 0;
     const cancelled = byStatus.cancelled || 0;
     const pending = byStatus.pending || 0;
@@ -632,13 +644,11 @@ async function getDashboardStats(req, res) {
       count: r.count,
     }));
 
-    // monthlyBookings normalized to {month, count}
     const monthlyBookings = monthlyAgg.map((m) => ({
       month: m._id,
       count: m.count,
     }));
 
-    // rows normalized for frontend (charges is an ARRAY in your schema)
     const rows = exportRowsRaw.map((s) => {
       const chargesArr = Array.isArray(s.charges) ? s.charges : [];
       const amountTotal = chargesArr.reduce(
@@ -663,15 +673,12 @@ async function getDashboardStats(req, res) {
 
     return res.status(200).json({
       data: {
-        // existing fields (for Home.jsx)
         totals,
         byStatus,
         byMode,
         topRoutes,
         recent: latestShipments,
-
-        // NEW fields (for Charts.jsx)
-        statusCounts: byStatus, // alias
+        statusCounts: byStatus,
         monthlyBookings,
         rows,
       },
