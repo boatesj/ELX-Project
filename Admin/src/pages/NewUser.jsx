@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { getNames } from "country-list";
 
 // Pre-compute global country list (all ISO countries, sorted)
@@ -59,13 +59,14 @@ const Section = ({ title, subtitle, open, onToggle, children }) => (
   </div>
 );
 
-// Backend base + users endpoint (matches app.use("/users", userRoute);)
+// Phase 3A: API standardised to /api/v1/*
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const USERS_API = `${API_BASE_URL}/users`;
+const USERS_API = `${API_BASE_URL}/api/v1/users`;
 
 const NewUser = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [formData, setFormData] = useState({
     accountType: "Business", // default
@@ -91,6 +92,11 @@ const NewUser = () => {
   const [openRole, setOpenRole] = useState(true);
 
   const userTypes = ["Shipper", "Consignee", "Both", "Admin"];
+
+  const redirectToLogin = () => {
+    const redirect = encodeURIComponent(location.pathname + location.search);
+    navigate(`/login?redirect=${redirect}`, { replace: true });
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -141,7 +147,6 @@ const NewUser = () => {
 
     setErrors(newErrors);
 
-    // If there are errors, open the likely sections so the user can see them
     if (Object.keys(newErrors).length) {
       if (
         newErrors.accountType ||
@@ -172,10 +177,8 @@ const NewUser = () => {
     setSubmitError("");
     setSuccessMessage("");
 
-    // Payload shape – you may need to extend your User schema to store
-    // accountType, city, postcode, notes.
     const payload = {
-      accountType: formData.accountType, // "Business" / "Individual"
+      accountType: formData.accountType,
       fullname: formData.fullName,
       email: formData.email,
       phone: formData.phone,
@@ -183,9 +186,9 @@ const NewUser = () => {
       city: formData.city,
       postcode: formData.postcode,
       address: formData.address,
-      role: formData.userType, // "Shipper" / "Consignee" / "Both" / "Admin"
+      role: formData.userType,
       notes: formData.notes,
-      status: "pending", // or "active" as needed
+      status: "pending",
     };
 
     try {
@@ -193,7 +196,7 @@ const NewUser = () => {
 
       if (!token) {
         setSubmitError("Please log in before creating a user.");
-        navigate(`/login?redirect=/newuser`);
+        redirectToLogin();
         return;
       }
 
@@ -205,6 +208,14 @@ const NewUser = () => {
         },
         body: JSON.stringify(payload),
       });
+
+      if (res.status === 401) {
+        setSubmitError("Your session has expired. Please log in again.");
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        redirectToLogin();
+        return;
+      }
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
@@ -262,7 +273,6 @@ const NewUser = () => {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 lg:gap-6">
-          {/* LEFT: main form sections */}
           <div className="space-y-4">
             <Section
               title="Account"
@@ -270,7 +280,6 @@ const NewUser = () => {
               open={openAccount}
               onToggle={() => setOpenAccount((v) => !v)}
             >
-              {/* Account Type */}
               <div className="flex flex-col gap-1">
                 <label
                   className="text-xs font-semibold text-gray-700"
@@ -298,7 +307,6 @@ const NewUser = () => {
               </div>
 
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Full Name / Company */}
                 <FormInput
                   label={
                     formData.accountType === "Business"
@@ -316,7 +324,6 @@ const NewUser = () => {
                   error={errors.fullName}
                 />
 
-                {/* Email */}
                 <FormInput
                   label="Email"
                   name="email"
@@ -327,7 +334,6 @@ const NewUser = () => {
                   error={errors.email}
                 />
 
-                {/* Phone */}
                 <FormInput
                   label="Phone Number"
                   name="phone"
@@ -345,7 +351,6 @@ const NewUser = () => {
               open={openAddress}
               onToggle={() => setOpenAddress((v) => !v)}
             >
-              {/* Country */}
               <div className="flex flex-col gap-1">
                 <label
                   className="text-xs font-semibold text-gray-700"
@@ -374,7 +379,6 @@ const NewUser = () => {
                 )}
               </div>
 
-              {/* City + Postcode */}
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormInput
                   label="City / Town"
@@ -395,7 +399,6 @@ const NewUser = () => {
                 />
               </div>
 
-              {/* Street Address */}
               <div className="mt-4 flex flex-col gap-1">
                 <label
                   className="text-xs font-semibold text-gray-700"
@@ -426,7 +429,6 @@ const NewUser = () => {
               open={openRole}
               onToggle={() => setOpenRole((v) => !v)}
             >
-              {/* User Type */}
               <div className="flex flex-col gap-1">
                 <label
                   className="text-xs font-semibold text-gray-700"
@@ -457,7 +459,6 @@ const NewUser = () => {
                 )}
               </div>
 
-              {/* Internal notes */}
               <div className="mt-4 flex flex-col gap-1">
                 <label
                   className="text-xs font-semibold text-gray-700"
@@ -477,7 +478,6 @@ const NewUser = () => {
             </Section>
           </div>
 
-          {/* RIGHT: desktop helper + desktop submit */}
           <div className="space-y-4">
             <div className="hidden lg:block bg-white rounded-md p-4 border border-slate-100">
               <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
@@ -508,7 +508,6 @@ const NewUser = () => {
           </div>
         </div>
 
-        {/* Mobile sticky CTA */}
         <div className="lg:hidden sticky bottom-0 left-0 right-0 pb-3">
           <div className="bg-white/95 backdrop-blur border border-slate-200 rounded-md p-3 shadow-lg">
             <button

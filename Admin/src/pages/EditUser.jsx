@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import PageShell from "../components/PageShell";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const USERS_API = `${API_BASE}/users`;
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const USERS_API = `${API_BASE_URL}/api/v1/users`;
 
 const STATUS_OPTIONS = ["pending", "active", "suspended"];
 const ROLE_OPTIONS = ["Shipper", "Consignee", "Both", "Admin"];
@@ -32,6 +34,11 @@ const EditUser = () => {
   const [saveError, setSaveError] = useState("");
   const [saveSuccess, setSaveSuccess] = useState("");
 
+  const redirectToLogin = () => {
+    const redirect = encodeURIComponent(location.pathname + location.search);
+    navigate(`/login?redirect=${redirect}`, { replace: true });
+  };
+
   const fetchUser = async () => {
     setLoading(true);
     setLoadError("");
@@ -41,7 +48,7 @@ const EditUser = () => {
 
       if (!token) {
         setLoadError("Please log in to edit this customer.");
-        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+        redirectToLogin();
         setLoading(false);
         return;
       }
@@ -57,7 +64,7 @@ const EditUser = () => {
         setLoadError("Your session has expired. Please log in again.");
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+        redirectToLogin();
         setLoading(false);
         return;
       }
@@ -68,7 +75,7 @@ const EditUser = () => {
       }
 
       const data = await res.json();
-      const u = data.user || data;
+      const u = data.user || data.data || data;
 
       setFormData({
         accountType: u.accountType || "Business",
@@ -114,7 +121,7 @@ const EditUser = () => {
 
       if (!token) {
         setSaveError("Please log in to save changes.");
-        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+        redirectToLogin();
         return;
       }
 
@@ -131,7 +138,7 @@ const EditUser = () => {
         setSaveError("Your session has expired. Please log in again.");
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+        redirectToLogin();
         return;
       }
 
@@ -141,10 +148,9 @@ const EditUser = () => {
       }
 
       setSaveSuccess("Customer details updated successfully.");
-      // Optional: navigate back to details after a short delay
       setTimeout(() => {
         navigate(`/users/${id}`);
-      }, 800);
+      }, 700);
     } catch (err) {
       console.error(err);
       setSaveError(err.message || "Something went wrong saving changes.");
@@ -152,52 +158,49 @@ const EditUser = () => {
   };
 
   return (
-    <div className="m-[30px] bg-[#D9D9D9] p-[20px] rounded-md">
-      {/* Header – matches Shipments/Users */}
-      <div className="flex items-center justify-between mb-[20px]">
-        <div className="flex flex-col gap-1">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="text-xs font-semibold text-[#1A2930] hover:text-[#FFA500] underline-offset-2 hover:underline"
-          >
-            ← Back to customer profile
-          </button>
-          <h1 className="text-[20px] font-semibold">Edit Customer</h1>
-          <p className="text-xs text-gray-700">
-            Update CRM details used for quotes, bookings and documents.
-          </p>
-        </div>
-      </div>
-
-      {loadError && (
-        <div className="mb-3 px-4 py-2 rounded-md bg-red-100 text-red-800 text-sm border border-red-300">
+    <PageShell
+      title="Edit customer"
+      subtitle="Update CRM details used for quotes, bookings and documents."
+      right={
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="
+            rounded-xl px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em]
+            border border-white/10 text-white/85 hover:text-white hover:bg-white/10 transition
+          "
+        >
+          Back
+        </button>
+      }
+    >
+      {loadError ? (
+        <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {loadError}
         </div>
-      )}
+      ) : null}
 
-      {saveError && (
-        <div className="mb-3 px-4 py-2 rounded-md bg-red-100 text-red-800 text-sm border border-red-300">
+      {saveError ? (
+        <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {saveError}
         </div>
-      )}
+      ) : null}
 
-      {saveSuccess && (
-        <div className="mb-3 px-4 py-2 rounded-md bg-green-100 text-green-800 text-sm border border-green-300">
+      {saveSuccess ? (
+        <div className="mb-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
           {saveSuccess}
         </div>
-      )}
+      ) : null}
 
-      {/* Main card – like Shipments grid wrapper */}
-      <div className="bg-white rounded-md p-4 shadow-md">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-xl">
         {loading ? (
-          <p className="text-sm text-gray-600">Loading customer details…</p>
+          <p className="text-sm text-white/70">Loading customer details…</p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Account section */}
+            {/* Account */}
             <div className="grid gap-4 md:grid-cols-3">
               <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-white/70 mb-1">
                   Full Name / Company
                 </label>
                 <input
@@ -205,19 +208,28 @@ const EditUser = () => {
                   name="fullname"
                   value={formData.fullname}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFA500]"
+                  className="
+                    w-full rounded-xl bg-[#0B1118] border border-white/10
+                    px-3 py-2 text-sm text-white outline-none
+                    focus:ring-2 focus:ring-[#FFA500]/40
+                  "
                   required
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-white/70 mb-1">
                   Account Type
                 </label>
                 <select
                   name="accountType"
                   value={formData.accountType}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFA500]"
+                  className="
+                    w-full rounded-xl bg-[#0B1118] border border-white/10
+                    px-3 py-2 text-sm text-white outline-none
+                    focus:ring-2 focus:ring-[#FFA500]/40
+                  "
                 >
                   {ACCOUNT_TYPES.map((type) => (
                     <option key={type} value={type}>
@@ -231,7 +243,7 @@ const EditUser = () => {
             {/* Contact + role */}
             <div className="grid gap-4 md:grid-cols-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-white/70 mb-1">
                   Email
                 </label>
                 <input
@@ -239,12 +251,17 @@ const EditUser = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFA500]"
+                  className="
+                    w-full rounded-xl bg-[#0B1118] border border-white/10
+                    px-3 py-2 text-sm text-white outline-none
+                    focus:ring-2 focus:ring-[#FFA500]/40
+                  "
                   required
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-white/70 mb-1">
                   Phone
                 </label>
                 <input
@@ -252,19 +269,28 @@ const EditUser = () => {
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFA500]"
+                  className="
+                    w-full rounded-xl bg-[#0B1118] border border-white/10
+                    px-3 py-2 text-sm text-white outline-none
+                    focus:ring-2 focus:ring-[#FFA500]/40
+                  "
                   required
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-white/70 mb-1">
                   User Role
                 </label>
                 <select
                   name="role"
                   value={formData.role}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFA500]"
+                  className="
+                    w-full rounded-xl bg-[#0B1118] border border-white/10
+                    px-3 py-2 text-sm text-white outline-none
+                    focus:ring-2 focus:ring-[#FFA500]/40
+                  "
                 >
                   {ROLE_OPTIONS.map((role) => (
                     <option key={role} value={role}>
@@ -278,7 +304,7 @@ const EditUser = () => {
             {/* Address */}
             <div className="grid gap-4 md:grid-cols-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-white/70 mb-1">
                   Country
                 </label>
                 <input
@@ -286,11 +312,16 @@ const EditUser = () => {
                   name="country"
                   value={formData.country}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFA500]"
+                  className="
+                    w-full rounded-xl bg-[#0B1118] border border-white/10
+                    px-3 py-2 text-sm text-white outline-none
+                    focus:ring-2 focus:ring-[#FFA500]/40
+                  "
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-white/70 mb-1">
                   City
                 </label>
                 <input
@@ -298,11 +329,16 @@ const EditUser = () => {
                   name="city"
                   value={formData.city}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFA500]"
+                  className="
+                    w-full rounded-xl bg-[#0B1118] border border-white/10
+                    px-3 py-2 text-sm text-white outline-none
+                    focus:ring-2 focus:ring-[#FFA500]/40
+                  "
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-white/70 mb-1">
                   Postcode
                 </label>
                 <input
@@ -310,18 +346,27 @@ const EditUser = () => {
                   name="postcode"
                   value={formData.postcode}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFA500]"
+                  className="
+                    w-full rounded-xl bg-[#0B1118] border border-white/10
+                    px-3 py-2 text-sm text-white outline-none
+                    focus:ring-2 focus:ring-[#FFA500]/40
+                  "
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="block text-xs font-semibold text-white/70 mb-1">
                   Status
                 </label>
                 <select
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFA500]"
+                  className="
+                    w-full rounded-xl bg-[#0B1118] border border-white/10
+                    px-3 py-2 text-sm text-white outline-none
+                    focus:ring-2 focus:ring-[#FFA500]/40
+                  "
                 >
                   {STATUS_OPTIONS.map((s) => (
                     <option key={s} value={s}>
@@ -333,7 +378,7 @@ const EditUser = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
+              <label className="block text-xs font-semibold text-white/70 mb-1">
                 Address
               </label>
               <textarea
@@ -341,12 +386,16 @@ const EditUser = () => {
                 value={formData.address}
                 onChange={handleChange}
                 rows={3}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFA500]"
+                className="
+                  w-full rounded-xl bg-[#0B1118] border border-white/10
+                  px-3 py-2 text-sm text-white outline-none
+                  focus:ring-2 focus:ring-[#FFA500]/40
+                "
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
+              <label className="block text-xs font-semibold text-white/70 mb-1">
                 Internal Notes
               </label>
               <textarea
@@ -354,7 +403,11 @@ const EditUser = () => {
                 value={formData.notes}
                 onChange={handleChange}
                 rows={4}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#FFA500]"
+                className="
+                  w-full rounded-xl bg-[#0B1118] border border-white/10
+                  px-3 py-2 text-sm text-white outline-none
+                  focus:ring-2 focus:ring-[#FFA500]/40
+                "
               />
             </div>
 
@@ -363,21 +416,27 @@ const EditUser = () => {
               <button
                 type="button"
                 onClick={() => navigate(`/users/${id}`)}
-                className="px-4 py-2 rounded-md text-xs font-semibold border border-gray-300 text-gray-700 hover:bg-gray-100 transition"
+                className="
+                  rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em]
+                  border border-white/10 text-white/85 hover:text-white hover:bg-white/10 transition
+                "
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-md text-xs font-semibold bg-[#1A2930] text-white hover:bg-[#FFA500] hover:text-black transition"
+                className="
+                  rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em]
+                  bg-[#FFA500] text-[#071013] hover:brightness-105 active:brightness-95 transition
+                "
               >
-                Save Changes
+                Save changes
               </button>
             </div>
           </form>
         )}
       </div>
-    </div>
+    </PageShell>
   );
 };
 
