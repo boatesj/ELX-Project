@@ -20,11 +20,24 @@ const Footer = () => {
                 ELLCWORTH <span className="text-[#FFA500]">EXPRESS</span>
               </span>
             </Link>
+
             <p className="text-sm md:text-[15px] text-slate-300 max-w-md leading-relaxed">
               UK–Africa shipping support for containers, vehicles, air freight
               and secure documentation – with clear communication from booking
               to delivery.
             </p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="text-[11px] px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">
+                RoRo &amp; Containers
+              </span>
+              <span className="text-[11px] px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">
+                Air Freight
+              </span>
+              <span className="text-[11px] px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">
+                Secure Documents
+              </span>
+            </div>
           </div>
 
           {/* Quick links */}
@@ -43,7 +56,7 @@ const Footer = () => {
                   href="#destinations"
                   className="hover:text-[#FFA500] transition"
                 >
-                  Destinations & services
+                  Destinations &amp; services
                 </a>
               </li>
               <li>
@@ -69,18 +82,23 @@ const Footer = () => {
                   info@ellcworth.com
                 </a>
               </li>
+
+              {/* FIX: tel: must not contain spaces */}
               <li className="flex items-center gap-2">
                 <FaPhoneAlt className="text-[#FFA500]" />
                 <a
-                  href="tel:+44 20 8979 6054"
+                  href="tel:+442089796054"
                   className="hover:text-[#FFA500] transition"
                 >
                   +44 (0) 20 8979 6054
                 </a>
               </li>
+
               <li className="flex items-center gap-2">
                 <FaWhatsapp className="text-[#FFA500]" />
-                <span>WhatsApp support coming soon</span>
+                <span className="text-slate-300">
+                  WhatsApp support coming soon
+                </span>
               </li>
             </ul>
           </div>
@@ -92,6 +110,8 @@ const Footer = () => {
             © {new Date().getFullYear()} Ellcworth Express Ltd. All rights
             reserved.
           </p>
+
+          {/* Keep as buttons for now (no routing assumptions) */}
           <div className="flex flex-wrap gap-4 text-xs md:text-sm text-slate-500">
             <button className="hover:text-[#FFA500] transition" type="button">
               Terms &amp; conditions
