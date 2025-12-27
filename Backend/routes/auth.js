@@ -5,6 +5,7 @@ const User = require("../models/User");
 const {
   registerUser,
   loginUser,
+  customerLoginUser, // ✅ new
   requestPasswordReset,
   resetPassword,
 } = require("../controllers/auth");
@@ -40,8 +41,20 @@ function requireAuth(req, res, next) {
 /** POST /auth/register */
 router.post("/register", validateRegister, handleValidation, registerUser);
 
-/** POST /auth/login */
+/** POST /auth/login (generic) */
 router.post("/login", validateLogin, handleValidation, loginUser);
+
+/**
+ * ✅ POST /auth/customer/login (customer-only)
+ * - refuses admin accounts
+ * - returns { ok, token, user }
+ */
+router.post(
+  "/customer/login",
+  validateLogin,
+  handleValidation,
+  customerLoginUser
+);
 
 /** GET /auth/me (protected) */
 router.get("/me", requireAuth, async (req, res) => {

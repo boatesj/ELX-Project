@@ -1,4 +1,4 @@
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcryptjs"); // kept (used elsewhere / harmless if unused here)
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { createLog } = require("../utils/createLog");
@@ -30,23 +30,31 @@ function makeAuthLogReq({ userId, role, ip, ua }) {
 /** REGISTER */
 const registerUser = async (req, res) => {
   try {
-    const { fullname, email, password, country, address, age } = req.body;
+    // ✅ include phone (your schema requires it)
+    const { fullname, email, password, phone, country, address, age } =
+      req.body;
 
-    if (!fullname || !email || !password || !country || !address) {
-      return res.status(400).json({ message: "Missing required fields." });
+    // ✅ align required fields with schema + validators
+    if (!fullname || !email || !password || !phone || !country || !address) {
+      return res.status(400).json({
+        message:
+          "Missing required fields. fullname, email, password, phone, country, and address are required.",
+      });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = String(email).toLowerCase().trim();
     const existing = await User.findOne({ email: normalizedEmail });
-    if (existing)
+    if (existing) {
       return res.status(409).json({ message: "Email already registered." });
+    }
 
     const user = await User.create({
-      fullname: fullname.trim(),
+      fullname: String(fullname).trim(),
       email: normalizedEmail,
       password, // pre-save hook hashes this
-      country: country.trim(),
-      address: address.trim(),
+      phone: String(phone).trim(),
+      country: String(country).trim(),
+      address: String(address).trim(),
       age,
       status: "pending",
       welcomeMailSent: false,
@@ -68,12 +76,12 @@ const registerUser = async (req, res) => {
           meta: { ip: req.ip, ua: req.headers["user-agent"] },
         }
       );
-    } catch (_) {
-      // Logging should never block auth flows
-    }
+    } catch (_) {}
 
     const { password: _pw, ...safe } = user.toObject();
     const accessToken = signToken(user);
+
+    // preserve your existing response shape
     return res.status(201).json({ ...safe, accessToken });
   } catch (err) {
     console.error(err);
@@ -83,21 +91,22 @@ const registerUser = async (req, res) => {
   }
 };
 
-/** LOGIN */
+/** LOGIN (generic: admin + non-admin) */
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password)
+    if (!email || !password) {
       return res
         .status(400)
         .json({ message: "Email and password are required." });
+    }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = String(email).toLowerCase().trim();
     const user = await User.findOne({ email: normalizedEmail }).select(
       "+password"
     );
+
     if (!user) {
-      // ✅ LOG: failed login (unknown user)
       try {
         await createLog(
           makeAuthLogReq({
@@ -119,7 +128,6 @@ const loginUser = async (req, res) => {
 
     const ok = await user.comparePassword(password);
     if (!ok) {
-      // ✅ LOG: failed login (bad password)
       try {
         await createLog(
           makeAuthLogReq({
@@ -139,7 +147,6 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials." });
     }
 
-    // ✅ LOG: successful login
     try {
       await createLog(
         makeAuthLogReq({
@@ -159,12 +166,152 @@ const loginUser = async (req, res) => {
 
     const accessToken = signToken(user);
     const { password: _pw, ...safe } = user.toObject();
+
+    // preserve your existing response shape
     return res.status(200).json({ ...safe, accessToken });
   } catch (err) {
     console.error(err);
     return res
       .status(500)
       .json({ message: "Server error", error: err.message });
+  }
+};
+
+/**
+ * ✅ CUSTOMER LOGIN (strict: NEVER allows admin)
+ * Endpoint returns:
+ *  { ok: true, token, user }
+ *
+ * Notes:
+ * - Your DB may store customers as role "user".
+ * - We block role === "admin" absolutely.
+ */
+const customerLoginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "Email and password are required." });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail }).select(
+      "+password"
+    );
+
+    if (!user) {
+      try {
+        await createLog(
+          makeAuthLogReq({
+            userId: "",
+            role: "",
+            ip: req.ip,
+            ua: req.headers["user-agent"],
+          }),
+          {
+            type: "auth",
+            action: "Customer login failed (unknown email)",
+            ref: normalizedEmail,
+            meta: { ip: req.ip, ua: req.headers["user-agent"] },
+          }
+        );
+      } catch (_) {}
+      return res
+        .status(401)
+        .json({ ok: false, message: "Invalid credentials." });
+    }
+
+    const roleLower = String(user.role || "").toLowerCase();
+    if (roleLower === "admin") {
+      try {
+        await createLog(
+          makeAuthLogReq({
+            userId: user._id,
+            role: user.role,
+            ip: req.ip,
+            ua: req.headers["user-agent"],
+          }),
+          {
+            type: "auth",
+            action: "Customer login blocked (admin attempted customer portal)",
+            ref: user.email,
+            meta: { ip: req.ip, ua: req.headers["user-agent"] },
+          }
+        );
+      } catch (_) {}
+      return res.status(403).json({
+        ok: false,
+        message: "This account must sign in via the Admin portal.",
+      });
+    }
+
+    const ok = await user.comparePassword(password);
+    if (!ok) {
+      try {
+        await createLog(
+          makeAuthLogReq({
+            userId: user._id,
+            role: user.role,
+            ip: req.ip,
+            ua: req.headers["user-agent"],
+          }),
+          {
+            type: "auth",
+            action: "Customer login failed (invalid password)",
+            ref: user.email,
+            meta: { ip: req.ip, ua: req.headers["user-agent"] },
+          }
+        );
+      } catch (_) {}
+      return res
+        .status(401)
+        .json({ ok: false, message: "Invalid credentials." });
+    }
+
+    // Minimal, portal-safe customer object (no password)
+    const safeUser = {
+      id: String(user._id),
+      email: user.email,
+      fullname: user.fullname,
+      role: user.role, // likely "user" in your DB
+      status: user.status,
+      country: user.country,
+      city: user.city,
+      phone: user.phone,
+    };
+
+    try {
+      await createLog(
+        makeAuthLogReq({
+          userId: user._id,
+          role: user.role,
+          ip: req.ip,
+          ua: req.headers["user-agent"],
+        }),
+        {
+          type: "auth",
+          action: "Customer login success",
+          ref: user.email,
+          meta: { ip: req.ip, ua: req.headers["user-agent"] },
+        }
+      );
+    } catch (_) {}
+
+    const token = signToken(user);
+
+    return res.status(200).json({
+      ok: true,
+      token,
+      user: safeUser,
+    });
+  } catch (err) {
+    console.error("Customer login error:", err);
+    return res.status(500).json({
+      ok: false,
+      message: "Server error",
+      error: err.message,
+    });
   }
 };
 
@@ -177,7 +324,6 @@ const requestPasswordReset = async (req, res) => {
     if (!secret) throw new Error("JWT secret not configured");
 
     const decoded = jwt.verify(token, secret);
-
     return res.status(200).json({ valid: true, userId: decoded.id });
   } catch (err) {
     return res
@@ -199,20 +345,16 @@ const resetPassword = async (req, res) => {
     const secret = jwtSecret();
     if (!secret) throw new Error("JWT secret not configured");
 
-    // Verify token
     const decoded = jwt.verify(token, secret);
 
-    // Find user
     const user = await User.findById(decoded.id).select("+password");
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Update password (pre-save hook hashes it)
-    user.password = password;
+    user.password = password; // pre-save hook hashes it
     user.status = "active";
     user.welcomeMailSent = true;
     await user.save();
 
-    // ✅ LOG: password reset completed
     try {
       await createLog(
         makeAuthLogReq({
@@ -241,6 +383,7 @@ const resetPassword = async (req, res) => {
 module.exports = {
   registerUser,
   loginUser,
+  customerLoginUser,
   requestPasswordReset,
   resetPassword,
 };

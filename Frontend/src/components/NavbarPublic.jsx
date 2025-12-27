@@ -1,14 +1,85 @@
 import { useEffect, useMemo, useState } from "react";
 import { assets } from "@/assets/assets";
-import { FaEnvelope, FaPhone, FaBars, FaTimes } from "react-icons/fa";
+import {
+  FaEnvelope,
+  FaPhone,
+  FaBars,
+  FaTimes,
+  FaSignOutAlt,
+  FaUserCircle,
+} from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+
+// ✅ Customer-only keys (must match CustomerLogin.jsx)
+const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
+const CUSTOMER_TOKEN_KEY = "elx_customer_token";
+const CUSTOMER_USER_KEY = "elx_customer_user";
+
+function safeJsonParse(raw) {
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearCustomerAuth() {
+  localStorage.removeItem(CUSTOMER_SESSION_KEY);
+  localStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  localStorage.removeItem(CUSTOMER_USER_KEY);
+  sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  sessionStorage.removeItem(CUSTOMER_USER_KEY);
+}
+
+function readCustomerSession() {
+  const token =
+    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
+    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
+
+  const session = safeJsonParse(localStorage.getItem(CUSTOMER_SESSION_KEY));
+
+  // Expiry enforcement
+  if (session?.expiresAt) {
+    const exp = new Date(session.expiresAt).getTime();
+    if (!Number.isNaN(exp) && Date.now() > exp) {
+      clearCustomerAuth();
+      return { token: null, user: null };
+    }
+  }
+
+  const userRaw =
+    localStorage.getItem(CUSTOMER_USER_KEY) ||
+    sessionStorage.getItem(CUSTOMER_USER_KEY);
+
+  const user = safeJsonParse(userRaw) || session?.user || null;
+
+  return { token: token || null, user };
+}
 
 const NavbarPublic = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [customerAuth, setCustomerAuth] = useState(() => readCustomerSession());
+
   const location = useLocation();
   const navigate = useNavigate();
 
   const isHome = location.pathname === "/";
+
+  // ✅ customer is signed in if token exists and role is NOT admin (customer role in DB may be "user")
+  const isCustomerSignedIn = useMemo(() => {
+    if (!customerAuth?.token) return false;
+    const role = String(customerAuth?.user?.role || "")
+      .toLowerCase()
+      .trim();
+    if (role === "admin") return false;
+    return true;
+  }, [customerAuth]);
+
+  const customerName =
+    customerAuth?.user?.fullname ||
+    customerAuth?.user?.accountHolderName ||
+    customerAuth?.user?.email ||
+    "My Account";
 
   const links = useMemo(
     () => [
@@ -23,6 +94,13 @@ const NavbarPublic = () => {
   );
 
   const closeMenu = () => setMenuOpen(false);
+
+  // Keep auth in sync across tabs/windows
+  useEffect(() => {
+    const onStorage = () => setCustomerAuth(readCustomerSession());
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   // Corporate UX: lock body scroll when drawer is open
   useEffect(() => {
@@ -46,7 +124,7 @@ const NavbarPublic = () => {
 
   // Hybrid navigation:
   // - If on home, smooth-scroll to hash.
-  // - If not on home, navigate to "/#hash" (Home loads and can scroll).
+  // - If not on home, navigate to "/#hash".
   const goToSection = (hash) => {
     closeMenu();
 
@@ -65,7 +143,6 @@ const NavbarPublic = () => {
     const hash = location.hash?.replace("#", "");
     if (!hash) return;
 
-    // Slight delay helps with fixed navbar + layout paint
     const t = setTimeout(() => {
       const el = document.getElementById(hash);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -73,6 +150,13 @@ const NavbarPublic = () => {
 
     return () => clearTimeout(t);
   }, [isHome, location.hash]);
+
+  const handleCustomerLogout = () => {
+    clearCustomerAuth();
+    setCustomerAuth(readCustomerSession());
+    closeMenu();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <header className="w-full z-20 fixed top-0 left-0">
@@ -111,6 +195,16 @@ const NavbarPublic = () => {
                 +44 20 8979 6054
               </a>
             </div>
+
+            {/* ✅ Signed-in indicator (desktop only, subtle) */}
+            {isCustomerSignedIn ? (
+              <div className="hidden lg:flex items-center gap-2 text-white/85">
+                <FaUserCircle className="text-[#FFA500]" />
+                <span className="text-[12px] tracking-[0.12em] uppercase">
+                  {customerName}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           {/* Burger (mobile only) */}
@@ -140,11 +234,32 @@ const NavbarPublic = () => {
             ))}
           </ul>
 
-          <Link to="/login">
-            <button className="bg-[#1A2930] text-white px-6 py-2 rounded-full text-xs font-semibold tracking-[0.14em] hover:bg-[#121c23] transition shadow-[0_8px_18px_rgba(0,0,0,0.18)]">
-              Customer Login
-            </button>
-          </Link>
+          {/* ✅ Conditional CTA */}
+          {isCustomerSignedIn ? (
+            <div className="flex items-center gap-3">
+              <Link to="/myshipments">
+                <button className="bg-[#1A2930] text-white px-6 py-2 rounded-full text-xs font-semibold tracking-[0.14em] hover:bg-[#121c23] transition shadow-[0_8px_18px_rgba(0,0,0,0.18)]">
+                  My Shipments
+                </button>
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleCustomerLogout}
+                className="inline-flex items-center gap-2 rounded-full border border-[#1A2930]/40 bg-black/10 px-4 py-2 text-xs font-semibold tracking-[0.14em] text-[#1A2930] hover:bg-black/15 transition"
+                aria-label="Logout"
+              >
+                <FaSignOutAlt />
+                Logout
+              </button>
+            </div>
+          ) : (
+            <Link to="/login">
+              <button className="bg-[#1A2930] text-white px-6 py-2 rounded-full text-xs font-semibold tracking-[0.14em] hover:bg-[#121c23] transition shadow-[0_8px_18px_rgba(0,0,0,0.18)]">
+                Customer Login
+              </button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -177,6 +292,14 @@ const NavbarPublic = () => {
                   <p className="text-white font-semibold tracking-[0.16em]">
                     PUBLIC SITE <span className="text-[#FFA500]">MENU</span>
                   </p>
+                  {isCustomerSignedIn ? (
+                    <p className="mt-2 text-[11px] text-white/70 tracking-[0.16em] uppercase">
+                      Signed in:{" "}
+                      <span className="text-[#FFA500] font-semibold">
+                        {customerName}
+                      </span>
+                    </p>
+                  ) : null}
                 </div>
 
                 <button
@@ -242,11 +365,31 @@ const NavbarPublic = () => {
                   </div>
                 </Link>
 
-                <Link to="/login" onClick={closeMenu}>
-                  <div className="mt-3 rounded-2xl bg-[#FFA500] text-[#1A2930] px-4 py-3 text-sm font-semibold text-center tracking-[0.14em] uppercase hover:opacity-90 transition">
-                    Customer Login
-                  </div>
-                </Link>
+                {/* ✅ Conditional customer actions */}
+                {isCustomerSignedIn ? (
+                  <>
+                    <Link to="/myshipments" onClick={closeMenu}>
+                      <div className="mt-3 rounded-2xl bg-[#FFA500] text-[#1A2930] px-4 py-3 text-sm font-semibold text-center tracking-[0.14em] uppercase hover:opacity-90 transition">
+                        My Shipments
+                      </div>
+                    </Link>
+
+                    <button
+                      type="button"
+                      onClick={handleCustomerLogout}
+                      className="mt-3 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-center tracking-[0.14em] uppercase text-white/90 hover:bg-white/10 transition inline-flex items-center justify-center gap-2"
+                    >
+                      <FaSignOutAlt />
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <Link to="/login" onClick={closeMenu}>
+                    <div className="mt-3 rounded-2xl bg-[#FFA500] text-[#1A2930] px-4 py-3 text-sm font-semibold text-center tracking-[0.14em] uppercase hover:opacity-90 transition">
+                      Customer Login
+                    </div>
+                  </Link>
+                )}
               </div>
             </nav>
           </div>

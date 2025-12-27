@@ -12,18 +12,10 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 /**
  * ✅ Customer-only keys (prevents Admin portal collisions)
- * IMPORTANT: Customer login must NEVER accept Admin/legacy tokens as "signed in".
  */
 const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
 const CUSTOMER_TOKEN_KEY = "elx_customer_token";
 const CUSTOMER_USER_KEY = "elx_customer_user";
-
-/**
- * Legacy keys (read-only fallback)
- * We ONLY migrate legacy auth if the legacy user is explicitly role==="customer".
- */
-const LEGACY_TOKEN_KEY = "elx_token";
-const LEGACY_USER_KEY = "elx_user";
 
 function clearCustomerAuth() {
   localStorage.removeItem(CUSTOMER_SESSION_KEY);
@@ -68,21 +60,13 @@ function writeCustomerSession({ remember, token, user }) {
   }
 }
 
-/**
- * ✅ Customer auth reader:
- * - Uses customer keys ONLY for customer auth
- * - Optionally migrates legacy keys ONLY if legacy user role === "customer"
- * - Enforces expiry if session has expiresAt
- */
 function readCustomerSession() {
-  // 1) Strictly customer-only token
   const token =
     localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
     sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
 
   const session = readJson(CUSTOMER_SESSION_KEY);
 
-  // 2) Expiry enforcement
   if (session?.expiresAt) {
     const exp = new Date(session.expiresAt).getTime();
     if (!Number.isNaN(exp) && Date.now() > exp) {
@@ -91,7 +75,6 @@ function readCustomerSession() {
     }
   }
 
-  // 3) Customer-only user
   const userRaw =
     localStorage.getItem(CUSTOMER_USER_KEY) ||
     sessionStorage.getItem(CUSTOMER_USER_KEY);
@@ -106,40 +89,13 @@ function readCustomerSession() {
   }
   if (!user && session?.user) user = session.user;
 
-  // 4) Optional legacy migration — ONLY if legacy user is customer
-  if (!token && !user) {
-    const legacyToken =
-      localStorage.getItem(LEGACY_TOKEN_KEY) ||
-      sessionStorage.getItem(LEGACY_TOKEN_KEY);
-
-    const legacyUserRaw =
-      localStorage.getItem(LEGACY_USER_KEY) ||
-      sessionStorage.getItem(LEGACY_USER_KEY);
-
-    if (legacyToken && legacyUserRaw) {
-      try {
-        const legacyUser = JSON.parse(legacyUserRaw);
-        if (legacyUser?.role === "customer") {
-          // migrate into customer session keys (default remember=true)
-          writeCustomerSession({
-            remember: true,
-            token: legacyToken,
-            user: legacyUser,
-          });
-          return {
-            token: legacyToken,
-            user: legacyUser,
-            session: readJson(CUSTOMER_SESSION_KEY),
-          };
-        }
-      } catch {
-        // ignore legacy values
-      }
-    }
-  }
-
   return { token: token || null, user, session };
 }
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+const CUSTOMER_LOGIN_URL = `${API_BASE_URL}/auth/customer/login`;
 
 const CustomerLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -157,26 +113,18 @@ const CustomerLogin = () => {
     return "/myshipments";
   }, [location.state]);
 
-  // Compute auth state
   const [existing, setExisting] = useState(() => readCustomerSession());
 
-  // Keep in sync if storage changes across tabs/windows
   useEffect(() => {
     const onStorage = () => setExisting(readCustomerSession());
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  /**
-   * Signed-in means:
-   * - has token AND
-   * - user is either explicitly role === "customer" OR user is missing (token-only dev mode)
-   *
-   * (Never let Admin role trigger signed-in state here.)
-   */
   const alreadySignedIn =
     Boolean(existing.token) &&
-    (existing.user?.role === "customer" || existing.user == null);
+    existing.user != null &&
+    (existing.user?.role === "customer" || existing.user?.role === "user");
 
   const handleTogglePassword = () => setShowPassword((prev) => !prev);
 
@@ -192,7 +140,7 @@ const CustomerLogin = () => {
     e.preventDefault();
 
     const email = form.email.trim().toLowerCase();
-    const password = form.password.trim();
+    const password = form.password;
 
     if (!email || !password) {
       setStatus({ loading: false, error: "Please enter email and password." });
@@ -210,21 +158,46 @@ const CustomerLogin = () => {
     setStatus({ loading: true, error: "" });
 
     try {
-      // ✅ TEMP LOGIN (Frontend-only)
-      await new Promise((r) => setTimeout(r, 450));
-
       // Always overwrite stale customer sessions before writing new one
       clearCustomerAuth();
 
-      const token = "customer-dev-token";
-      const user = {
-        email,
-        role: "customer",
-        accountHolderName: "Derry Morgan",
-      };
+      const resp = await fetch(CUSTOMER_LOGIN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-      writeCustomerSession({ remember: form.remember, token, user });
-      setExisting({ token, user, session: readJson(CUSTOMER_SESSION_KEY) });
+      const data = await resp.json().catch(() => null);
+
+      if (!resp.ok) {
+        const msg =
+          data?.message ||
+          data?.error ||
+          "Login failed. Please check your credentials.";
+        throw new Error(msg);
+      }
+
+      if (!data?.ok || !data?.token || !data?.user) {
+        throw new Error("Unexpected login response from server.");
+      }
+
+      // Enforce: customer portal must NEVER accept admin user
+      const role = String(data.user.role || "").toLowerCase();
+      if (role === "admin") {
+        throw new Error("This account must sign in via the Admin portal.");
+      }
+
+      writeCustomerSession({
+        remember: form.remember,
+        token: data.token,
+        user: data.user,
+      });
+
+      setExisting({
+        token: data.token,
+        user: data.user,
+        session: readJson(CUSTOMER_SESSION_KEY),
+      });
 
       navigate(from, { replace: true });
     } catch (err) {
@@ -238,11 +211,11 @@ const CustomerLogin = () => {
   };
 
   const handleContinue = () => {
-    // extra safety: if somehow we are not (customer) signed in, show form
     const current = readCustomerSession();
     const ok =
       Boolean(current.token) &&
-      (current.user?.role === "customer" || current.user == null);
+      (String(current.user?.role || "").toLowerCase() === "customer" ||
+        String(current.user?.role || "").toLowerCase() === "user");
 
     if (!ok) {
       clearCustomerAuth();
@@ -264,6 +237,8 @@ const CustomerLogin = () => {
     setForm({ email: "", password: "", remember: true });
     setStatus({ loading: false, error: "" });
   };
+
+  const signedInEmail = existing.user?.email || "your account";
 
   return (
     <div className="bg-[#1A2930] text-white">
@@ -346,15 +321,11 @@ const CustomerLogin = () => {
                 Sign in to your account
               </h2>
 
-              {/* ✅ Already signed in panel (customer-only) */}
               {alreadySignedIn ? (
                 <div className="space-y-4">
                   <div className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800">
                     You’re already signed in as{" "}
-                    <span className="font-semibold">
-                      {existing.user?.email || "your account"}
-                    </span>
-                    .
+                    <span className="font-semibold">{signedInEmail}</span>.
                   </div>
 
                   <button
@@ -479,16 +450,6 @@ const CustomerLogin = () => {
                   </p>
                 </form>
               )}
-
-              {/* Extra hint if admin session is present (helps you debug in dev) */}
-              {!alreadySignedIn &&
-              (localStorage.getItem(LEGACY_TOKEN_KEY) ||
-                sessionStorage.getItem(LEGACY_TOKEN_KEY)) ? (
-                <p className="mt-5 text-[11px] md:text-xs text-gray-500 text-center">
-                  Note: An Admin session may be present in this browser.
-                  Customer login ignores Admin tokens by design.
-                </p>
-              ) : null}
             </div>
           </section>
         </div>
