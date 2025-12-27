@@ -38,6 +38,13 @@ function readCustomerUser() {
   // Fail closed: if no token, treat as logged out
   if (!token) return { token: null, user: null };
 
+  // Extra safety: customer portal must never treat admin as authenticated
+  const role = String(user?.role || "").toLowerCase();
+  if (role === "admin") {
+    clearCustomerAuth();
+    return { token: null, user: null };
+  }
+
   return { token, user };
 }
 
@@ -61,7 +68,7 @@ export default function NavbarCustomer() {
     );
   }, [auth]);
 
-  // Keep auth in sync (refresh if login/logout happens)
+  // Keep auth in sync (refresh if login/logout happens in another tab)
   useEffect(() => {
     const onStorage = () => setAuth(readCustomerUser());
     window.addEventListener("storage", onStorage);
@@ -91,7 +98,7 @@ export default function NavbarCustomer() {
     return () => window.removeEventListener("keydown", onKey);
   }, [drawerOpen, accountOpen]);
 
-  // Close account menu when route changes
+  // Close menus on route change
   useEffect(() => {
     setAccountOpen(false);
     closeDrawer();
@@ -106,11 +113,8 @@ export default function NavbarCustomer() {
     navigate("/login", { replace: true });
   };
 
-  const navLinks = [
-    { label: "My Shipments", to: "/myshipments" },
-    // Keep this if you still want it accessible from customer portal:
-    { label: "All Shipments", to: "/allshipments" },
-  ];
+  // ✅ Customer portal nav must not expose internal routes
+  const navLinks = [{ label: "My Shipments", to: "/myshipments" }];
 
   return (
     <header className="w-full z-20 fixed top-0 left-0">
