@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { FaUser, FaFileAlt, FaSignOutAlt } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { shipments } from "@/assets/shipments";
 
@@ -57,12 +56,12 @@ function readCustomerAuth() {
 }
 
 const MyShipments = () => {
-  const [open, setOpen] = useState(false);
   const [auth, setAuth] = useState(() => readCustomerAuth());
 
   const navigate = useNavigate();
   const location = useLocation();
 
+  // ✅ Guard: redirect ONLY when we are sure there is no token
   useEffect(() => {
     const current = readCustomerAuth();
     setAuth(current);
@@ -74,8 +73,6 @@ const MyShipments = () => {
       });
     }
   }, [navigate, location.pathname]);
-
-  const handleOpen = () => setOpen((prev) => !prev);
 
   const accountHolderName =
     auth.user?.accountHolderName ||
@@ -113,96 +110,22 @@ const MyShipments = () => {
     }
   };
 
-  const handleLogout = () => {
-    clearCustomerAuth();
-    setOpen(false);
-    setAuth({ token: null, user: null });
-    navigate("/login", { replace: true });
-  };
-
   return (
     <div className="bg-[#1A2930] text-slate-100 min-h-[60vh]">
       <div className="max-w-6xl mx-auto px-4 md:px-8 lg:px-10 py-8 md:py-10">
-        {/* Top bar: title + user menu */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-xl md:text-2xl font-semibold tracking-wide">
-              My Shipments
-            </h1>
-            <p className="text-xs md:text-sm text-slate-200 mt-1">
-              A personalised overview of your active and completed shipments
-              handled by Ellcworth Express.
-            </p>
-          </div>
-
-          <div className="relative">
-            <button
-              onClick={handleOpen}
-              className="
-                flex items-center gap-2
-                rounded-full
-                bg-[#1A2930]
-                border border-[#9A9EAB]
-                px-3 py-1.5
-                text-xs md:text-sm
-                font-medium
-                hover:border-[#FFA500]
-                hover:text-[#FFA500]
-                transition
-              "
-            >
-              <span
-                className="
-                  flex h-8 w-8 items-center justify-center
-                  rounded-full
-                  bg-[#FFA500]/10
-                  text-[#FFA500]
-                  text-sm
-                "
-              >
-                <FaUser />
-              </span>
-              <span className="hidden sm:inline">{accountHolderName}</span>
-            </button>
-
-            {open && (
-              <div
-                className="
-                  absolute right-0 mt-2
-                  w-52 rounded-md
-                  bg-white
-                  text-[#1A2930]
-                  shadow-xl
-                  text-sm
-                  z-20
-                "
-              >
-                <ul className="py-2">
-                  <li className="px-4 py-2 text-[12px] text-slate-500">
-                    Customer menu
-                  </li>
-
-                  <li className="px-4 py-2 hover:bg-[#9A9EAB]/10 cursor-pointer flex items-center gap-2">
-                    <FaFileAlt className="text-xs" />
-                    <span>Statements (coming soon)</span>
-                  </li>
-
-                  <li
-                    onClick={handleLogout}
-                    className="px-4 py-2 hover:bg-[#FFA500]/10 cursor-pointer flex items-center gap-2 text-[#BF2918]"
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") handleLogout();
-                    }}
-                  >
-                    <FaSignOutAlt className="text-xs" />
-                    <span>Logout</span>
-                  </li>
-                </ul>
-              </div>
-            )}
-          </div>
+        {/* Top bar: title */}
+        <div className="mb-8">
+          <h1 className="text-xl md:text-2xl font-semibold tracking-wide">
+            My Shipments
+          </h1>
+          <p className="text-xs md:text-sm text-slate-200 mt-1">
+            A personalised overview of your active and completed shipments
+            handled by Ellcworth Express.
+          </p>
+          <p className="text-[11px] md:text-xs text-slate-400 mt-2">
+            Signed in as{" "}
+            <span className="text-slate-200">{accountHolderName}</span>
+          </p>
         </div>
 
         {/* Shipments list */}
