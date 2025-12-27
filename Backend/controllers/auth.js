@@ -1,4 +1,4 @@
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcryptjs"); // kept (used elsewhere / harmless if unused here)
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { createLog } = require("../utils/createLog");
@@ -30,23 +30,31 @@ function makeAuthLogReq({ userId, role, ip, ua }) {
 /** REGISTER */
 const registerUser = async (req, res) => {
   try {
-    const { fullname, email, password, country, address, age } = req.body;
+    // ✅ include phone (your schema requires it)
+    const { fullname, email, password, phone, country, address, age } =
+      req.body;
 
-    if (!fullname || !email || !password || !country || !address) {
-      return res.status(400).json({ message: "Missing required fields." });
+    // ✅ align required fields with schema + validators
+    if (!fullname || !email || !password || !phone || !country || !address) {
+      return res.status(400).json({
+        message:
+          "Missing required fields. fullname, email, password, phone, country, and address are required.",
+      });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = String(email).toLowerCase().trim();
     const existing = await User.findOne({ email: normalizedEmail });
-    if (existing)
+    if (existing) {
       return res.status(409).json({ message: "Email already registered." });
+    }
 
     const user = await User.create({
-      fullname: fullname.trim(),
+      fullname: String(fullname).trim(),
       email: normalizedEmail,
       password, // pre-save hook hashes this
-      country: country.trim(),
-      address: address.trim(),
+      phone: String(phone).trim(),
+      country: String(country).trim(),
+      address: String(address).trim(),
       age,
       status: "pending",
       welcomeMailSent: false,
@@ -72,6 +80,8 @@ const registerUser = async (req, res) => {
 
     const { password: _pw, ...safe } = user.toObject();
     const accessToken = signToken(user);
+
+    // preserve your existing response shape
     return res.status(201).json({ ...safe, accessToken });
   } catch (err) {
     console.error(err);
@@ -85,15 +95,17 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password)
+    if (!email || !password) {
       return res
         .status(400)
         .json({ message: "Email and password are required." });
+    }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = String(email).toLowerCase().trim();
     const user = await User.findOne({ email: normalizedEmail }).select(
       "+password"
     );
+
     if (!user) {
       try {
         await createLog(
@@ -154,6 +166,8 @@ const loginUser = async (req, res) => {
 
     const accessToken = signToken(user);
     const { password: _pw, ...safe } = user.toObject();
+
+    // preserve your existing response shape
     return res.status(200).json({ ...safe, accessToken });
   } catch (err) {
     console.error(err);
@@ -165,12 +179,11 @@ const loginUser = async (req, res) => {
 
 /**
  * ✅ CUSTOMER LOGIN (strict: NEVER allows admin)
- * Endpoint will return:
+ * Endpoint returns:
  *  { ok: true, token, user }
  *
  * Notes:
- * - Your DB may store customers as role "user" (common in your codebase),
- *   and the customer portal can accept that.
+ * - Your DB may store customers as role "user".
  * - We block role === "admin" absolutely.
  */
 const customerLoginUser = async (req, res) => {
@@ -209,7 +222,8 @@ const customerLoginUser = async (req, res) => {
         .json({ ok: false, message: "Invalid credentials." });
     }
 
-    if (String(user.role || "").toLowerCase() === "admin") {
+    const roleLower = String(user.role || "").toLowerCase();
+    if (roleLower === "admin") {
       try {
         await createLog(
           makeAuthLogReq({
@@ -310,7 +324,6 @@ const requestPasswordReset = async (req, res) => {
     if (!secret) throw new Error("JWT secret not configured");
 
     const decoded = jwt.verify(token, secret);
-
     return res.status(200).json({ valid: true, userId: decoded.id });
   } catch (err) {
     return res
@@ -332,15 +345,12 @@ const resetPassword = async (req, res) => {
     const secret = jwtSecret();
     if (!secret) throw new Error("JWT secret not configured");
 
-    // Verify token
     const decoded = jwt.verify(token, secret);
 
-    // Find user
     const user = await User.findById(decoded.id).select("+password");
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Update password (pre-save hook hashes it)
-    user.password = password;
+    user.password = password; // pre-save hook hashes it
     user.status = "active";
     user.welcomeMailSent = true;
     await user.save();
@@ -373,7 +383,7 @@ const resetPassword = async (req, res) => {
 module.exports = {
   registerUser,
   loginUser,
-  customerLoginUser, // ✅ export
+  customerLoginUser,
   requestPasswordReset,
   resetPassword,
 };
