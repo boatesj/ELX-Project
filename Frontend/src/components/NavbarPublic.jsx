@@ -1,10 +1,77 @@
 import { useEffect, useMemo, useState } from "react";
 import { assets } from "@/assets/assets";
-import { FaEnvelope, FaPhone, FaBars, FaTimes } from "react-icons/fa";
+import {
+  FaEnvelope,
+  FaPhone,
+  FaBars,
+  FaTimes,
+  FaUser,
+  FaSignOutAlt,
+} from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+
+/**
+ * ✅ Customer-only auth keys (must match CustomerLogin.jsx + MyShipments.jsx)
+ * Public navbar must NEVER treat Admin/legacy tokens as customer auth.
+ */
+const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
+const CUSTOMER_TOKEN_KEY = "elx_customer_token";
+const CUSTOMER_USER_KEY = "elx_customer_user";
+
+function safeJsonParse(raw) {
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearCustomerAuth() {
+  localStorage.removeItem(CUSTOMER_SESSION_KEY);
+  localStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  localStorage.removeItem(CUSTOMER_USER_KEY);
+  sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  sessionStorage.removeItem(CUSTOMER_USER_KEY);
+}
+
+/**
+ * ✅ Strict customer session reader:
+ * - Customer keys only
+ * - requires token + user.role === "customer"
+ * - enforces expiresAt if present
+ */
+function readCustomerAuth() {
+  const session = safeJsonParse(localStorage.getItem(CUSTOMER_SESSION_KEY));
+
+  if (session?.expiresAt) {
+    const exp = new Date(session.expiresAt).getTime();
+    if (!Number.isNaN(exp) && Date.now() > exp) {
+      clearCustomerAuth();
+      return { token: null, user: null };
+    }
+  }
+
+  const token =
+    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
+    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
+
+  const userRaw =
+    localStorage.getItem(CUSTOMER_USER_KEY) ||
+    sessionStorage.getItem(CUSTOMER_USER_KEY);
+
+  const user = safeJsonParse(userRaw) || session?.user || null;
+
+  if (!token || !user || user?.role !== "customer") {
+    return { token: null, user: null };
+  }
+
+  return { token, user };
+}
 
 const NavbarPublic = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [portalOpen, setPortalOpen] = useState(false);
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -24,6 +91,31 @@ const NavbarPublic = () => {
 
   const closeMenu = () => setMenuOpen(false);
 
+  // ✅ Customer auth (for UI only)
+  const [customerAuth, setCustomerAuth] = useState(() => readCustomerAuth());
+  const isCustomerSignedIn = Boolean(customerAuth.token);
+
+  useEffect(() => {
+    const sync = () => setCustomerAuth(readCustomerAuth());
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, []);
+
+  // Close portal dropdown on outside click
+  useEffect(() => {
+    if (!portalOpen) return;
+
+    const onClick = (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest("[data-portal-menu]")) return;
+      setPortalOpen(false);
+    };
+
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, [portalOpen]);
+
   // Corporate UX: lock body scroll when drawer is open
   useEffect(() => {
     if (!menuOpen) return;
@@ -36,19 +128,23 @@ const NavbarPublic = () => {
 
   // Close on ESC
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !portalOpen) return;
     const onKey = (e) => {
-      if (e.key === "Escape") closeMenu();
+      if (e.key === "Escape") {
+        closeMenu();
+        setPortalOpen(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [menuOpen]);
+  }, [menuOpen, portalOpen]);
 
   // Hybrid navigation:
   // - If on home, smooth-scroll to hash.
   // - If not on home, navigate to "/#hash" (Home loads and can scroll).
   const goToSection = (hash) => {
     closeMenu();
+    setPortalOpen(false);
 
     if (isHome) {
       const el = document.getElementById(hash);
@@ -65,7 +161,6 @@ const NavbarPublic = () => {
     const hash = location.hash?.replace("#", "");
     if (!hash) return;
 
-    // Slight delay helps with fixed navbar + layout paint
     const t = setTimeout(() => {
       const el = document.getElementById(hash);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -73,6 +168,19 @@ const NavbarPublic = () => {
 
     return () => clearTimeout(t);
   }, [isHome, location.hash]);
+
+  const customerLabel =
+    customerAuth.user?.accountHolderName ||
+    customerAuth.user?.email ||
+    "Customer";
+
+  const handleCustomerLogout = () => {
+    clearCustomerAuth();
+    setCustomerAuth({ token: null, user: null });
+    setPortalOpen(false);
+    closeMenu();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <header className="w-full z-20 fixed top-0 left-0">
@@ -118,6 +226,7 @@ const NavbarPublic = () => {
             onClick={() => setMenuOpen(true)}
             className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition"
             aria-label="Open menu"
+            type="button"
           >
             <FaBars />
           </button>
@@ -140,11 +249,77 @@ const NavbarPublic = () => {
             ))}
           </ul>
 
-          <Link to="/login">
-            <button className="bg-[#1A2930] text-white px-6 py-2 rounded-full text-xs font-semibold tracking-[0.14em] hover:bg-[#121c23] transition shadow-[0_8px_18px_rgba(0,0,0,0.18)]">
-              Customer Login
-            </button>
-          </Link>
+          {/* CTA area (desktop) */}
+          {!isCustomerSignedIn ? (
+            <Link to="/login">
+              <button
+                type="button"
+                className="bg-[#1A2930] text-white px-6 py-2 rounded-full text-xs font-semibold tracking-[0.14em] hover:bg-[#121c23] transition shadow-[0_8px_18px_rgba(0,0,0,0.18)]"
+              >
+                Customer Login
+              </button>
+            </Link>
+          ) : (
+            <div className="relative" data-portal-menu>
+              <button
+                type="button"
+                onClick={() => setPortalOpen((p) => !p)}
+                className="
+                  inline-flex items-center gap-2
+                  rounded-full
+                  bg-[#1A2930]
+                  text-white
+                  px-4 py-2
+                  text-xs font-semibold
+                  tracking-[0.14em]
+                  hover:bg-[#121c23]
+                  transition
+                  shadow-[0_8px_18px_rgba(0,0,0,0.18)]
+                "
+                aria-haspopup="menu"
+                aria-expanded={portalOpen}
+              >
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-[#FFA500]">
+                  <FaUser className="text-sm" />
+                </span>
+                <span className="max-w-[180px] truncate">{customerLabel}</span>
+              </button>
+
+              {portalOpen && (
+                <div
+                  className="
+                    absolute right-0 mt-2
+                    w-56
+                    rounded-2xl
+                    bg-white
+                    text-[#1A2930]
+                    shadow-xl
+                    border border-black/10
+                    overflow-hidden
+                    z-30
+                  "
+                  role="menu"
+                >
+                  <Link
+                    to="/myshipments"
+                    onClick={() => setPortalOpen(false)}
+                    className="block px-4 py-3 text-sm font-semibold hover:bg-[#9A9EAB]/10 transition"
+                  >
+                    My Shipments
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={handleCustomerLogout}
+                    className="w-full text-left px-4 py-3 text-sm font-semibold text-[#BF2918] hover:bg-[#FFA500]/10 transition flex items-center gap-2"
+                  >
+                    <FaSignOutAlt className="text-sm" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -156,6 +331,7 @@ const NavbarPublic = () => {
             aria-label="Close menu overlay"
             onClick={closeMenu}
             className="absolute inset-0 bg-black/60"
+            type="button"
           />
 
           {/* drawer */}
@@ -183,6 +359,7 @@ const NavbarPublic = () => {
                   onClick={closeMenu}
                   className="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition"
                   aria-label="Close menu"
+                  type="button"
                 >
                   <FaTimes />
                 </button>
@@ -242,11 +419,30 @@ const NavbarPublic = () => {
                   </div>
                 </Link>
 
-                <Link to="/login" onClick={closeMenu}>
-                  <div className="mt-3 rounded-2xl bg-[#FFA500] text-[#1A2930] px-4 py-3 text-sm font-semibold text-center tracking-[0.14em] uppercase hover:opacity-90 transition">
-                    Customer Login
+                {!isCustomerSignedIn ? (
+                  <Link to="/login" onClick={closeMenu}>
+                    <div className="mt-3 rounded-2xl bg-[#FFA500] text-[#1A2930] px-4 py-3 text-sm font-semibold text-center tracking-[0.14em] uppercase hover:opacity-90 transition">
+                      Customer Login
+                    </div>
+                  </Link>
+                ) : (
+                  <div className="mt-3 grid gap-3">
+                    <Link to="/myshipments" onClick={closeMenu}>
+                      <div className="rounded-2xl bg-[#FFA500] text-[#1A2930] px-4 py-3 text-sm font-semibold text-center tracking-[0.14em] uppercase hover:opacity-90 transition">
+                        My Shipments
+                      </div>
+                    </Link>
+
+                    <button
+                      type="button"
+                      onClick={handleCustomerLogout}
+                      className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-white/90 tracking-[0.14em] uppercase hover:bg-white/10 transition flex items-center justify-center gap-2"
+                    >
+                      <FaSignOutAlt className="text-sm" />
+                      Logout
+                    </button>
                   </div>
-                </Link>
+                )}
               </div>
             </nav>
           </div>
