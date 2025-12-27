@@ -37,19 +37,17 @@ const SocialProofBoard = () => {
         py-14 md:py-18 lg:py-20
         bg-white
         overflow-hidden
+        scroll-mt-[120px] md:scroll-mt-[160px]
       "
+      aria-label="Ellcworth partners and institutions"
     >
-      {/* Human / corporate background image */}
-      <div
-        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-10"
-        style={{
-          // Swap this for a local asset later, e.g. "url('/images/corporate-bg.jpg')"
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=1800&auto=format&fit=crop')",
-        }}
-      />
+      {/* Background texture (local-only; avoids external dependencies) */}
+      <div className="pointer-events-none absolute inset-0 opacity-[0.08]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,165,0,0.35),transparent_40%),radial-gradient(circle_at_80%_30%,rgba(26,41,48,0.35),transparent_45%),radial-gradient(circle_at_50%_85%,rgba(154,158,171,0.25),transparent_45%)]" />
+      </div>
+
       {/* Soft overlay so content stays readable */}
-      <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 bg-white/85 backdrop-blur-[2px]" />
 
       <div className="relative mx-auto w-full max-w-6xl px-4 md:px-6 lg:px-8">
         {/* Heading */}
@@ -62,9 +60,9 @@ const SocialProofBoard = () => {
               Our partners rely on our expertise for secure UK–Africa cargo.
             </h2>
             <p className="text-sm md:text-base text-gray-600 max-w-2xl">
-              We support organisations across education, secure printing,
-              government and industry who rely on us for highly reliable,
-              well-documented movement of critical and high-value cargo.
+              We support organisations across education, secure printing and
+              industry who rely on us for reliable, well-documented movement of
+              critical and high-value cargo.
             </p>
           </div>
 
@@ -73,8 +71,8 @@ const SocialProofBoard = () => {
               Focused on lasting relationships, not just one-off transactions.
             </p>
             <p>
-              Many of our partners ship with us multiple times each year,
-              validating our commitment to reliability.
+              Many partners ship with us multiple times each year, validating
+              our commitment to reliability.
             </p>
           </div>
         </div>
@@ -139,12 +137,6 @@ const SocialProofBoard = () => {
           </span>{" "}
           Contact us today to add Ellcworth to your approved vendor list.
         </div>
-
-        {/* Dev note:
-            If you’d like, you can also:
-            - Turn this into a scrolling logo strip for mobile
-            - Or add a "Become a partner" button that scrolls to your contact form
-        */}
       </div>
     </section>
   );

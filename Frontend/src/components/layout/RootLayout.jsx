@@ -18,8 +18,10 @@ const RootLayout = () => {
         }`}
       >
         <Outlet />
-        <PreFooterCTA />
       </main>
+
+      {/* Global conversion band (outside main content) */}
+      <PreFooterCTA />
 
       <Footer />
     </div>
