@@ -18,13 +18,6 @@ const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
 const CUSTOMER_TOKEN_KEY = "elx_customer_token";
 const CUSTOMER_USER_KEY = "elx_customer_user";
 
-/**
- * Legacy keys (read-only fallback)
- * We ONLY migrate legacy auth if the legacy user is explicitly role==="customer".
- */
-const LEGACY_TOKEN_KEY = "elx_token";
-const LEGACY_USER_KEY = "elx_user";
-
 function clearCustomerAuth() {
   localStorage.removeItem(CUSTOMER_SESSION_KEY);
   localStorage.removeItem(CUSTOMER_TOKEN_KEY);
@@ -69,20 +62,15 @@ function writeCustomerSession({ remember, token, user }) {
 }
 
 /**
- * ✅ Customer auth reader:
- * - Uses customer keys ONLY for customer auth
- * - Optionally migrates legacy keys ONLY if legacy user role === "customer"
+ * ✅ Customer session reader:
+ * - Uses customer keys ONLY (no legacy migration)
  * - Enforces expiry if session has expiresAt
+ * - Returns token/user only if both exist and user.role === "customer"
  */
 function readCustomerSession() {
-  // 1) Strictly customer-only token
-  const token =
-    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
-    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
-
   const session = readJson(CUSTOMER_SESSION_KEY);
 
-  // 2) Expiry enforcement
+  // Expiry enforcement
   if (session?.expiresAt) {
     const exp = new Date(session.expiresAt).getTime();
     if (!Number.isNaN(exp) && Date.now() > exp) {
@@ -91,7 +79,10 @@ function readCustomerSession() {
     }
   }
 
-  // 3) Customer-only user
+  const token =
+    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
+    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
+
   const userRaw =
     localStorage.getItem(CUSTOMER_USER_KEY) ||
     sessionStorage.getItem(CUSTOMER_USER_KEY);
@@ -106,39 +97,12 @@ function readCustomerSession() {
   }
   if (!user && session?.user) user = session.user;
 
-  // 4) Optional legacy migration — ONLY if legacy user is customer
-  if (!token && !user) {
-    const legacyToken =
-      localStorage.getItem(LEGACY_TOKEN_KEY) ||
-      sessionStorage.getItem(LEGACY_TOKEN_KEY);
-
-    const legacyUserRaw =
-      localStorage.getItem(LEGACY_USER_KEY) ||
-      sessionStorage.getItem(LEGACY_USER_KEY);
-
-    if (legacyToken && legacyUserRaw) {
-      try {
-        const legacyUser = JSON.parse(legacyUserRaw);
-        if (legacyUser?.role === "customer") {
-          // migrate into customer session keys (default remember=true)
-          writeCustomerSession({
-            remember: true,
-            token: legacyToken,
-            user: legacyUser,
-          });
-          return {
-            token: legacyToken,
-            user: legacyUser,
-            session: readJson(CUSTOMER_SESSION_KEY),
-          };
-        }
-      } catch {
-        // ignore legacy values
-      }
-    }
+  // ✅ Hard rule: customer auth requires a customer user object
+  if (!token || !user || user?.role !== "customer") {
+    return { token: null, user: null, session: null };
   }
 
-  return { token: token || null, user, session };
+  return { token, user, session };
 }
 
 const CustomerLogin = () => {
@@ -157,26 +121,18 @@ const CustomerLogin = () => {
     return "/myshipments";
   }, [location.state]);
 
-  // Compute auth state
   const [existing, setExisting] = useState(() => readCustomerSession());
 
-  // Keep in sync if storage changes across tabs/windows
   useEffect(() => {
     const onStorage = () => setExisting(readCustomerSession());
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  /**
-   * Signed-in means:
-   * - has token AND
-   * - user is either explicitly role === "customer" OR user is missing (token-only dev mode)
-   *
-   * (Never let Admin role trigger signed-in state here.)
-   */
-  const alreadySignedIn =
-    Boolean(existing.token) &&
-    (existing.user?.role === "customer" || existing.user == null);
+  // ✅ Corporate rule: already signed in only if we have a real customer session
+  const alreadySignedIn = Boolean(
+    existing.token && existing.user?.role === "customer"
+  );
 
   const handleTogglePassword = () => setShowPassword((prev) => !prev);
 
@@ -210,21 +166,30 @@ const CustomerLogin = () => {
     setStatus({ loading: true, error: "" });
 
     try {
-      // ✅ TEMP LOGIN (Frontend-only)
+      /**
+       * ✅ TEMP LOGIN (Frontend-only)
+       * Phase 6 will replace this with a real backend call and /auth/me.
+       */
       await new Promise((r) => setTimeout(r, 450));
 
       // Always overwrite stale customer sessions before writing new one
       clearCustomerAuth();
 
       const token = "customer-dev-token";
+      const nameGuess =
+        email.split("@")[0]?.replace(/[._-]+/g, " ") || "Customer";
+
       const user = {
         email,
         role: "customer",
-        accountHolderName: "Derry Morgan",
+        accountHolderName: nameGuess
+          .split(" ")
+          .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+          .join(" "),
       };
 
       writeCustomerSession({ remember: form.remember, token, user });
-      setExisting({ token, user, session: readJson(CUSTOMER_SESSION_KEY) });
+      setExisting(readCustomerSession());
 
       navigate(from, { replace: true });
     } catch (err) {
@@ -238,23 +203,16 @@ const CustomerLogin = () => {
   };
 
   const handleContinue = () => {
-    // extra safety: if somehow we are not (customer) signed in, show form
     const current = readCustomerSession();
-    const ok =
-      Boolean(current.token) &&
-      (current.user?.role === "customer" || current.user == null);
-
-    if (!ok) {
+    if (!current.token || !current.user || current.user.role !== "customer") {
       clearCustomerAuth();
       setExisting(readCustomerSession());
       setStatus({
         loading: false,
-        error:
-          "Your session is not valid for the customer portal. Please sign in.",
+        error: "Your customer session is not valid. Please sign in again.",
       });
       return;
     }
-
     navigate(from, { replace: true });
   };
 
@@ -455,13 +413,13 @@ const CustomerLogin = () => {
                     type="submit"
                     disabled={status.loading}
                     className="
-                      w-full 
-                      bg-[#FFA500] 
+                      w-full
+                      bg-[#FFA500]
                       text-[#1A2930]
-                      py-3 
-                      rounded-md 
-                      font-semibold 
-                      tracking-wide 
+                      py-3
+                      rounded-md
+                      font-semibold
+                      tracking-wide
                       hover:bg-[#ffb733]
                       transition
                       shadow-md
@@ -479,16 +437,6 @@ const CustomerLogin = () => {
                   </p>
                 </form>
               )}
-
-              {/* Extra hint if admin session is present (helps you debug in dev) */}
-              {!alreadySignedIn &&
-              (localStorage.getItem(LEGACY_TOKEN_KEY) ||
-                sessionStorage.getItem(LEGACY_TOKEN_KEY)) ? (
-                <p className="mt-5 text-[11px] md:text-xs text-gray-500 text-center">
-                  Note: An Admin session may be present in this browser.
-                  Customer login ignores Admin tokens by design.
-                </p>
-              ) : null}
             </div>
           </section>
         </div>
