@@ -8,7 +8,16 @@ function normalizeRole(role) {
   if (typeof role !== "string") return "";
   const r = role.trim().toLowerCase();
 
-  const allowed = new Set(["admin", "shipper", "consignee", "both", "user"]);
+  // ✅ Add "customer" (customer portal role)
+  // NOTE: your DB may still use "user" for customers; we treat BOTH as valid non-admin roles.
+  const allowed = new Set([
+    "admin",
+    "customer",
+    "shipper",
+    "consignee",
+    "both",
+    "user",
+  ]);
   return allowed.has(r) ? r : "";
 }
 

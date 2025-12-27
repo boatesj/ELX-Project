@@ -68,9 +68,7 @@ const registerUser = async (req, res) => {
           meta: { ip: req.ip, ua: req.headers["user-agent"] },
         }
       );
-    } catch (_) {
-      // Logging should never block auth flows
-    }
+    } catch (_) {}
 
     const { password: _pw, ...safe } = user.toObject();
     const accessToken = signToken(user);
@@ -83,7 +81,7 @@ const registerUser = async (req, res) => {
   }
 };
 
-/** LOGIN */
+/** LOGIN (generic: admin + non-admin) */
 const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -97,7 +95,6 @@ const loginUser = async (req, res) => {
       "+password"
     );
     if (!user) {
-      // ✅ LOG: failed login (unknown user)
       try {
         await createLog(
           makeAuthLogReq({
@@ -119,7 +116,6 @@ const loginUser = async (req, res) => {
 
     const ok = await user.comparePassword(password);
     if (!ok) {
-      // ✅ LOG: failed login (bad password)
       try {
         await createLog(
           makeAuthLogReq({
@@ -139,7 +135,6 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials." });
     }
 
-    // ✅ LOG: successful login
     try {
       await createLog(
         makeAuthLogReq({
@@ -165,6 +160,144 @@ const loginUser = async (req, res) => {
     return res
       .status(500)
       .json({ message: "Server error", error: err.message });
+  }
+};
+
+/**
+ * ✅ CUSTOMER LOGIN (strict: NEVER allows admin)
+ * Endpoint will return:
+ *  { ok: true, token, user }
+ *
+ * Notes:
+ * - Your DB may store customers as role "user" (common in your codebase),
+ *   and the customer portal can accept that.
+ * - We block role === "admin" absolutely.
+ */
+const customerLoginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ ok: false, message: "Email and password are required." });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail }).select(
+      "+password"
+    );
+
+    if (!user) {
+      try {
+        await createLog(
+          makeAuthLogReq({
+            userId: "",
+            role: "",
+            ip: req.ip,
+            ua: req.headers["user-agent"],
+          }),
+          {
+            type: "auth",
+            action: "Customer login failed (unknown email)",
+            ref: normalizedEmail,
+            meta: { ip: req.ip, ua: req.headers["user-agent"] },
+          }
+        );
+      } catch (_) {}
+      return res
+        .status(401)
+        .json({ ok: false, message: "Invalid credentials." });
+    }
+
+    if (String(user.role || "").toLowerCase() === "admin") {
+      try {
+        await createLog(
+          makeAuthLogReq({
+            userId: user._id,
+            role: user.role,
+            ip: req.ip,
+            ua: req.headers["user-agent"],
+          }),
+          {
+            type: "auth",
+            action: "Customer login blocked (admin attempted customer portal)",
+            ref: user.email,
+            meta: { ip: req.ip, ua: req.headers["user-agent"] },
+          }
+        );
+      } catch (_) {}
+      return res.status(403).json({
+        ok: false,
+        message: "This account must sign in via the Admin portal.",
+      });
+    }
+
+    const ok = await user.comparePassword(password);
+    if (!ok) {
+      try {
+        await createLog(
+          makeAuthLogReq({
+            userId: user._id,
+            role: user.role,
+            ip: req.ip,
+            ua: req.headers["user-agent"],
+          }),
+          {
+            type: "auth",
+            action: "Customer login failed (invalid password)",
+            ref: user.email,
+            meta: { ip: req.ip, ua: req.headers["user-agent"] },
+          }
+        );
+      } catch (_) {}
+      return res
+        .status(401)
+        .json({ ok: false, message: "Invalid credentials." });
+    }
+
+    // Minimal, portal-safe customer object (no password)
+    const safeUser = {
+      id: String(user._id),
+      email: user.email,
+      fullname: user.fullname,
+      role: user.role, // likely "user" in your DB
+      status: user.status,
+      country: user.country,
+      city: user.city,
+      phone: user.phone,
+    };
+
+    try {
+      await createLog(
+        makeAuthLogReq({
+          userId: user._id,
+          role: user.role,
+          ip: req.ip,
+          ua: req.headers["user-agent"],
+        }),
+        {
+          type: "auth",
+          action: "Customer login success",
+          ref: user.email,
+          meta: { ip: req.ip, ua: req.headers["user-agent"] },
+        }
+      );
+    } catch (_) {}
+
+    const token = signToken(user);
+
+    return res.status(200).json({
+      ok: true,
+      token,
+      user: safeUser,
+    });
+  } catch (err) {
+    console.error("Customer login error:", err);
+    return res.status(500).json({
+      ok: false,
+      message: "Server error",
+      error: err.message,
+    });
   }
 };
 
@@ -212,7 +345,6 @@ const resetPassword = async (req, res) => {
     user.welcomeMailSent = true;
     await user.save();
 
-    // ✅ LOG: password reset completed
     try {
       await createLog(
         makeAuthLogReq({
@@ -241,6 +373,7 @@ const resetPassword = async (req, res) => {
 module.exports = {
   registerUser,
   loginUser,
+  customerLoginUser, // ✅ export
   requestPasswordReset,
   resetPassword,
 };

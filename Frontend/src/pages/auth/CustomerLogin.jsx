@@ -12,7 +12,6 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 
 /**
  * ✅ Customer-only keys (prevents Admin portal collisions)
- * IMPORTANT: Customer login must NEVER accept Admin/legacy tokens as "signed in".
  */
 const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
 const CUSTOMER_TOKEN_KEY = "elx_customer_token";
@@ -61,16 +60,13 @@ function writeCustomerSession({ remember, token, user }) {
   }
 }
 
-/**
- * ✅ Customer session reader:
- * - Uses customer keys ONLY (no legacy migration)
- * - Enforces expiry if session has expiresAt
- * - Returns token/user only if both exist and user.role === "customer"
- */
 function readCustomerSession() {
+  const token =
+    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
+    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
+
   const session = readJson(CUSTOMER_SESSION_KEY);
 
-  // Expiry enforcement
   if (session?.expiresAt) {
     const exp = new Date(session.expiresAt).getTime();
     if (!Number.isNaN(exp) && Date.now() > exp) {
@@ -78,10 +74,6 @@ function readCustomerSession() {
       return { token: null, user: null, session: null };
     }
   }
-
-  const token =
-    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
-    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
 
   const userRaw =
     localStorage.getItem(CUSTOMER_USER_KEY) ||
@@ -97,13 +89,13 @@ function readCustomerSession() {
   }
   if (!user && session?.user) user = session.user;
 
-  // ✅ Hard rule: customer auth requires a customer user object
-  if (!token || !user || user?.role !== "customer") {
-    return { token: null, user: null, session: null };
-  }
-
-  return { token, user, session };
+  return { token: token || null, user, session };
 }
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+const CUSTOMER_LOGIN_URL = `${API_BASE_URL}/auth/customer/login`;
 
 const CustomerLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -129,10 +121,10 @@ const CustomerLogin = () => {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // ✅ Corporate rule: already signed in only if we have a real customer session
-  const alreadySignedIn = Boolean(
-    existing.token && existing.user?.role === "customer"
-  );
+  const alreadySignedIn =
+    Boolean(existing.token) &&
+    existing.user != null &&
+    (existing.user?.role === "customer" || existing.user?.role === "user");
 
   const handleTogglePassword = () => setShowPassword((prev) => !prev);
 
@@ -148,7 +140,7 @@ const CustomerLogin = () => {
     e.preventDefault();
 
     const email = form.email.trim().toLowerCase();
-    const password = form.password.trim();
+    const password = form.password;
 
     if (!email || !password) {
       setStatus({ loading: false, error: "Please enter email and password." });
@@ -166,30 +158,46 @@ const CustomerLogin = () => {
     setStatus({ loading: true, error: "" });
 
     try {
-      /**
-       * ✅ TEMP LOGIN (Frontend-only)
-       * Phase 6 will replace this with a real backend call and /auth/me.
-       */
-      await new Promise((r) => setTimeout(r, 450));
-
       // Always overwrite stale customer sessions before writing new one
       clearCustomerAuth();
 
-      const token = "customer-dev-token";
-      const nameGuess =
-        email.split("@")[0]?.replace(/[._-]+/g, " ") || "Customer";
+      const resp = await fetch(CUSTOMER_LOGIN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-      const user = {
-        email,
-        role: "customer",
-        accountHolderName: nameGuess
-          .split(" ")
-          .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
-          .join(" "),
-      };
+      const data = await resp.json().catch(() => null);
 
-      writeCustomerSession({ remember: form.remember, token, user });
-      setExisting(readCustomerSession());
+      if (!resp.ok) {
+        const msg =
+          data?.message ||
+          data?.error ||
+          "Login failed. Please check your credentials.";
+        throw new Error(msg);
+      }
+
+      if (!data?.ok || !data?.token || !data?.user) {
+        throw new Error("Unexpected login response from server.");
+      }
+
+      // Enforce: customer portal must NEVER accept admin user
+      const role = String(data.user.role || "").toLowerCase();
+      if (role === "admin") {
+        throw new Error("This account must sign in via the Admin portal.");
+      }
+
+      writeCustomerSession({
+        remember: form.remember,
+        token: data.token,
+        user: data.user,
+      });
+
+      setExisting({
+        token: data.token,
+        user: data.user,
+        session: readJson(CUSTOMER_SESSION_KEY),
+      });
 
       navigate(from, { replace: true });
     } catch (err) {
@@ -204,15 +212,22 @@ const CustomerLogin = () => {
 
   const handleContinue = () => {
     const current = readCustomerSession();
-    if (!current.token || !current.user || current.user.role !== "customer") {
+    const ok =
+      Boolean(current.token) &&
+      (String(current.user?.role || "").toLowerCase() === "customer" ||
+        String(current.user?.role || "").toLowerCase() === "user");
+
+    if (!ok) {
       clearCustomerAuth();
       setExisting(readCustomerSession());
       setStatus({
         loading: false,
-        error: "Your customer session is not valid. Please sign in again.",
+        error:
+          "Your session is not valid for the customer portal. Please sign in.",
       });
       return;
     }
+
     navigate(from, { replace: true });
   };
 
@@ -222,6 +237,8 @@ const CustomerLogin = () => {
     setForm({ email: "", password: "", remember: true });
     setStatus({ loading: false, error: "" });
   };
+
+  const signedInEmail = existing.user?.email || "your account";
 
   return (
     <div className="bg-[#1A2930] text-white">
@@ -304,15 +321,11 @@ const CustomerLogin = () => {
                 Sign in to your account
               </h2>
 
-              {/* ✅ Already signed in panel (customer-only) */}
               {alreadySignedIn ? (
                 <div className="space-y-4">
                   <div className="rounded-md border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800">
                     You’re already signed in as{" "}
-                    <span className="font-semibold">
-                      {existing.user?.email || "your account"}
-                    </span>
-                    .
+                    <span className="font-semibold">{signedInEmail}</span>.
                   </div>
 
                   <button
@@ -413,13 +426,13 @@ const CustomerLogin = () => {
                     type="submit"
                     disabled={status.loading}
                     className="
-                      w-full
-                      bg-[#FFA500]
+                      w-full 
+                      bg-[#FFA500] 
                       text-[#1A2930]
-                      py-3
-                      rounded-md
-                      font-semibold
-                      tracking-wide
+                      py-3 
+                      rounded-md 
+                      font-semibold 
+                      tracking-wide 
                       hover:bg-[#ffb733]
                       transition
                       shadow-md

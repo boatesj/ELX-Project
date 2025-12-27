@@ -24,13 +24,11 @@ function clearCustomerAuth() {
   sessionStorage.removeItem(CUSTOMER_USER_KEY);
 }
 
-/**
- * ✅ Customer auth reader (strict)
- * - Customer portal must ONLY accept customer keys
- * - Requires BOTH token and user.role === "customer"
- * - Enforces expiresAt when session exists
- */
 function readCustomerAuth() {
+  const token =
+    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
+    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
+
   const session = safeJsonParse(localStorage.getItem(CUSTOMER_SESSION_KEY));
 
   // expiry enforcement (customer session only)
@@ -42,21 +40,20 @@ function readCustomerAuth() {
     }
   }
 
-  const token =
-    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
-    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
-
   const userRaw =
     localStorage.getItem(CUSTOMER_USER_KEY) ||
     sessionStorage.getItem(CUSTOMER_USER_KEY);
 
   const user = safeJsonParse(userRaw) || session?.user || null;
 
-  if (!token || !user || user?.role !== "customer") {
+  // Extra safety: customer portal must never treat admin as authenticated
+  const role = String(user?.role || "").toLowerCase();
+  if (role === "admin") {
+    clearCustomerAuth();
     return { token: null, user: null };
   }
 
-  return { token, user };
+  return { token: token || null, user };
 }
 
 const MyShipments = () => {
@@ -66,7 +63,6 @@ const MyShipments = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ Guard: redirect ONLY when we are sure there is no valid customer session
   useEffect(() => {
     const current = readCustomerAuth();
     setAuth(current);
@@ -79,35 +75,19 @@ const MyShipments = () => {
     }
   }, [navigate, location.pathname]);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    if (!open) return;
-
-    const onClick = (e) => {
-      const target = e.target;
-      if (!(target instanceof Element)) return;
-      // Any click on elements marked as menu container should not close
-      if (target.closest("[data-customer-menu]")) return;
-      setOpen(false);
-    };
-
-    window.addEventListener("click", onClick);
-    return () => window.removeEventListener("click", onClick);
-  }, [open]);
-
   const handleOpen = () => setOpen((prev) => !prev);
 
-  // ✅ Never hardcode "Derry Morgan" — show actual logged-in customer identity
   const accountHolderName =
     auth.user?.accountHolderName ||
-    (auth.user?.email ? auth.user.email.split("@")[0] : "Customer");
+    auth.user?.fullname ||
+    auth.user?.email ||
+    "My Account";
 
-  // Phase 6: replace dummy shipments import with API data
-  const myShipments = useMemo(() => {
-    // If we can’t identify the customer, show none (forces proper auth wiring)
-    if (!accountHolderName) return [];
-    return shipments.filter((s) => s.accountHolder === accountHolderName);
-  }, [accountHolderName]);
+  // BUSINESS: only show shipments that belong to this account holder
+  const myShipments = useMemo(
+    () => shipments.filter((s) => s.accountHolder === accountHolderName),
+    [accountHolderName]
+  );
 
   const getStatusClasses = (status) => {
     switch (status) {
@@ -155,7 +135,7 @@ const MyShipments = () => {
             </p>
           </div>
 
-          <div className="relative" data-customer-menu>
+          <div className="relative">
             <button
               onClick={handleOpen}
               className="
@@ -170,9 +150,6 @@ const MyShipments = () => {
                 hover:text-[#FFA500]
                 transition
               "
-              type="button"
-              aria-haspopup="menu"
-              aria-expanded={open}
             >
               <span
                 className="
@@ -185,10 +162,7 @@ const MyShipments = () => {
               >
                 <FaUser />
               </span>
-
-              <span className="hidden sm:inline">
-                {auth.user?.accountHolderName || auth.user?.email || "Customer"}
-              </span>
+              <span className="hidden sm:inline">{accountHolderName}</span>
             </button>
 
             {open && (
@@ -202,14 +176,13 @@ const MyShipments = () => {
                   text-sm
                   z-20
                 "
-                role="menu"
               >
                 <ul className="py-2">
-                  {/* Statements (stub) */}
-                  <li
-                    className="px-4 py-2 flex items-center gap-2 text-[#1A2930]/70 cursor-not-allowed"
-                    aria-disabled="true"
-                  >
+                  <li className="px-4 py-2 text-[12px] text-slate-500">
+                    Customer menu
+                  </li>
+
+                  <li className="px-4 py-2 hover:bg-[#9A9EAB]/10 cursor-pointer flex items-center gap-2">
                     <FaFileAlt className="text-xs" />
                     <span>Statements (coming soon)</span>
                   </li>
@@ -217,7 +190,7 @@ const MyShipments = () => {
                   <li
                     onClick={handleLogout}
                     className="px-4 py-2 hover:bg-[#FFA500]/10 cursor-pointer flex items-center gap-2 text-[#BF2918]"
-                    role="menuitem"
+                    role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") handleLogout();
@@ -297,7 +270,6 @@ const MyShipments = () => {
 
                   <Link to={`/shipmentdetails/${shipment.id}`}>
                     <button
-                      type="button"
                       className="
                         text-xs md:text-sm
                         px-3 py-1.5
