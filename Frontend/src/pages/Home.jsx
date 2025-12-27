@@ -10,7 +10,15 @@ const Home = () => {
   return (
     <div>
       <Header />
-      <QuoteSection />
+
+      {/* Booking anchor target for /#booking */}
+      <section
+        id="booking"
+        className="scroll-mt-[120px] md:scroll-mt-[150px] lg:scroll-mt-[160px]"
+      >
+        <QuoteSection />
+      </section>
+
       <KeyDestinations />
       <TrustStories />
       <BusinessAccountSection />
