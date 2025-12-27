@@ -1,15 +1,23 @@
 import NavbarPublic from "@/components/NavbarPublic";
+import NavbarCustomer from "@/components/NavbarCustomer";
 import Footer from "@/components/Footer";
 import PreFooterCTA from "@/components/PreFooterCTA";
 import { Outlet, useLocation } from "react-router-dom";
 
 const RootLayout = () => {
   const location = useLocation();
+
   const isHome = location.pathname === "/";
+
+  // Customer portal routes (based on your route-map)
+  const isCustomerRoute =
+    location.pathname.startsWith("/myshipments") ||
+    location.pathname.startsWith("/shipmentdetails") ||
+    location.pathname.startsWith("/allshipments");
 
   return (
     <div className="min-h-screen flex flex-col bg-[#1A2930]">
-      <NavbarPublic />
+      {isCustomerRoute ? <NavbarCustomer /> : <NavbarPublic />}
 
       {/* Only push non-home pages down below the fixed navbar */}
       <main
@@ -20,8 +28,8 @@ const RootLayout = () => {
         <Outlet />
       </main>
 
-      {/* Global conversion band (outside main content) */}
-      <PreFooterCTA />
+      {/* Marketing CTA should NOT appear in the customer portal */}
+      {!isCustomerRoute ? <PreFooterCTA /> : null}
 
       <Footer />
     </div>
