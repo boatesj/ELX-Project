@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FaUser, FaListUl, FaFileAlt, FaSignOutAlt } from "react-icons/fa";
+import { FaUser, FaFileAlt, FaSignOutAlt } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { shipments } from "@/assets/shipments";
 
@@ -7,10 +7,6 @@ import { shipments } from "@/assets/shipments";
 const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
 const CUSTOMER_TOKEN_KEY = "elx_customer_token";
 const CUSTOMER_USER_KEY = "elx_customer_user";
-
-// Legacy keys (read-only fallback so older sessions don’t explode)
-const LEGACY_TOKEN_KEY = "elx_token";
-const LEGACY_USER_KEY = "elx_user";
 
 function safeJsonParse(raw) {
   try {
@@ -28,14 +24,13 @@ function clearCustomerAuth() {
   sessionStorage.removeItem(CUSTOMER_USER_KEY);
 }
 
+/**
+ * ✅ Customer auth reader (strict)
+ * - Customer portal must ONLY accept customer keys
+ * - Requires BOTH token and user.role === "customer"
+ * - Enforces expiresAt when session exists
+ */
 function readCustomerAuth() {
-  const token =
-    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
-    sessionStorage.getItem(CUSTOMER_TOKEN_KEY) ||
-    // legacy fallback (read-only)
-    localStorage.getItem(LEGACY_TOKEN_KEY) ||
-    sessionStorage.getItem(LEGACY_TOKEN_KEY);
-
   const session = safeJsonParse(localStorage.getItem(CUSTOMER_SESSION_KEY));
 
   // expiry enforcement (customer session only)
@@ -47,28 +42,31 @@ function readCustomerAuth() {
     }
   }
 
+  const token =
+    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
+    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
+
   const userRaw =
     localStorage.getItem(CUSTOMER_USER_KEY) ||
-    sessionStorage.getItem(CUSTOMER_USER_KEY) ||
-    // legacy fallback (read-only)
-    localStorage.getItem(LEGACY_USER_KEY) ||
-    sessionStorage.getItem(LEGACY_USER_KEY);
+    sessionStorage.getItem(CUSTOMER_USER_KEY);
 
   const user = safeJsonParse(userRaw) || session?.user || null;
 
-  return { token: token || null, user };
+  if (!token || !user || user?.role !== "customer") {
+    return { token: null, user: null };
+  }
+
+  return { token, user };
 }
 
 const MyShipments = () => {
   const [open, setOpen] = useState(false);
-
-  // ✅ Single source of truth for auth during this render
   const [auth, setAuth] = useState(() => readCustomerAuth());
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ Guard: redirect ONLY when we are sure there is no token
+  // ✅ Guard: redirect ONLY when we are sure there is no valid customer session
   useEffect(() => {
     const current = readCustomerAuth();
     setAuth(current);
@@ -81,15 +79,35 @@ const MyShipments = () => {
     }
   }, [navigate, location.pathname]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!open) return;
+
+    const onClick = (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      // Any click on elements marked as menu container should not close
+      if (target.closest("[data-customer-menu]")) return;
+      setOpen(false);
+    };
+
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, [open]);
+
   const handleOpen = () => setOpen((prev) => !prev);
 
-  const accountHolderName = auth.user?.accountHolderName || "Derry Morgan";
+  // ✅ Never hardcode "Derry Morgan" — show actual logged-in customer identity
+  const accountHolderName =
+    auth.user?.accountHolderName ||
+    (auth.user?.email ? auth.user.email.split("@")[0] : "Customer");
 
-  // BUSINESS: only show shipments that belong to this account holder
-  const myShipments = useMemo(
-    () => shipments.filter((s) => s.accountHolder === accountHolderName),
-    [accountHolderName]
-  );
+  // Phase 6: replace dummy shipments import with API data
+  const myShipments = useMemo(() => {
+    // If we can’t identify the customer, show none (forces proper auth wiring)
+    if (!accountHolderName) return [];
+    return shipments.filter((s) => s.accountHolder === accountHolderName);
+  }, [accountHolderName]);
 
   const getStatusClasses = (status) => {
     switch (status) {
@@ -137,7 +155,7 @@ const MyShipments = () => {
             </p>
           </div>
 
-          <div className="relative">
+          <div className="relative" data-customer-menu>
             <button
               onClick={handleOpen}
               className="
@@ -152,6 +170,9 @@ const MyShipments = () => {
                 hover:text-[#FFA500]
                 transition
               "
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={open}
             >
               <span
                 className="
@@ -164,7 +185,10 @@ const MyShipments = () => {
               >
                 <FaUser />
               </span>
-              <span className="hidden sm:inline">{accountHolderName}</span>
+
+              <span className="hidden sm:inline">
+                {auth.user?.accountHolderName || auth.user?.email || "Customer"}
+              </span>
             </button>
 
             {open && (
@@ -178,24 +202,22 @@ const MyShipments = () => {
                   text-sm
                   z-20
                 "
+                role="menu"
               >
                 <ul className="py-2">
-                  <Link to="/allshipments">
-                    <li className="px-4 py-2 hover:bg-[#9A9EAB]/10 cursor-pointer flex items-center gap-2">
-                      <FaListUl className="text-xs" />
-                      <span>All shipments (internal)</span>
-                    </li>
-                  </Link>
-
-                  <li className="px-4 py-2 hover:bg-[#9A9EAB]/10 cursor-pointer flex items-center gap-2">
+                  {/* Statements (stub) */}
+                  <li
+                    className="px-4 py-2 flex items-center gap-2 text-[#1A2930]/70 cursor-not-allowed"
+                    aria-disabled="true"
+                  >
                     <FaFileAlt className="text-xs" />
-                    <span>Statements</span>
+                    <span>Statements (coming soon)</span>
                   </li>
 
                   <li
                     onClick={handleLogout}
                     className="px-4 py-2 hover:bg-[#FFA500]/10 cursor-pointer flex items-center gap-2 text-[#BF2918]"
-                    role="button"
+                    role="menuitem"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") handleLogout();
@@ -275,6 +297,7 @@ const MyShipments = () => {
 
                   <Link to={`/shipmentdetails/${shipment.id}`}>
                     <button
+                      type="button"
                       className="
                         text-xs md:text-sm
                         px-3 py-1.5
