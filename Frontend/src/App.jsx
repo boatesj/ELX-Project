@@ -12,7 +12,6 @@ import CustomerLogin from "@/pages/auth/CustomerLogin.jsx";
 // Customer
 import MyShipments from "@/pages/customer/MyShipments.jsx";
 import ShipmentDetails from "@/pages/customer/ShipmentDetails.jsx";
-import AllShipments from "@/pages/customer/AllShipments.jsx";
 import RequireCustomerAuth from "@/components/auth/RequireCustomerAuth.jsx";
 
 const router = createBrowserRouter([
@@ -43,14 +42,6 @@ const router = createBrowserRouter([
         element: (
           <RequireCustomerAuth>
             <ShipmentDetails />
-          </RequireCustomerAuth>
-        ),
-      },
-      {
-        path: "allshipments",
-        element: (
-          <RequireCustomerAuth>
-            <AllShipments />
           </RequireCustomerAuth>
         ),
       },

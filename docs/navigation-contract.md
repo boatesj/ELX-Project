@@ -37,6 +37,20 @@ Constraints:
 - Hash links must not be used to navigate to non-home pages.
 - If not on home, click should navigate to `/#hash` and then scroll.
 
+### Customer Navbar (Customer portal)
+
+Purpose: provide portal navigation for authenticated customers.
+
+Allowed items:
+
+- My Shipments → `/myshipments`
+- Logout → clears customer session keys and routes to `/login`
+
+Explicitly disallowed:
+
+- Any link to internal operational shipment lists (no “All Shipments”).
+  Internal shipment operations live in the Admin app (`/shipments`) only.
+
 ---
 
 ## Admin Navigation
