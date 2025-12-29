@@ -17,6 +17,13 @@ const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
 const CUSTOMER_TOKEN_KEY = "elx_customer_token";
 const CUSTOMER_USER_KEY = "elx_customer_user";
 
+/**
+ * ✅ Customer login UX key (email only)
+ * - This is what "Remember me on this device" should remember.
+ * - NavbarCustomer "Clear remembered login" should remove this key too.
+ */
+const CUSTOMER_REMEMBER_EMAIL_KEY = "elx_customer_login_email_v1";
+
 function clearCustomerAuth() {
   localStorage.removeItem(CUSTOMER_SESSION_KEY);
   localStorage.removeItem(CUSTOMER_TOKEN_KEY);
@@ -99,7 +106,20 @@ const CUSTOMER_LOGIN_URL = `${API_BASE_URL}/auth/customer/login`;
 
 const CustomerLogin = () => {
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState({ email: "", password: "", remember: true });
+
+  // Prefill email only from customer remember key (NOT from any admin portal keys)
+  const rememberedEmailRaw = useMemo(() => {
+    const v = localStorage.getItem(CUSTOMER_REMEMBER_EMAIL_KEY);
+    return typeof v === "string" ? v : "";
+  }, []);
+
+  const [form, setForm] = useState(() => ({
+    email: rememberedEmailRaw || "",
+    password: "",
+    // If we have a remembered email, assume remember=true by default.
+    remember: Boolean(rememberedEmailRaw) || true,
+  }));
+
   const [status, setStatus] = useState({ loading: false, error: "" });
 
   const navigate = useNavigate();
@@ -130,7 +150,30 @@ const CustomerLogin = () => {
 
   const onChange = (key) => (e) => {
     const value = key === "remember" ? e.target.checked : e.target.value;
-    setForm((prev) => ({ ...prev, [key]: value }));
+
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+
+      // If user unchecks "remember", also remove stored email (device clean)
+      if (key === "remember" && value === false) {
+        localStorage.removeItem(CUSTOMER_REMEMBER_EMAIL_KEY);
+      }
+
+      // If remember is true and they are typing email, persist it (best UX)
+      if (key === "email") {
+        const cleaned = String(value || "")
+          .trim()
+          .toLowerCase();
+        if (next.remember) {
+          if (cleaned)
+            localStorage.setItem(CUSTOMER_REMEMBER_EMAIL_KEY, cleaned);
+          else localStorage.removeItem(CUSTOMER_REMEMBER_EMAIL_KEY);
+        }
+      }
+
+      return next;
+    });
+
     if (status.error) setStatus((s) => ({ ...s, error: "" }));
   };
 
@@ -187,6 +230,13 @@ const CustomerLogin = () => {
         throw new Error("This account must sign in via the Admin portal.");
       }
 
+      // ✅ Persist remembered email only if remember is checked
+      if (form.remember) {
+        localStorage.setItem(CUSTOMER_REMEMBER_EMAIL_KEY, email);
+      } else {
+        localStorage.removeItem(CUSTOMER_REMEMBER_EMAIL_KEY);
+      }
+
       writeCustomerSession({
         remember: form.remember,
         token: data.token,
@@ -234,7 +284,11 @@ const CustomerLogin = () => {
   const handleSignOut = () => {
     clearCustomerAuth();
     setExisting(readCustomerSession());
-    setForm({ email: "", password: "", remember: true });
+    setForm((prev) => ({
+      email: prev.remember ? prev.email : "",
+      password: "",
+      remember: prev.remember,
+    }));
     setStatus({ loading: false, error: "" });
   };
 
@@ -426,13 +480,13 @@ const CustomerLogin = () => {
                     type="submit"
                     disabled={status.loading}
                     className="
-                      w-full 
-                      bg-[#FFA500] 
+                      w-full
+                      bg-[#FFA500]
                       text-[#1A2930]
-                      py-3 
-                      rounded-md 
-                      font-semibold 
-                      tracking-wide 
+                      py-3
+                      rounded-md
+                      font-semibold
+                      tracking-wide
                       hover:bg-[#ffb733]
                       transition
                       shadow-md

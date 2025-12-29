@@ -14,6 +14,7 @@ const POSSIBLE_REMEMBER_KEYS = [
   "elx_customer_remember_email",
   "elx_login_email",
   "elx_remember_email",
+  "elx_customer_login_email_v1",
 ];
 
 function safeJsonParse(raw) {
