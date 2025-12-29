@@ -140,15 +140,17 @@ const NavbarPublic = () => {
   // When landing on "/#something", perform the scroll after route loads.
   useEffect(() => {
     if (!isHome) return;
+
     const hash = location.hash?.replace("#", "");
     if (!hash) return;
 
-    const t = setTimeout(() => {
+    // A slightly safer defer: let layout paint, then scroll
+    const raf = requestAnimationFrame(() => {
       const el = document.getElementById(hash);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
+    });
 
-    return () => clearTimeout(t);
+    return () => cancelAnimationFrame(raf);
   }, [isHome, location.hash]);
 
   const handleCustomerLogout = () => {
@@ -223,14 +225,15 @@ const NavbarPublic = () => {
         <div className="container mx-auto flex items-center justify-between py-3 px-4 md:px-8 lg:px-16">
           <ul className="flex gap-7 text-xs md:text-sm font-semibold text-[#1A2930] tracking-[0.12em] capitalize">
             {links.map((l) => (
-              <button
-                key={l.hash}
-                type="button"
-                onClick={() => goToSection(l.hash)}
-                className="hover:text-black/70 transition"
-              >
-                {l.label}
-              </button>
+              <li key={l.hash}>
+                <button
+                  type="button"
+                  onClick={() => goToSection(l.hash)}
+                  className="hover:text-black/70 transition"
+                >
+                  {l.label}
+                </button>
+              </li>
             ))}
           </ul>
 
