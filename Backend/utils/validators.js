@@ -347,6 +347,27 @@ const validateShipmentCreate = [
     .optional()
     .isBoolean()
     .withMessage("Documents secure flag must be boolean"),
+
+  // ✅ NEW: allow these fields through validation (you use them in the Admin Shipment edit page)
+  body("serviceType")
+    .optional()
+    .isIn(["sea_freight", "air_freight"])
+    .withMessage("Service type must be one of: sea_freight, air_freight"),
+  body("cargoType")
+    .optional()
+    .isIn(["vehicle", "container", "lcl"])
+    .withMessage("Cargo type must be one of: vehicle, container, lcl"),
+
+  // ✅ NEW: allow value-added services payload (your UI sends services.repacking.*)
+  body("services.repacking.required")
+    .optional()
+    .isBoolean()
+    .withMessage("Repacking required flag must be boolean"),
+  body("services.repacking.notes")
+    .optional()
+    .isString()
+    .trim()
+    .withMessage("Repacking notes must be a string"),
 ];
 
 module.exports = {
