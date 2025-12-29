@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   FaArrowLeft,
   FaMapMarkerAlt,
@@ -11,6 +11,85 @@ import {
 } from "react-icons/fa";
 import { Link, useParams } from "react-router-dom";
 import { shipments } from "@/assets/shipments";
+
+// ✅ Customer-only keys (must match CustomerLogin.jsx)
+const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
+const CUSTOMER_TOKEN_KEY = "elx_customer_token";
+const CUSTOMER_USER_KEY = "elx_customer_user";
+
+function safeJsonParse(raw) {
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearCustomerAuth() {
+  localStorage.removeItem(CUSTOMER_SESSION_KEY);
+  localStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  localStorage.removeItem(CUSTOMER_USER_KEY);
+  sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  sessionStorage.removeItem(CUSTOMER_USER_KEY);
+}
+
+function readCustomerAuth() {
+  const token =
+    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
+    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
+
+  const session = safeJsonParse(localStorage.getItem(CUSTOMER_SESSION_KEY));
+
+  // expiry enforcement (customer session only)
+  if (session?.expiresAt) {
+    const exp = new Date(session.expiresAt).getTime();
+    if (!Number.isNaN(exp) && Date.now() > exp) {
+      clearCustomerAuth();
+      return { token: null, user: null };
+    }
+  }
+
+  const userRaw =
+    localStorage.getItem(CUSTOMER_USER_KEY) ||
+    sessionStorage.getItem(CUSTOMER_USER_KEY);
+
+  const user = safeJsonParse(userRaw) || session?.user || null;
+
+  // Extra safety: customer portal must never treat admin as authenticated
+  const role = String(user?.role || "").toLowerCase();
+  if (role === "admin") {
+    clearCustomerAuth();
+    return { token: null, user: null };
+  }
+
+  return { token: token || null, user };
+}
+
+function norm(s) {
+  return String(s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function pickEmail(obj) {
+  const email =
+    obj?.email ||
+    obj?.customerEmail ||
+    obj?.accountEmail ||
+    obj?.accountHolderEmail;
+  return email ? norm(email) : "";
+}
+
+function pickName(obj) {
+  return norm(
+    obj?.accountHolderName ||
+      obj?.fullname ||
+      obj?.fullName ||
+      obj?.name ||
+      obj?.accountHolder
+  );
+}
 
 const getStatusClasses = (status) => {
   switch (status) {
@@ -126,9 +205,34 @@ const ShipmentFeedback = ({ reference }) => {
 };
 
 const ShipmentDetails = () => {
-  const { id } = useParams(); // id is the reference string, e.g. ELLX-2025-001
-  const shipment = shipments.find((s) => s.id === id);
+  const { id } = useParams(); // id is the internal id string used in the list
+  const [auth, setAuth] = useState(() => readCustomerAuth());
 
+  // keep in sync (cross-tab)
+  useEffect(() => {
+    const onStorage = () => setAuth(readCustomerAuth());
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const shipment = useMemo(() => shipments.find((s) => s.id === id), [id]);
+
+  const customerEmail = useMemo(() => pickEmail(auth?.user), [auth]);
+  const customerName = useMemo(() => pickName(auth?.user), [auth]);
+
+  const isOwner = useMemo(() => {
+    if (!auth?.token || !shipment) return false;
+
+    const shipEmail = pickEmail(shipment);
+    const shipName = pickName(shipment);
+
+    if (customerEmail && shipEmail) return shipEmail === customerEmail;
+    if (customerName && shipName) return shipName === customerName;
+
+    return false;
+  }, [auth?.token, shipment, customerEmail, customerName]);
+
+  // 1) shipment doesn't exist
   if (!shipment) {
     return (
       <div className="bg-[#1A2930] min-h-[60vh] py-8">
@@ -146,6 +250,31 @@ const ShipmentDetails = () => {
             <p className="text-sm text-slate-600">
               We couldn&apos;t find a shipment matching this reference. Please
               return to your shipments overview and try again.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2) shipment exists but is not owned by this customer (fail-closed)
+  if (!isOwner) {
+    return (
+      <div className="bg-[#1A2930] min-h-[60vh] py-8">
+        <div className="max-w-3xl mx-auto px-4 md:px-8">
+          <Link to="/myshipments">
+            <button className="inline-flex items-center gap-2 text-xs md:text-sm text-slate-200 hover:text-[#FFA500] transition mb-4">
+              <FaArrowLeft />
+              <span>Back to my shipments</span>
+            </button>
+          </Link>
+          <div className="bg-white rounded-xl shadow-xl border border-[#9A9EAB]/40 p-8">
+            <h1 className="text-lg md:text-xl font-semibold text-[#1A2930] mb-2">
+              Not authorised
+            </h1>
+            <p className="text-sm text-slate-600">
+              This shipment is not linked to your account. Please return to your
+              shipments overview.
             </p>
           </div>
         </div>
