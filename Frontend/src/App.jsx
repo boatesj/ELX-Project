@@ -45,6 +45,23 @@ const router = createBrowserRouter([
           </RequireCustomerAuth>
         ),
       },
+      // Customer fallbacks (explicit)
+      {
+        path: "myshipments/*",
+        element: (
+          <RequireCustomerAuth>
+            <NotFound />
+          </RequireCustomerAuth>
+        ),
+      },
+      {
+        path: "shipmentdetails",
+        element: (
+          <RequireCustomerAuth>
+            <NotFound />
+          </RequireCustomerAuth>
+        ),
+      },
 
       // 404 (last)
       { path: "*", element: <NotFound /> },

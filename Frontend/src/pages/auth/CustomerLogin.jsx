@@ -488,15 +488,13 @@ const CustomerLogin = () => {
                       />
                       <span>Remember me on this device</span>
                     </label>
-
-                    <Link
-                      to="/forgot-password"
+                    <a
+                      href="mailto:cs@ellcworth.com?subject=Password%20reset%20request%20(Customer%20Portal)"
                       className="text-[#FFA500] hover:text-[#ffb733] transition"
                     >
                       Forgot password?
-                    </Link>
+                    </a>
                   </div>
-
                   {status.error ? (
                     <div className="mb-4 rounded-md border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-700">
                       {status.error}

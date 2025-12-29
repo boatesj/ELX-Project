@@ -1,61 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { authRequest } from "../../requestMethods";
-
-// ✅ Customer-only keys (must match CustomerLogin.jsx)
-const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
-const CUSTOMER_TOKEN_KEY = "elx_customer_token";
-const CUSTOMER_USER_KEY = "elx_customer_user";
+import { customerAuthRequest, CUSTOMER_TOKEN_KEY } from "@/requestMethods";
 
 const MY_SHIPMENTS_PATH = `/api/v1/shipments/me/list`;
-
-function safeJsonParse(raw) {
-  try {
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function clearCustomerAuth() {
-  localStorage.removeItem(CUSTOMER_SESSION_KEY);
-  localStorage.removeItem(CUSTOMER_TOKEN_KEY);
-  localStorage.removeItem(CUSTOMER_USER_KEY);
-  sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
-  sessionStorage.removeItem(CUSTOMER_USER_KEY);
-}
-
-function readCustomerAuth() {
-  const token =
-    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
-    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
-
-  const session = safeJsonParse(localStorage.getItem(CUSTOMER_SESSION_KEY));
-
-  // expiry enforcement (customer session only)
-  if (session?.expiresAt) {
-    const exp = new Date(session.expiresAt).getTime();
-    if (!Number.isNaN(exp) && Date.now() > exp) {
-      clearCustomerAuth();
-      return { token: null, user: null };
-    }
-  }
-
-  const userRaw =
-    localStorage.getItem(CUSTOMER_USER_KEY) ||
-    sessionStorage.getItem(CUSTOMER_USER_KEY);
-
-  const user = safeJsonParse(userRaw) || session?.user || null;
-
-  // Extra safety: customer portal must never treat admin as authenticated
-  const role = String(user?.role || "").toLowerCase();
-  if (role === "admin") {
-    clearCustomerAuth();
-    return { token: null, user: null };
-  }
-
-  return { token: token || null, user };
-}
 
 function pickArray(payload) {
   // supports: { ok:true, data: [...] } OR just [...]
@@ -91,7 +38,13 @@ function getStatusClasses(status) {
 
 const MyShipments = () => {
   const navigate = useNavigate();
-  const [auth, setAuth] = useState(() => readCustomerAuth());
+
+  // token presence check only (route guard handles auth; axios interceptor handles expiry)
+  const [hasToken, setHasToken] = useState(() => {
+    const local = localStorage.getItem(CUSTOMER_TOKEN_KEY);
+    const session = sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
+    return Boolean(local || session);
+  });
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,19 +52,21 @@ const MyShipments = () => {
 
   // Keep in sync if user logs in/out in another tab
   useEffect(() => {
-    const onStorage = () => setAuth(readCustomerAuth());
+    const onStorage = () => {
+      const local = localStorage.getItem(CUSTOMER_TOKEN_KEY);
+      const session = sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
+      setHasToken(Boolean(local || session));
+    };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // Fetch my shipments from backend (fail-closed)
+  // Fetch my shipments
   useEffect(() => {
-    const { token } = readCustomerAuth();
-    if (!token) {
+    if (!hasToken) {
       setLoading(false);
       setItems([]);
       setErrMsg("");
-      // Route guard usually handles this, but be safe.
       navigate("/login", { replace: true });
       return;
     }
@@ -123,31 +78,22 @@ const MyShipments = () => {
       setErrMsg("");
 
       try {
-        // ✅ Using Frontend/src/requestMethods.js (axios instance)
-        const resp = await authRequest.get(MY_SHIPMENTS_PATH, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const resp = await customerAuthRequest.get(MY_SHIPMENTS_PATH, {
           signal: ac.signal,
         });
 
         const payload = resp?.data ?? {};
         const arr = pickArray(payload);
-
         setItems(arr);
       } catch (e) {
-        if (e?.name === "CanceledError" || e?.name === "AbortError") return;
-
-        const status = e?.response?.status;
-
-        if (status === 401) {
-          clearCustomerAuth();
-          setItems([]);
-          setErrMsg("Your session has expired. Please sign in again.");
-          navigate("/login", { replace: true });
+        if (
+          e?.name === "CanceledError" ||
+          e?.name === "AbortError" ||
+          e?.code === "ERR_CANCELED"
+        )
           return;
-        }
 
+        // 401/403 are handled globally by interceptor (auto-logout + redirect)
         setItems([]);
         setErrMsg(
           "We couldn’t load your shipments right now. Please refresh and try again."
@@ -159,16 +105,13 @@ const MyShipments = () => {
     })();
 
     return () => ac.abort();
-  }, [navigate, auth?.token]);
+  }, [navigate, hasToken]);
 
   const signedInLabel = useMemo(() => {
-    return (
-      auth?.user?.accountHolderName ||
-      auth?.user?.fullname ||
-      auth?.user?.email ||
-      "My Account"
-    );
-  }, [auth]);
+    // We keep this minimal to avoid duplicating user/session parsing logic here.
+    // NavbarCustomer already shows identity; this label is optional.
+    return "My Account";
+  }, []);
 
   // Optional: newest first
   const myShipments = useMemo(() => {
@@ -248,7 +191,6 @@ const MyShipments = () => {
                 shipment?.accountHolder ||
                 shipment?.customerName ||
                 shipment?.shipperName ||
-                auth?.user?.fullname ||
                 "—";
 
               const weight =
