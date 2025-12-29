@@ -13,15 +13,14 @@ import {
   FaInfoCircle,
 } from "react-icons/fa";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { authRequest } from "../../requestMethods";
 
 // ✅ Customer-only keys (must match CustomerLogin.jsx)
 const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
 const CUSTOMER_TOKEN_KEY = "elx_customer_token";
 const CUSTOMER_USER_KEY = "elx_customer_user";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const SHIPMENT_BY_ID = (id) => `${API_BASE_URL}/api/v1/shipments/${id}`;
+const SHIPMENT_BY_ID_PATH = (id) => `/api/v1/shipments/${id}`;
 
 function safeJsonParse(raw) {
   try {
@@ -439,35 +438,15 @@ const ShipmentDetails = () => {
       setErrMsg("");
 
       try {
-        const res = await fetch(SHIPMENT_BY_ID(id), {
-          method: "GET",
+        // ✅ Using Frontend/src/requestMethods.js (axios instance)
+        const resp = await authRequest.get(SHIPMENT_BY_ID_PATH(id), {
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           signal: ac.signal,
         });
 
-        if (res.status === 401) {
-          clearCustomerAuth();
-          setShipment(null);
-          setErrMsg("Your session has expired. Please sign in again.");
-          navigate("/login", { replace: true });
-          return;
-        }
-
-        if (res.status === 404) {
-          setShipment(null);
-          setErrMsg("Shipment not found.");
-          return;
-        }
-
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(text || `Request failed (${res.status})`);
-        }
-
-        const payload = await res.json().catch(() => ({}));
+        const payload = resp?.data ?? {};
         const picked = pickShipment(payload);
 
         if (!picked) {
@@ -478,7 +457,24 @@ const ShipmentDetails = () => {
 
         setShipment(picked);
       } catch (e) {
-        if (e?.name === "AbortError") return;
+        if (e?.name === "CanceledError" || e?.name === "AbortError") return;
+
+        const status = e?.response?.status;
+
+        if (status === 401) {
+          clearCustomerAuth();
+          setShipment(null);
+          setErrMsg("Your session has expired. Please sign in again.");
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        if (status === 404) {
+          setShipment(null);
+          setErrMsg("Shipment not found.");
+          return;
+        }
+
         setShipment(null);
         setErrMsg(
           "We couldn’t load this shipment right now. Please go back and try again."

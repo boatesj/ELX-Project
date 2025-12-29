@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { authRequest } from "../../requestMethods";
 
 // ✅ Customer-only keys (must match CustomerLogin.jsx)
 const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
 const CUSTOMER_TOKEN_KEY = "elx_customer_token";
 const CUSTOMER_USER_KEY = "elx_customer_user";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const MY_SHIPMENTS_API = `${API_BASE_URL}/api/v1/shipments/me/list`;
+const MY_SHIPMENTS_PATH = `/api/v1/shipments/me/list`;
 
 function safeJsonParse(raw) {
   try {
@@ -124,16 +123,24 @@ const MyShipments = () => {
       setErrMsg("");
 
       try {
-        const res = await fetch(MY_SHIPMENTS_API, {
-          method: "GET",
+        // ✅ Using Frontend/src/requestMethods.js (axios instance)
+        const resp = await authRequest.get(MY_SHIPMENTS_PATH, {
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
           signal: ac.signal,
         });
 
-        if (res.status === 401) {
+        const payload = resp?.data ?? {};
+        const arr = pickArray(payload);
+
+        setItems(arr);
+      } catch (e) {
+        if (e?.name === "CanceledError" || e?.name === "AbortError") return;
+
+        const status = e?.response?.status;
+
+        if (status === 401) {
           clearCustomerAuth();
           setItems([]);
           setErrMsg("Your session has expired. Please sign in again.");
@@ -141,17 +148,6 @@ const MyShipments = () => {
           return;
         }
 
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(text || `Request failed (${res.status})`);
-        }
-
-        const payload = await res.json().catch(() => ({}));
-        const arr = pickArray(payload);
-
-        setItems(arr);
-      } catch (e) {
-        if (e?.name === "AbortError") return;
         setItems([]);
         setErrMsg(
           "We couldn’t load your shipments right now. Please refresh and try again."
