@@ -1,7 +1,72 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FaArrowLeft, FaSearch } from "react-icons/fa";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { shipments } from "@/assets/shipments";
+
+/**
+ * SECURITY NOTE (LOCKED):
+ * "All Shipments" is an INTERNAL operational view.
+ * Customers must NEVER be able to see shipments that are not theirs.
+ *
+ * This file is kept to avoid breaking imports / historical links,
+ * but it hard-gates access and redirects customers to /myshipments.
+ */
+
+// ✅ Customer-only keys (must match CustomerLogin.jsx / MyShipments.jsx)
+const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
+const CUSTOMER_TOKEN_KEY = "elx_customer_token";
+const CUSTOMER_USER_KEY = "elx_customer_user";
+
+// Legacy keys (read-only fallback so older sessions don’t explode)
+const LEGACY_TOKEN_KEY = "elx_token";
+const LEGACY_USER_KEY = "elx_user";
+
+function safeJsonParse(raw) {
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearCustomerAuth() {
+  localStorage.removeItem(CUSTOMER_SESSION_KEY);
+  localStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  localStorage.removeItem(CUSTOMER_USER_KEY);
+  sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  sessionStorage.removeItem(CUSTOMER_USER_KEY);
+}
+
+function readCustomerAuth() {
+  const token =
+    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
+    sessionStorage.getItem(CUSTOMER_TOKEN_KEY) ||
+    // legacy fallback (read-only)
+    localStorage.getItem(LEGACY_TOKEN_KEY) ||
+    sessionStorage.getItem(LEGACY_TOKEN_KEY);
+
+  const session = safeJsonParse(localStorage.getItem(CUSTOMER_SESSION_KEY));
+
+  // expiry enforcement (customer session only)
+  if (session?.expiresAt) {
+    const exp = new Date(session.expiresAt).getTime();
+    if (!Number.isNaN(exp) && Date.now() > exp) {
+      clearCustomerAuth();
+      return { token: null, user: null };
+    }
+  }
+
+  const userRaw =
+    localStorage.getItem(CUSTOMER_USER_KEY) ||
+    sessionStorage.getItem(CUSTOMER_USER_KEY) ||
+    // legacy fallback (read-only)
+    localStorage.getItem(LEGACY_USER_KEY) ||
+    sessionStorage.getItem(LEGACY_USER_KEY);
+
+  const user = safeJsonParse(userRaw) || session?.user || null;
+
+  return { token: token || null, user };
+}
 
 /* ------------------------------------------
    REUSABLE OPERATIONS TABLE
@@ -236,7 +301,7 @@ const ShipmentsTable = ({ rows }) => {
             return (
               <button
                 key={page}
-                onClick={() => goToPage(page)}
+                onClick={() => setCurrentPage(page)}
                 className={`px-3 py-1 rounded-full border text-[11px] ${
                   active
                     ? "bg-[#1A2930] text-white border-[#1A2930]"
@@ -255,27 +320,59 @@ const ShipmentsTable = ({ rows }) => {
 
 /* ------------------------------------------
    PAGE CONTAINER: /allshipments
+   (kept for compatibility; internally gated)
 ------------------------------------------- */
 const AllShipments = () => {
-  const rows = shipments.map((s) => ({
-    id: s.id,
-    reference: s.reference,
-    consignee: s.consignee,
-    from: s.from,
-    destination: s.destination,
-    status: s.status,
-    mode: s.mode,
-    modeLabel:
-      s.mode === "roro"
-        ? "RoRo"
-        : s.mode === "container"
-        ? "Container"
-        : s.mode === "documents"
-        ? "Docs"
-        : s.mode === "air"
-        ? "Air"
-        : "Cargo",
-  }));
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Gate early to prevent any internal data exposure
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    const auth = readCustomerAuth();
+
+    // Not logged in at all -> send to login
+    if (!auth.token) {
+      navigate("/login", { replace: true, state: { from: location.pathname } });
+      return;
+    }
+
+    /**
+     * ✅ Corporate rule:
+     * Customers cannot access internal operational shipment lists.
+     * Even if they are logged in, redirect them back to their portal list.
+     */
+    navigate("/myshipments", { replace: true });
+  }, [navigate, location.pathname]);
+
+  // While redirecting, render nothing (prevents any flicker)
+  if (!allowed) return null;
+
+  // (This block will effectively never run, but we keep it intact to avoid breaking future admin reuse)
+  const rows = useMemo(
+    () =>
+      shipments.map((s) => ({
+        id: s.id,
+        reference: s.reference,
+        consignee: s.consignee,
+        from: s.from,
+        destination: s.destination,
+        status: s.status,
+        mode: s.mode,
+        modeLabel:
+          s.mode === "roro"
+            ? "RoRo"
+            : s.mode === "container"
+            ? "Container"
+            : s.mode === "documents"
+            ? "Docs"
+            : s.mode === "air"
+            ? "Air"
+            : "Cargo",
+      })),
+    []
+  );
 
   const total = rows.length;
   const booked = rows.filter((r) => r.status === "Booked").length;

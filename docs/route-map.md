@@ -16,6 +16,7 @@ Status values:
 - Wired = route exists and page renders
 - Stub = route exists but feature is placeholder/coming soon
 - Planned = not yet implemented
+- Removed = route previously existed but has been removed for security/product reasons
 
 ---
 
@@ -37,15 +38,25 @@ Base router:
 
 ### Customer routes (RequireCustomerAuth)
 
-| Path                   | Page              | Purpose                  | Nav surface   | Status |
-| ---------------------- | ----------------- | ------------------------ | ------------- | ------ |
-| `/myshipments`         | `MyShipments`     | Customer shipment list   | Customer area | Wired  |
-| `/shipmentdetails/:id` | `ShipmentDetails` | Customer shipment detail | Customer area | Wired  |
-| `/allshipments`        | `AllShipments`    | Full shipment list view  | Customer area | Wired  |
+| Path                   | Page              | Purpose                           | Nav surface     | Status |
+| ---------------------- | ----------------- | --------------------------------- | --------------- | ------ |
+| `/myshipments`         | `MyShipments`     | Customer shipment list (scoped)   | Customer navbar | Wired  |
+| `/shipmentdetails/:id` | `ShipmentDetails` | Customer shipment detail (scoped) | From list       | Wired  |
+
+Security note (locked):
+
+- A customer must NEVER have access to “All shipments (internal)”.
+- Internal operational shipment lists belong ONLY in the Admin app (`/shipments`).
+
+Removed customer route:
+
+| Path            | Page           | Reason                                                           | Status  |
+| --------------- | -------------- | ---------------------------------------------------------------- | ------- |
+| `/allshipments` | `AllShipments` | Internal-only data view; removing prevents customer data leakage | Removed |
 
 Notes:
 
-- Public navbar currently uses hash navigation on `/` (e.g., `/#services`) and deep-links via `navigate("/#hash")`.
+- Public navbar uses hash navigation on `/` (e.g., `/#services`) and deep-links via `navigate("/#hash")`.
 
 ---
 
@@ -67,11 +78,11 @@ Auth gate:
 
 ### Shipments
 
-| Path                     | Page          | Purpose              | Menu/Nav             | Status |
-| ------------------------ | ------------- | -------------------- | -------------------- | ------ |
-| `/shipments`             | `Shipments`   | Shipment list + ops  | Menu: Shipments      | Wired  |
-| `/newshipment`           | `NewShipment` | Create new shipment  | Navbar: New shipment | Wired  |
-| `/shipments/:shipmentId` | `Shipment`    | Shipment detail view | From list            | Wired  |
+| Path                     | Page          | Purpose                      | Menu/Nav             | Status |
+| ------------------------ | ------------- | ---------------------------- | -------------------- | ------ |
+| `/shipments`             | `Shipments`   | Internal shipment list + ops | Menu: Shipments      | Wired  |
+| `/newshipment`           | `NewShipment` | Create new shipment          | Navbar: New shipment | Wired  |
+| `/shipments/:shipmentId` | `Shipment`    | Shipment detail view         | From list            | Wired  |
 
 ### Users / Customers
 
