@@ -22,7 +22,21 @@ const CUSTOMER_USER_KEY = "elx_customer_user";
  * - This is what "Remember me on this device" should remember.
  * - NavbarCustomer "Clear remembered login" should remove this key too.
  */
-const CUSTOMER_REMEMBER_EMAIL_KEY = "elx_customer_login_email_v1";
+export const CUSTOMER_REMEMBER_EMAIL_KEY = "elx_customer_login_email_v1";
+
+/**
+ * ✅ Single source of truth: allowed roles for customer portal
+ * Backend currently returns e.g. "Shipper" (Joseph Bentley).
+ */
+const ALLOWED_CUSTOMER_ROLES = new Set(["customer", "user", "shipper"]);
+
+function safeJsonParse(raw) {
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 function clearCustomerAuth() {
   localStorage.removeItem(CUSTOMER_SESSION_KEY);
@@ -33,12 +47,7 @@ function clearCustomerAuth() {
 }
 
 function readJson(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  return safeJsonParse(localStorage.getItem(key));
 }
 
 function writeCustomerSession({ remember, token, user }) {
@@ -74,6 +83,7 @@ function readCustomerSession() {
 
   const session = readJson(CUSTOMER_SESSION_KEY);
 
+  // Expiry enforcement (customer session only)
   if (session?.expiresAt) {
     const exp = new Date(session.expiresAt).getTime();
     if (!Number.isNaN(exp) && Date.now() > exp) {
@@ -86,17 +96,26 @@ function readCustomerSession() {
     localStorage.getItem(CUSTOMER_USER_KEY) ||
     sessionStorage.getItem(CUSTOMER_USER_KEY);
 
-  let user = null;
-  if (userRaw) {
-    try {
-      user = JSON.parse(userRaw);
-    } catch {
-      user = null;
-    }
-  }
-  if (!user && session?.user) user = session.user;
+  const user = safeJsonParse(userRaw) || session?.user || null;
 
-  return { token: token || null, user, session };
+  // Fail closed
+  if (!token || !user) return { token: null, user: null, session: null };
+
+  const role = String(user?.role || "").toLowerCase();
+
+  // Never accept admin for customer portal
+  if (role === "admin") {
+    clearCustomerAuth();
+    return { token: null, user: null, session: null };
+  }
+
+  // Allow only customer portal roles
+  if (!ALLOWED_CUSTOMER_ROLES.has(role)) {
+    clearCustomerAuth();
+    return { token: null, user: null, session: null };
+  }
+
+  return { token, user, session };
 }
 
 const API_BASE_URL =
@@ -116,7 +135,7 @@ const CustomerLogin = () => {
   const [form, setForm] = useState(() => ({
     email: rememberedEmailRaw || "",
     password: "",
-    // If we have a remembered email, assume remember=true by default.
+    // If we have a remembered email, default remember=true. Otherwise default true (as requested).
     remember: Boolean(rememberedEmailRaw) || true,
   }));
 
@@ -141,10 +160,14 @@ const CustomerLogin = () => {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  const alreadySignedIn =
-    Boolean(existing.token) &&
-    existing.user != null &&
-    (existing.user?.role === "customer" || existing.user?.role === "user");
+  const alreadySignedIn = useMemo(() => {
+    const role = String(existing.user?.role || "").toLowerCase();
+    return (
+      Boolean(existing.token) &&
+      Boolean(existing.user) &&
+      ALLOWED_CUSTOMER_ROLES.has(role)
+    );
+  }, [existing]);
 
   const handleTogglePassword = () => setShowPassword((prev) => !prev);
 
@@ -154,12 +177,12 @@ const CustomerLogin = () => {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
 
-      // If user unchecks "remember", also remove stored email (device clean)
+      // If user unchecks "remember", remove stored email (device clean)
       if (key === "remember" && value === false) {
         localStorage.removeItem(CUSTOMER_REMEMBER_EMAIL_KEY);
       }
 
-      // If remember is true and they are typing email, persist it (best UX)
+      // If remember is true and they are typing email, persist it
       if (key === "email") {
         const cleaned = String(value || "")
           .trim()
@@ -224,10 +247,18 @@ const CustomerLogin = () => {
         throw new Error("Unexpected login response from server.");
       }
 
-      // Enforce: customer portal must NEVER accept admin user
       const role = String(data.user.role || "").toLowerCase();
+
+      // Enforce: customer portal must NEVER accept admin user
       if (role === "admin") {
         throw new Error("This account must sign in via the Admin portal.");
+      }
+
+      // Enforce: customer portal roles only (fixes Shipper vs customer/user mismatch)
+      if (!ALLOWED_CUSTOMER_ROLES.has(role)) {
+        throw new Error(
+          "This account is not authorised for the customer portal."
+        );
       }
 
       // ✅ Persist remembered email only if remember is checked
@@ -262,10 +293,11 @@ const CustomerLogin = () => {
 
   const handleContinue = () => {
     const current = readCustomerSession();
+    const role = String(current.user?.role || "").toLowerCase();
     const ok =
       Boolean(current.token) &&
-      (String(current.user?.role || "").toLowerCase() === "customer" ||
-        String(current.user?.role || "").toLowerCase() === "user");
+      Boolean(current.user) &&
+      ALLOWED_CUSTOMER_ROLES.has(role);
 
     if (!ok) {
       clearCustomerAuth();
@@ -284,11 +316,13 @@ const CustomerLogin = () => {
   const handleSignOut = () => {
     clearCustomerAuth();
     setExisting(readCustomerSession());
+
     setForm((prev) => ({
       email: prev.remember ? prev.email : "",
       password: "",
       remember: prev.remember,
     }));
+
     setStatus({ loading: false, error: "" });
   };
 
@@ -319,22 +353,16 @@ const CustomerLogin = () => {
             <ul className="space-y-3 text-sm md:text-base">
               <li className="flex items-start gap-2">
                 <FaCheckCircle className="mt-0.5 text-[#FFA500]" />
-                <span>
-                  Real-time visibility on shipments and key milestones.
-                </span>
+                <span>Visibility on shipments and key milestones.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <FaCheckCircle className="mt-0.5 text-[#FFA500]" />
+                <span>Secure handling of time-sensitive documents.</span>
               </li>
               <li className="flex items-start gap-2">
                 <FaCheckCircle className="mt-0.5 text-[#FFA500]" />
                 <span>
-                  Secure handling of time-sensitive documents for institutions
-                  and corporate clients.
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <FaCheckCircle className="mt-0.5 text-[#FFA500]" />
-                <span>
-                  Clear communication on ETAs, port cut-offs and delivery
-                  status.
+                  Clear communication on ETAs, cut-offs and delivery status.
                 </span>
               </li>
             </ul>

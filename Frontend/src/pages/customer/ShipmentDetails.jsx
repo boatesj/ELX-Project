@@ -11,6 +11,9 @@ import {
   FaCircle,
   FaClock,
   FaCheckCircle,
+  FaDownload,
+  FaEye,
+  FaInfoCircle,
 } from "react-icons/fa";
 import { Link, useParams } from "react-router-dom";
 import { shipments } from "@/assets/shipments";
@@ -59,28 +62,19 @@ function toTitleCase(s) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-/**
- * Build a milestone timeline:
- * - If shipment.trackingEvents exists, use it (preferred).
- * - Else create a sane fallback from shipment.status + shipment.date.
- *
- * Expected trackingEvents shape (optional):
- * [{ label, location, at, status }] where status: "done"|"current"|"upcoming"
- */
 function buildTimeline(shipment) {
   const raw = Array.isArray(shipment?.trackingEvents)
     ? shipment.trackingEvents
     : null;
 
   if (raw && raw.length) {
-    // Normalize
     return raw
       .map((e, idx) => ({
         id: `${shipment.id}-t-${idx}`,
         label: String(e?.label || e?.title || "Update"),
         location: String(e?.location || ""),
         at: String(e?.at || e?.date || ""),
-        state: String(e?.status || e?.state || "").toLowerCase(), // done/current/upcoming
+        state: String(e?.status || e?.state || "").toLowerCase(),
       }))
       .filter((e) => e.label.trim().length > 0);
   }
@@ -88,7 +82,6 @@ function buildTimeline(shipment) {
   const rank = statusRank(shipment?.status);
   const bookedAt = shipment?.date ? String(shipment.date) : "";
 
-  // Corporate-safe fallback milestones
   const base = [
     {
       id: `${shipment.id}-m-1`,
@@ -113,7 +106,6 @@ function buildTimeline(shipment) {
     },
   ];
 
-  // Ensure exactly one "current" when possible
   if (rank === 1) {
     base[0].state = "current";
     base[1].state = "upcoming";
@@ -134,10 +126,24 @@ function buildTimeline(shipment) {
 }
 
 /**
- * Lightweight feedback section for a single shipment.
- * Currently just logs to the console – you can later hook this
- * to your backend (POST /api/feedback, etc.).
+ * Doc action rules (corporate-safe, fail-closed):
+ * - If doc.available is false => no actions.
+ * - If doc.url exists => View opens new tab; Download opens new tab (still ok for now).
+ * - If no url => disable actions and show a clear message.
+ *
+ * Later, backend can return signed URLs for real downloads.
  */
+function canActOnDoc(doc) {
+  if (!doc?.available) return false;
+  const url = String(doc?.url || doc?.href || "");
+  return url.trim().length > 0;
+}
+
+function getDocUrl(doc) {
+  const url = String(doc?.url || doc?.href || "");
+  return url.trim();
+}
+
 const ShipmentFeedback = ({ reference }) => {
   const [message, setMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -150,7 +156,6 @@ const ShipmentFeedback = ({ reference }) => {
     setSubmitting(true);
 
     try {
-      // TODO: Replace with real API call later
       console.log("Feedback submitted:", { reference, message });
       setSubmitted(true);
       setMessage("");
@@ -292,7 +297,7 @@ const MilestoneRow = ({ item, isLast }) => {
 };
 
 const ShipmentDetails = () => {
-  const { id } = useParams(); // id is the shipment.id used in static data
+  const { id } = useParams();
   const shipment = shipments.find((s) => s.id === id);
 
   const timeline = useMemo(() => {
@@ -326,10 +331,23 @@ const ShipmentDetails = () => {
 
   const { mode } = shipment;
 
+  const handleViewDoc = (doc) => {
+    if (!doc?.available) return;
+    const url = getDocUrl(doc);
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleDownloadDoc = (doc) => {
+    if (!doc?.available) return;
+    const url = getDocUrl(doc);
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div className="bg-[#1A2930] min-h-[60vh] py-8">
       <div className="max-w-4xl mx-auto px-4 md:px-8">
-        {/* Top bar: back + portal context */}
         <div className="flex items-center justify-between mb-6">
           <Link to="/myshipments">
             <button className="inline-flex items-center gap-2 text-xs md:text-sm text-slate-200 hover:text-[#FFA500] transition">
@@ -342,9 +360,7 @@ const ShipmentDetails = () => {
           </div>
         </div>
 
-        {/* Main card */}
         <div className="bg-white rounded-xl shadow-xl border border-[#9A9EAB]/40 overflow-hidden">
-          {/* Header strip */}
           <div className="px-5 py-4 border-b border-[#E5E7EB] flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB]">
@@ -379,9 +395,8 @@ const ShipmentDetails = () => {
             </div>
           </div>
 
-          {/* Body */}
           <div className="px-5 py-5 space-y-6">
-            {/* Tracking & milestones (A) */}
+            {/* Tracking */}
             <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E5E7EB]">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -389,8 +404,9 @@ const ShipmentDetails = () => {
                     Tracking & milestones
                   </p>
                   <p className="text-xs md:text-sm text-slate-600 mt-1 max-w-2xl">
-                    Read-only updates from Ellcworth Operations. Major
-                    milestones are shown here to keep your team aligned.
+                    We post milestone updates as your shipment moves through the
+                    process. This is not live GPS tracking, but it will show key
+                    changes as they happen.
                   </p>
                 </div>
                 <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#1A2930]/5 text-[#1A2930] border border-[#1A2930]/10">
@@ -451,7 +467,7 @@ const ShipmentDetails = () => {
               </div>
             </div>
 
-            {/* Mode-specific details */}
+            {/* Mode-specific (unchanged) */}
             {mode === "roro" && shipment.vehicle && (
               <div className="bg-[#FFF7E6] rounded-lg p-4 border border-[#FFE0A8]">
                 <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#A16207] mb-2">
@@ -566,134 +582,122 @@ const ShipmentDetails = () => {
                 </div>
               )}
 
-            {/* Weight / Cost / Account */}
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E5E7EB]">
-                <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-2">
-                  Weight
+            {/* Documents (B) */}
+            <div className="bg-[#F9FAFB] rounded-lg border border-[#E5E7EB] overflow-hidden">
+              <div className="px-4 py-3 border-b border-[#E5E7EB] bg-white">
+                <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB]">
+                  Documents
                 </p>
-                <div className="flex items-center gap-2 text-sm text-[#1A2930]">
-                  <FaWeightHanging className="text-[#1A2930]" />
-                  <span>{shipment.weight} kg</span>
-                </div>
+                <p className="text-xs md:text-sm text-slate-600 mt-1">
+                  View or download documents shared by Ellcworth Operations.
+                  Some documents are only released at specific milestones.
+                </p>
               </div>
 
-              <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E5E7EB]">
-                <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-2">
-                  Freight cost
-                </p>
-                <div className="flex items-center gap-2 text-sm text-[#1A2930]">
-                  <FaPoundSign className="text-[#1A2930]" />
-                  <span>{shipment.cost.toLocaleString()}</span>
-                </div>
-              </div>
+              <div className="p-4">
+                {shipment.documents && shipment.documents.length > 0 ? (
+                  <div className="divide-y divide-[#E5E7EB] rounded-lg border border-[#E5E7EB] bg-white">
+                    {shipment.documents.map((doc, index) => {
+                      const available = Boolean(doc?.available);
+                      const actionable = canActOnDoc(doc);
 
-              <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E5E7EB]">
-                <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-2">
-                  Account holder
-                </p>
-                <div className="flex items-center gap-2 text-sm text-[#1A2930]">
-                  <FaUser className="text-[#1A2930]" />
-                  <span>{shipment.accountHolder}</span>
-                </div>
-              </div>
-            </div>
+                      const statusText = String(doc?.status || "").trim();
+                      const typeText = String(doc?.type || "Document").trim();
 
-            {/* Parties – Shipper & Consignee */}
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E5E7EB]">
-                <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-2">
-                  Shipper details
-                </p>
-                <p className="text-sm font-semibold text-[#1A2930]">
-                  {shipment.shipper}
-                </p>
-                {shipment.shipperContact && (
-                  <div className="mt-2 text-xs md:text-sm text-slate-600 space-y-1">
-                    <p>{shipment.shipperContact.address}</p>
-                    <p>Email: {shipment.shipperContact.email}</p>
-                    <p>Tel: {shipment.shipperContact.telephone}</p>
-                  </div>
-                )}
-              </div>
+                      return (
+                        <div
+                          key={index}
+                          className="px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="h-10 w-10 rounded-lg bg-[#1A2930]/5 border border-[#1A2930]/10 flex items-center justify-center text-[#1A2930]">
+                              <FaFileAlt />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-[#1A2930]">
+                                {typeText}
+                              </p>
+                              <p className="text-[11px] text-slate-500 mt-0.5">
+                                {statusText || "Status pending"}
+                              </p>
 
-              <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E5E7EB]">
-                <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-2">
-                  Consignee details
-                </p>
-                <p className="text-sm font-semibold text-[#1A2930]">
-                  {shipment.consignee}
-                </p>
-                {shipment.consigneeContact && (
-                  <div className="mt-2 text-xs md:text-sm text-slate-600 space-y-1">
-                    <p>{shipment.consigneeContact.address}</p>
-                    <p>Email: {shipment.consigneeContact.email}</p>
-                    <p>Tel: {shipment.consigneeContact.telephone}</p>
-                  </div>
-                )}
-              </div>
-            </div>
+                              {!available ? (
+                                <p className="mt-1 text-[11px] text-slate-500 inline-flex items-center gap-2">
+                                  <FaInfoCircle className="text-[#9A9EAB]" />
+                                  Not yet available
+                                </p>
+                              ) : !actionable ? (
+                                <p className="mt-1 text-[11px] text-slate-500 inline-flex items-center gap-2">
+                                  <FaInfoCircle className="text-[#9A9EAB]" />
+                                  Available — link will be provided shortly
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
 
-            {/* Documents (unchanged in A) */}
-            <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E5E7EB]">
-              <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-2">
-                Documents
-              </p>
-
-              {shipment.documents && shipment.documents.length > 0 ? (
-                <div className="space-y-2">
-                  {shipment.documents.map((doc, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between text-xs md:text-sm text-[#1A2930]"
-                    >
-                      <div className="flex items-center gap-2">
-                        <FaFileAlt className="text-[#9A9EAB]" />
-                        <div>
-                          <p className="font-semibold">{doc.type}</p>
-                          <p className="text-[11px] text-slate-500">
-                            {doc.status}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {doc.available ? (
-                          <>
+                          <div className="flex items-center gap-2">
                             <button
-                              className="
-                                px-3 py-1 rounded-full text-[11px] font-semibold
-                                bg-[#1A2930] text-white
-                                hover:bg-[#FFA500] hover:text-[#1A2930]
-                                transition
-                              "
+                              type="button"
+                              onClick={() => handleViewDoc(doc)}
+                              disabled={!available || !actionable}
+                              className={`
+                                inline-flex items-center gap-2
+                                px-3 py-2 rounded-full text-[12px] font-semibold
+                                border transition
+                                ${
+                                  !available || !actionable
+                                    ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                                    : "bg-[#1A2930] text-white border-[#1A2930] hover:bg-[#FFA500] hover:text-[#1A2930] hover:border-[#FFA500]"
+                                }
+                              `}
+                              title={
+                                !available
+                                  ? "Not yet available"
+                                  : !actionable
+                                  ? "Link not provided yet"
+                                  : "View document"
+                              }
                             >
+                              <FaEye />
                               View
                             </button>
+
                             <button
-                              className="
-                                px-3 py-1 rounded-full text-[11px] font-semibold
-                                border border-[#1A2930] text-[#1A2930]
-                                hover:border-[#FFA500] hover:text-[#FFA500]
-                                transition
-                              "
+                              type="button"
+                              onClick={() => handleDownloadDoc(doc)}
+                              disabled={!available || !actionable}
+                              className={`
+                                inline-flex items-center gap-2
+                                px-3 py-2 rounded-full text-[12px] font-semibold
+                                border transition
+                                ${
+                                  !available || !actionable
+                                    ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                                    : "bg-white text-[#1A2930] border-[#1A2930]/40 hover:border-[#FFA500] hover:text-[#FFA500]"
+                                }
+                              `}
+                              title={
+                                !available
+                                  ? "Not yet available"
+                                  : !actionable
+                                  ? "Link not provided yet"
+                                  : "Download document"
+                              }
                             >
+                              <FaDownload />
                               Download
                             </button>
-                          </>
-                        ) : (
-                          <span className="text-[11px] text-slate-400">
-                            Not yet available
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs md:text-sm text-slate-500">
-                  Documents for this shipment will appear here once available.
-                </p>
-              )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-[#D1D5DB] bg-white p-4 text-xs md:text-sm text-slate-600">
+                    Documents for this shipment will appear here once available.
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Feedback */}
