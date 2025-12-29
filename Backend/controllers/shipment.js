@@ -90,7 +90,7 @@ async function findAccessibleShipmentById(req, id, opts = {}) {
 
 /**
  * Helper: restrict update fields for customers
- * Admin can update anything except a few protected internal fields.
+ * Admin can update anything except protected internal fields.
  */
 function sanitizeUpdatesForRole(req, updates) {
   const clean = { ...updates };
@@ -105,15 +105,17 @@ function sanitizeUpdatesForRole(req, updates) {
   // These should never be client-controlled:
   delete clean.createdBy;
 
+  // 🚫 Ownership reassignment via update route is risky; keep createShipment as the place to set customer.
+  delete clean.customer;
+
   if (!isAdmin(req)) {
-    // Customers can never change ownership or financial/audit/admin-only areas
-    delete clean.customer;
+    // Customers can never change admin-only / audit / financial areas
     delete clean.trackingEvents;
     delete clean.documents;
     delete clean.charges;
     delete clean.notifications;
     delete clean.paymentStatus;
-    delete clean.status; // status updates are admin-only via PATCH status route anyway
+    delete clean.status; // admin-only via PATCH status route anyway
   }
 
   return clean;
@@ -423,6 +425,7 @@ async function addTrackingEvent(req, res) {
 
 /**
  * ADD DOCUMENT (admin only — route enforces)
+ * IMPORTANT: Admin UI expects an array at res.data.data (documents array).
  */
 async function addDocument(req, res) {
   try {
@@ -449,9 +452,10 @@ async function addDocument(req, res) {
     shipment.documents.push(docEntry);
     await shipment.save();
 
+    // ✅ Return documents array in `data` for Shipment.jsx
     return res.status(200).json({
       message: "Document added to shipment",
-      shipment,
+      data: shipment.documents,
     });
   } catch (err) {
     console.error("Error adding document to shipment:", err);

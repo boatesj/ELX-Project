@@ -1,12 +1,12 @@
 import { DataGrid } from "@mui/x-data-grid";
-import { FaTrash } from "react-icons/fa";
+import { FaTrash, FaFileAlt } from "react-icons/fa";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { authRequest } from "../requestMethods";
 
 const formatStatusLabel = (status) => {
   if (!status) return "";
-  return status
+  return String(status)
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
@@ -49,36 +49,42 @@ const Shipments = () => {
     pageSize: 5,
   });
 
-  const redirectToLogin = (message) => {
-    setLoadError(message || "Please log in to view shipments.");
-    localStorage.removeItem("token");
-    localStorage.removeItem("ellcworth_token");
-    localStorage.removeItem("user");
-    navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
-  };
+  const redirectToLogin = useCallback(
+    (message) => {
+      setLoadError(message || "Please log in to view shipments.");
+      localStorage.removeItem("token");
+      localStorage.removeItem("ellcworth_token");
+      localStorage.removeItem("user");
+      navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+    },
+    [location.pathname, navigate]
+  );
 
-  const handleDelete = async (id) => {
-    const confirm = window.confirm(
-      "Are you sure you want to delete this shipment?"
-    );
-    if (!confirm) return;
-
-    try {
-      await authRequest.delete(`/api/v1/shipments/${id}`);
-      setRows((prev) => prev.filter((row) => row._id !== id));
-    } catch (error) {
-      const status = error?.response?.status;
-      if (status === 401) {
-        redirectToLogin("Your session has expired. Please log in again.");
-        return;
-      }
-      console.error(
-        "❌ Error deleting shipment:",
-        error.response?.data || error
+  const handleDelete = useCallback(
+    async (id) => {
+      const confirm = window.confirm(
+        "Are you sure you want to delete this shipment?"
       );
-      alert("Failed to delete shipment. Please try again.");
-    }
-  };
+      if (!confirm) return;
+
+      try {
+        await authRequest.delete(`/api/v1/shipments/${id}`);
+        setRows((prev) => prev.filter((row) => row._id !== id));
+      } catch (error) {
+        const status = error?.response?.status;
+        if (status === 401) {
+          redirectToLogin("Your session has expired. Please log in again.");
+          return;
+        }
+        console.error(
+          "❌ Error deleting shipment:",
+          error?.response?.data || error
+        );
+        alert("Failed to delete shipment. Please try again.");
+      }
+    },
+    [redirectToLogin]
+  );
 
   const columns = useMemo(
     () => [
@@ -89,6 +95,35 @@ const Shipments = () => {
       { field: "destination", headerName: "Destination", width: 170 },
       { field: "mode", headerName: "Mode", width: 110 },
       { field: "weight", headerName: "Weight", width: 120 },
+
+      // ✅ New: Documents count
+      {
+        field: "docsCount",
+        headerName: "Docs",
+        width: 90,
+        sortable: true,
+        renderCell: (params) => {
+          const n = Number(params.value || 0);
+          const has = n > 0;
+          return (
+            <div className="flex items-center h-full">
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-semibold leading-tight border ${
+                  has
+                    ? "bg-[#1A2930]/10 text-[#1A2930] border-[#1A2930]/20"
+                    : "bg-gray-100 text-gray-600 border-gray-200"
+                }`}
+                title={
+                  has ? `${n} document(s) attached` : "No documents attached"
+                }
+              >
+                {n}
+              </span>
+            </div>
+          );
+        },
+      },
+
       {
         field: "status",
         headerName: "Status",
@@ -105,16 +140,18 @@ const Shipments = () => {
           </div>
         ),
       },
+
       {
         field: "actions",
         headerName: "Actions",
-        width: 200,
+        width: 285,
         sortable: false,
         filterable: false,
         renderCell: (params) => {
           const id = params.row._id;
+
           return (
-            <div className="flex items-center h-full gap-3">
+            <div className="flex items-center h-full gap-2">
               <Link to={`/shipments/${id}`}>
                 <button
                   type="button"
@@ -125,6 +162,23 @@ const Shipments = () => {
                   "
                 >
                   Edit
+                </button>
+              </Link>
+
+              {/* ✅ New: Docs shortcut (anchors to documents section on detail page) */}
+              <Link to={`/shipments/${id}#documents`}>
+                <button
+                  type="button"
+                  className="
+                    flex items-center gap-2
+                    px-3 py-1 rounded-md font-semibold text-xs
+                    bg-[#1A2930] text-white
+                    hover:bg-[#0f1a1f] transition
+                  "
+                  title="Add / view documents"
+                >
+                  <FaFileAlt />
+                  Docs
                 </button>
               </Link>
 
@@ -146,7 +200,7 @@ const Shipments = () => {
         },
       },
     ],
-    []
+    [handleDelete]
   );
 
   useEffect(() => {
@@ -180,6 +234,10 @@ const Shipments = () => {
           mode: s.mode || "",
           weight: s.cargo?.weight || "",
           status: s.status || "pending",
+
+          // ✅ docsCount derived from backend Shipment.documents array
+          docsCount: Array.isArray(s.documents) ? s.documents.length : 0,
+
           raw: s,
         }));
 
@@ -192,7 +250,7 @@ const Shipments = () => {
         }
         console.error(
           "❌ Error fetching shipments:",
-          error.response?.data || error
+          error?.response?.data || error
         );
         setLoadError(
           error?.response?.data?.message || "Failed to load shipments."
@@ -203,8 +261,7 @@ const Shipments = () => {
     };
 
     getShipments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [redirectToLogin]);
 
   return (
     <div className="bg-[#D9D9D9] rounded-md p-3 sm:p-5 lg:p-[20px]">
@@ -251,6 +308,23 @@ const Shipments = () => {
                     {row.mode ? row.mode.toUpperCase() : "—"}{" "}
                     {row.weight ? `• ${row.weight}` : ""}
                   </div>
+
+                  {/* ✅ Docs badge */}
+                  <div className="mt-2 inline-flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
+                      <FaFileAlt className="text-slate-500" />
+                      Docs:
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                        row.docsCount > 0
+                          ? "bg-[#1A2930]/10 text-[#1A2930] border-[#1A2930]/20"
+                          : "bg-gray-100 text-gray-600 border-gray-200"
+                      }`}
+                    >
+                      {row.docsCount || 0}
+                    </span>
+                  </div>
                 </div>
 
                 <span
@@ -289,6 +363,14 @@ const Shipments = () => {
                 <Link to={`/shipments/${row._id}`} className="flex-1">
                   <button className="w-full px-3 py-2 rounded-md font-semibold text-xs bg-[#FFA500] text-black hover:bg-[#e69300] transition">
                     Edit
+                  </button>
+                </Link>
+
+                {/* ✅ Docs shortcut */}
+                <Link to={`/shipments/${row._id}#documents`} className="flex-1">
+                  <button className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md font-semibold text-xs bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition">
+                    <FaFileAlt />
+                    Docs
                   </button>
                 </Link>
 

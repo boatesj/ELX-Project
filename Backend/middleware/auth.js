@@ -1,3 +1,4 @@
+// Backend/middleware/auth.js
 const jwt = require("jsonwebtoken");
 
 /**
@@ -8,8 +9,6 @@ function normalizeRole(role) {
   if (typeof role !== "string") return "";
   const r = role.trim().toLowerCase();
 
-  // ✅ Add "customer" (customer portal role)
-  // NOTE: your DB may still use "user" for customers; we treat BOTH as valid non-admin roles.
   const allowed = new Set([
     "admin",
     "customer",
@@ -62,7 +61,6 @@ function requireAuth(req, res, next) {
         .json({ ok: false, message: "Invalid token payload" });
     }
 
-    // If role is missing/unknown, treat as non-authorized for role checks
     req.user = {
       ...payload,
       id,

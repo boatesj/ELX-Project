@@ -1,3 +1,4 @@
+// Backend/routes/shipments.js
 const express = require("express");
 const router = express.Router();
 
@@ -25,10 +26,14 @@ const {
 
 const Shipment = require("../models/Shipment");
 
+function escapeRegExp(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
  * @route   POST /shipments
  * @desc    Create a new shipment
- * @access  Auth (customer or admin). Controller should enforce ownership rules.
+ * @access  Auth (customer or admin). Controller enforces ownership rules.
  */
 router.post(
   "/",
@@ -48,20 +53,47 @@ router.get("/dashboard", requireAuth, requireRole("admin"), getDashboardStats);
 /**
  * @route   GET /shipments/track/:ref
  * @desc    Track a shipment by reference number
- * @access  Public (as currently implemented)
+ * @access  Public
+ *
+ * SECURITY:
+ * - Do NOT return customer PII or shipper/consignee contact details publicly.
+ * - Exact match, case-insensitive, with regex escaping.
  */
 router.get("/track/:ref", async (req, res) => {
   try {
     const ref = String(req.params.ref || "").trim();
-    if (!ref)
+    if (!ref) {
       return res
         .status(400)
         .json({ ok: false, message: "Reference is required" });
+    }
+
+    const safeRef = escapeRegExp(ref);
 
     const shipment = await Shipment.findOne({
-      referenceNo: { $regex: `^${ref}$`, $options: "i" },
+      referenceNo: { $regex: `^${safeRef}$`, $options: "i" },
       isDeleted: false,
-    }).populate("customer", "fullname email");
+    })
+      .select(
+        [
+          "referenceNo",
+          "status",
+          "mode",
+          "serviceType",
+          "shippingDate",
+          "eta",
+          "ports.originPort",
+          "ports.destinationPort",
+          "trackingEvents.status",
+          "trackingEvents.event",
+          "trackingEvents.location",
+          "trackingEvents.date",
+          "trackingEvents.meta",
+          "createdAt",
+          "updatedAt",
+        ].join(" ")
+      )
+      .lean();
 
     if (!shipment) {
       return res.status(404).json({ ok: false, message: "Shipment not found" });
@@ -95,7 +127,7 @@ router.get("/", requireAuth, requireRole("admin"), getAllShipments);
 /**
  * @route   GET /shipments/:id
  * @desc    Get shipment by ID
- * @access  Auth (controller should enforce access; route validates id)
+ * @access  Auth (controller enforces access; route validates id)
  */
 router.get(
   "/:id",
@@ -108,7 +140,7 @@ router.get(
 /**
  * @route   PUT /shipments/:id
  * @desc    Update shipment
- * @access  Auth (controller should enforce access; route validates id)
+ * @access  Auth (controller enforces access; route validates id)
  */
 router.put(
   "/:id",
@@ -121,7 +153,7 @@ router.put(
 /**
  * @route   DELETE /shipments/:id
  * @desc    Soft-delete shipment
- * @access  Auth (controller should enforce access; route validates id)
+ * @access  Auth (controller enforces access; route validates id)
  */
 router.delete(
   "/:id",
