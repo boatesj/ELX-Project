@@ -79,7 +79,7 @@ export default function RequireCustomerAuth({ children }) {
   const ok = useMemo(() => {
     if (!auth?.token || !auth?.user) return false;
     const role = String(auth.user.role || "").toLowerCase();
-    return role === "customer" || role === "user";
+    return ["customer", "user", "shipper", "consignee"].includes(role);
   }, [auth]);
 
   if (!ok) {
