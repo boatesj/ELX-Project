@@ -55,6 +55,32 @@ function readCustomerAuth() {
   return { token: token || null, user };
 }
 
+function norm(s) {
+  return String(s || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function pickEmail(obj) {
+  const email =
+    obj?.email ||
+    obj?.customerEmail ||
+    obj?.accountEmail ||
+    obj?.accountHolderEmail;
+  return email ? norm(email) : "";
+}
+
+function pickName(obj) {
+  return norm(
+    obj?.accountHolderName ||
+      obj?.fullname ||
+      obj?.fullName ||
+      obj?.name ||
+      obj?.accountHolder
+  );
+}
+
 const MyShipments = () => {
   const [auth, setAuth] = useState(() => readCustomerAuth());
 
@@ -74,17 +100,45 @@ const MyShipments = () => {
     }
   }, [navigate, location.pathname]);
 
-  const accountHolderName =
-    auth.user?.accountHolderName ||
-    auth.user?.fullname ||
-    auth.user?.email ||
+  // Keep in sync if user logs in/out in another tab
+  useEffect(() => {
+    const onStorage = () => setAuth(readCustomerAuth());
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const customerEmail = useMemo(() => pickEmail(auth?.user), [auth]);
+  const customerName = useMemo(() => pickName(auth?.user), [auth]);
+
+  const signedInLabel =
+    auth?.user?.accountHolderName ||
+    auth?.user?.fullname ||
+    auth?.user?.email ||
     "My Account";
 
-  // BUSINESS: only show shipments that belong to this account holder
-  const myShipments = useMemo(
-    () => shipments.filter((s) => s.accountHolder === accountHolderName),
-    [accountHolderName]
-  );
+  // BUSINESS: show shipments that belong to this logged-in customer
+  // Strategy:
+  //  1) Email match (strongest)
+  //  2) Name match (fallback for static/demo data)
+  const myShipments = useMemo(() => {
+    if (!auth?.token) return [];
+
+    return shipments.filter((s) => {
+      const shipEmail = pickEmail(s);
+      const shipName = pickName(s);
+
+      if (customerEmail && shipEmail) {
+        return shipEmail === customerEmail;
+      }
+
+      if (customerName && shipName) {
+        return shipName === customerName;
+      }
+
+      // If we can't determine ownership, fail-closed (do not show)
+      return false;
+    });
+  }, [auth?.token, customerEmail, customerName]);
 
   const getStatusClasses = (status) => {
     switch (status) {
@@ -123,8 +177,7 @@ const MyShipments = () => {
             handled by Ellcworth Express.
           </p>
           <p className="text-[11px] md:text-xs text-slate-400 mt-2">
-            Signed in as{" "}
-            <span className="text-slate-200">{accountHolderName}</span>
+            Signed in as <span className="text-slate-200">{signedInLabel}</span>
           </p>
         </div>
 
@@ -215,8 +268,9 @@ const MyShipments = () => {
 
           {myShipments.length === 0 && (
             <div className="rounded-lg border border-dashed border-[#9A9EAB]/60 bg-[#111827] p-6 text-sm text-slate-200">
-              You don’t have any shipments yet. Once you book with Ellcworth
-              Express, your active and completed shipments will appear here.
+              You don’t have any shipments yet for this account. If you’ve just
+              booked, allow a short time for your shipment to appear — or
+              contact Ellcworth Operations for assistance.
             </div>
           )}
         </div>
