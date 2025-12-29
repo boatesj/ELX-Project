@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { shipments } from "@/assets/shipments";
 
 // ✅ Customer-only keys (must match CustomerLogin.jsx)
@@ -84,27 +84,18 @@ function pickName(obj) {
 const MyShipments = () => {
   const [auth, setAuth] = useState(() => readCustomerAuth());
 
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // ✅ Guard: redirect ONLY when we are sure there is no token
-  useEffect(() => {
-    const current = readCustomerAuth();
-    setAuth(current);
-
-    if (!current.token) {
-      navigate("/login", {
-        replace: true,
-        state: { from: location.pathname },
-      });
-    }
-  }, [navigate, location.pathname]);
-
   // Keep in sync if user logs in/out in another tab
   useEffect(() => {
     const onStorage = () => setAuth(readCustomerAuth());
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  // If auth is cleared/expired while this page is open, we fail-closed:
+  // - show nothing sensitive
+  // - the route guard will redirect on next navigation / render cycle
+  useEffect(() => {
+    setAuth(readCustomerAuth());
   }, []);
 
   const customerEmail = useMemo(() => pickEmail(auth?.user), [auth]);
