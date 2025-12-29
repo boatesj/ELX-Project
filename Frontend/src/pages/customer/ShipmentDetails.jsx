@@ -1,12 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FaArrowLeft,
   FaMapMarkerAlt,
-  FaWeightHanging,
-  FaPoundSign,
   FaCalendarAlt,
   FaTruck,
-  FaUser,
   FaFileAlt,
   FaCircle,
   FaClock,
@@ -15,24 +12,82 @@ import {
   FaEye,
   FaInfoCircle,
 } from "react-icons/fa";
-import { Link, useParams } from "react-router-dom";
-import { shipments } from "@/assets/shipments";
+import { Link, useNavigate, useParams } from "react-router-dom";
+
+// ✅ Customer-only keys (must match CustomerLogin.jsx)
+const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
+const CUSTOMER_TOKEN_KEY = "elx_customer_token";
+const CUSTOMER_USER_KEY = "elx_customer_user";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const SHIPMENT_BY_ID = (id) => `${API_BASE_URL}/api/v1/shipments/${id}`;
+
+function safeJsonParse(raw) {
+  try {
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearCustomerAuth() {
+  localStorage.removeItem(CUSTOMER_SESSION_KEY);
+  localStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  localStorage.removeItem(CUSTOMER_USER_KEY);
+  sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  sessionStorage.removeItem(CUSTOMER_USER_KEY);
+}
+
+function readCustomerAuth() {
+  const token =
+    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
+    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
+
+  const session = safeJsonParse(localStorage.getItem(CUSTOMER_SESSION_KEY));
+
+  // expiry enforcement (customer session only)
+  if (session?.expiresAt) {
+    const exp = new Date(session.expiresAt).getTime();
+    if (!Number.isNaN(exp) && Date.now() > exp) {
+      clearCustomerAuth();
+      return { token: null, user: null };
+    }
+  }
+
+  const userRaw =
+    localStorage.getItem(CUSTOMER_USER_KEY) ||
+    sessionStorage.getItem(CUSTOMER_USER_KEY);
+
+  const user = safeJsonParse(userRaw) || session?.user || null;
+
+  // Extra safety: customer portal must never treat admin as authenticated
+  const role = String(user?.role || "").toLowerCase();
+  if (role === "admin") {
+    clearCustomerAuth();
+    return { token: null, user: null };
+  }
+
+  return { token: token || null, user };
+}
 
 const getStatusClasses = (status) => {
-  switch (status) {
-    case "Booked":
-      return "bg-[#FFA500]/15 text-[#FFA500] border border-[#FFA500]/50";
-    case "Loaded":
-      return "bg-[#9A9EAB]/20 text-[#1A2930] border border-[#9A9EAB]/60";
-    case "Arrived":
-      return "bg-emerald-500/15 text-emerald-300 border border-emerald-500/50";
-    default:
-      return "bg-gray-100 text-gray-700 border border-gray-300";
+  const s = String(status || "").toLowerCase();
+  if (s === "booked") {
+    return "bg-[#FFA500]/15 text-[#FFA500] border border-[#FFA500]/50";
   }
+  if (s === "loaded" || s === "in transit" || s === "in_transit") {
+    return "bg-[#9A9EAB]/20 text-[#1A2930] border border-[#9A9EAB]/60";
+  }
+  if (s === "arrived" || s === "delivered" || s === "completed") {
+    return "bg-emerald-500/15 text-emerald-300 border border-emerald-500/50";
+  }
+  return "bg-gray-100 text-gray-700 border border-gray-300";
 };
 
 const formatModeLabel = (mode) => {
-  switch (mode) {
+  const m = String(mode || "").toLowerCase();
+  switch (m) {
     case "roro":
       return "RoRo vehicle shipment";
     case "container":
@@ -50,8 +105,8 @@ const formatModeLabel = (mode) => {
 
 const statusRank = (status) => {
   const s = String(status || "").toLowerCase();
-  if (s === "arrived") return 3;
-  if (s === "loaded") return 2;
+  if (s === "arrived" || s === "delivered" || s === "completed") return 3;
+  if (s === "loaded" || s === "in transit" || s === "in_transit") return 2;
   if (s === "booked") return 1;
   return 0;
 };
@@ -62,45 +117,66 @@ function toTitleCase(s) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+function toDisplayDate(val) {
+  if (!val) return "";
+  try {
+    const d = new Date(val);
+    if (Number.isNaN(d.getTime())) return String(val);
+    return d.toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return String(val);
+  }
+}
+
 function buildTimeline(shipment) {
   const raw = Array.isArray(shipment?.trackingEvents)
     ? shipment.trackingEvents
+    : Array.isArray(shipment?.tracking)
+    ? shipment.tracking
     : null;
 
   if (raw && raw.length) {
     return raw
       .map((e, idx) => ({
-        id: `${shipment.id}-t-${idx}`,
-        label: String(e?.label || e?.title || "Update"),
-        location: String(e?.location || ""),
-        at: String(e?.at || e?.date || ""),
+        id: String(e?._id || `${shipment?._id || shipment?.id}-t-${idx}`),
+        label: String(e?.label || e?.title || e?.event || "Update"),
+        location: String(e?.location || e?.place || ""),
+        at: String(e?.at || e?.date || e?.createdAt || ""),
         state: String(e?.status || e?.state || "").toLowerCase(),
       }))
       .filter((e) => e.label.trim().length > 0);
   }
 
+  // fallback timeline from status
   const rank = statusRank(shipment?.status);
-  const bookedAt = shipment?.date ? String(shipment.date) : "";
+  const bookedAt =
+    shipment?.bookingDate || shipment?.date || shipment?.createdAt || "";
 
   const base = [
     {
-      id: `${shipment.id}-m-1`,
+      id: `${shipment?._id || shipment?.id}-m-1`,
       label: "Booking confirmed",
-      location: shipment?.from ? String(shipment.from) : "",
-      at: bookedAt,
+      location: shipment?.origin || shipment?.from || "",
+      at: bookedAt ? toDisplayDate(bookedAt) : "",
       state: rank >= 1 ? "done" : "upcoming",
     },
     {
-      id: `${shipment.id}-m-2`,
+      id: `${shipment?._id || shipment?.id}-m-2`,
       label: "Loaded / in transit",
       location: "",
       at: "",
       state: rank === 2 ? "current" : rank >= 3 ? "done" : "upcoming",
     },
     {
-      id: `${shipment.id}-m-3`,
+      id: `${shipment?._id || shipment?.id}-m-3`,
       label: "Arrived at destination",
-      location: shipment?.destination ? String(shipment.destination) : "",
+      location: shipment?.destination || shipment?.to || "",
       at: "",
       state: rank === 3 ? "current" : "upcoming",
     },
@@ -126,22 +202,19 @@ function buildTimeline(shipment) {
 }
 
 /**
- * Doc action rules (corporate-safe, fail-closed):
- * - If doc.available is false => no actions.
- * - If doc.url exists => View opens new tab; Download opens new tab (still ok for now).
- * - If no url => disable actions and show a clear message.
+ * Doc action rules (safe, fail-closed):
+ * - If doc has a URL => allow actions
+ * - Otherwise disable and show message
  *
- * Later, backend can return signed URLs for real downloads.
+ * Later, backend can return signed URLs.
  */
 function canActOnDoc(doc) {
-  if (!doc?.available) return false;
-  const url = String(doc?.url || doc?.href || "");
-  return url.trim().length > 0;
+  const url = String(doc?.url || doc?.href || doc?.link || "").trim();
+  return url.length > 0;
 }
 
 function getDocUrl(doc) {
-  const url = String(doc?.url || doc?.href || "");
-  return url.trim();
+  return String(doc?.url || doc?.href || doc?.link || "").trim();
 }
 
 const ShipmentFeedback = ({ reference }) => {
@@ -156,6 +229,7 @@ const ShipmentFeedback = ({ reference }) => {
     setSubmitting(true);
 
     try {
+      // Phase 5: minimal, operational (no backend wiring yet)
       console.log("Feedback submitted:", { reference, message });
       setSubmitted(true);
       setMessage("");
@@ -202,8 +276,7 @@ const ShipmentFeedback = ({ reference }) => {
             type="submit"
             disabled={submitting || !message.trim()}
             className={`
-              px-4 py-1.5 rounded-full text-xs md:text-sm font-semibold
-              transition
+              px-4 py-1.5 rounded-full text-xs md:text-sm font-semibold transition
               ${
                 submitting || !message.trim()
                   ? "bg-[#9A9EAB] text-white cursor-not-allowed"
@@ -298,12 +371,151 @@ const MilestoneRow = ({ item, isLast }) => {
 
 const ShipmentDetails = () => {
   const { id } = useParams();
-  const shipment = shipments.find((s) => s.id === id);
+  const navigate = useNavigate();
+
+  const [shipment, setShipment] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errMsg, setErrMsg] = useState("");
+
+  useEffect(() => {
+    const { token } = readCustomerAuth();
+    if (!token) {
+      setLoading(false);
+      setShipment(null);
+      setErrMsg("");
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    const ac = new AbortController();
+
+    (async () => {
+      setLoading(true);
+      setErrMsg("");
+
+      try {
+        const res = await fetch(SHIPMENT_BY_ID(id), {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          signal: ac.signal,
+        });
+
+        if (res.status === 401) {
+          clearCustomerAuth();
+          setShipment(null);
+          setErrMsg("Your session has expired. Please sign in again.");
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        if (res.status === 404) {
+          setShipment(null);
+          setErrMsg("Shipment not found.");
+          return;
+        }
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(text || `Request failed (${res.status})`);
+        }
+
+        const payload = await res.json().catch(() => ({}));
+        const data =
+          payload?.data ||
+          payload?.shipment ||
+          payload?.result ||
+          (payload?.ok ? payload : null);
+
+        setShipment(data || null);
+      } catch (e) {
+        if (e?.name === "AbortError") return;
+        setShipment(null);
+        setErrMsg(
+          "We couldn’t load this shipment right now. Please go back and try again."
+        );
+        console.error("ShipmentDetails fetch error:", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+
+    return () => ac.abort();
+  }, [id, navigate]);
 
   const timeline = useMemo(() => {
     if (!shipment) return [];
     return buildTimeline(shipment);
   }, [shipment]);
+
+  const reference =
+    shipment?.referenceNo ||
+    shipment?.reference ||
+    shipment?.referenceNumber ||
+    "—";
+
+  const bookedAt =
+    shipment?.bookingDate || shipment?.date || shipment?.createdAt || "";
+
+  const status = shipment?.status || shipment?.shipmentStatus || "Booked";
+
+  const mode = shipment?.mode || shipment?.serviceType || shipment?.type || "";
+
+  const origin =
+    shipment?.origin ||
+    shipment?.from ||
+    shipment?.pickupAddress ||
+    shipment?.pickupCity ||
+    "—";
+
+  const destination =
+    shipment?.destination ||
+    shipment?.to ||
+    shipment?.deliveryAddress ||
+    shipment?.deliveryCity ||
+    "—";
+
+  const shipper =
+    shipment?.shipper ||
+    shipment?.shipperName ||
+    shipment?.customer?.fullname ||
+    "—";
+
+  const consignee =
+    shipment?.consignee || shipment?.consigneeName || shipment?.receiver || "—";
+
+  const documents = Array.isArray(shipment?.documents)
+    ? shipment.documents
+    : Array.isArray(shipment?.docs)
+    ? shipment.docs
+    : [];
+
+  const handleViewDoc = (doc) => {
+    const url = getDocUrl(doc);
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleDownloadDoc = (doc) => {
+    const url = getDocUrl(doc);
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  // ---------- Render ----------
+  if (loading) {
+    return (
+      <div className="bg-[#1A2930] min-h-[60vh] py-8">
+        <div className="max-w-3xl mx-auto px-4 md:px-8">
+          <div className="rounded-lg border border-white/10 bg-[#111827] p-6 text-sm text-slate-200">
+            Loading shipment…
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!shipment) {
     return (
@@ -315,12 +527,13 @@ const ShipmentDetails = () => {
               <span>Back to shipments</span>
             </button>
           </Link>
+
           <div className="bg-white rounded-xl shadow-xl border border-[#9A9EAB]/40 p-8">
             <h1 className="text-lg md:text-xl font-semibold text-[#1A2930] mb-2">
-              Shipment not found
+              {errMsg || "Shipment not found"}
             </h1>
             <p className="text-sm text-slate-600">
-              We couldn&apos;t find a shipment matching this reference. Please
+              We couldn&apos;t load a shipment matching this reference. Please
               return to your shipments overview and try again.
             </p>
           </div>
@@ -328,22 +541,6 @@ const ShipmentDetails = () => {
       </div>
     );
   }
-
-  const { mode } = shipment;
-
-  const handleViewDoc = (doc) => {
-    if (!doc?.available) return;
-    const url = getDocUrl(doc);
-    if (!url) return;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
-
-  const handleDownloadDoc = (doc) => {
-    if (!doc?.available) return;
-    const url = getDocUrl(doc);
-    if (!url) return;
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
 
   return (
     <div className="bg-[#1A2930] min-h-[60vh] py-8">
@@ -367,10 +564,10 @@ const ShipmentDetails = () => {
                 Shipment reference
               </p>
               <h1 className="text-lg md:text-xl font-semibold text-[#1A2930]">
-                {shipment.reference}
+                {reference}
               </h1>
               <p className="text-xs md:text-sm text-slate-500 mt-1">
-                {formatModeLabel(shipment.mode)}
+                {formatModeLabel(mode)}
               </p>
             </div>
 
@@ -379,18 +576,20 @@ const ShipmentDetails = () => {
                 className={`
                   inline-flex items-center justify-center
                   px-3 py-1 rounded-full text-xs font-semibold
-                  ${getStatusClasses(shipment.status)}
+                  ${getStatusClasses(status)}
                 `}
               >
-                {shipment.status}
+                {String(status || "Booked")}
               </span>
+
               <div className="flex items-center gap-2 text-xs md:text-sm text-slate-600">
                 <FaCalendarAlt className="text-[#9A9EAB]" />
-                <span>Booked: {shipment.date}</span>
+                <span>Booked: {bookedAt ? toDisplayDate(bookedAt) : "—"}</span>
               </div>
+
               <div className="flex items-center gap-2 text-xs md:text-sm text-slate-600">
                 <FaTruck className="text-[#9A9EAB]" />
-                <span>{shipment.destination}</span>
+                <span>{destination}</span>
               </div>
             </div>
           </div>
@@ -410,7 +609,7 @@ const ShipmentDetails = () => {
                   </p>
                 </div>
                 <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#1A2930]/5 text-[#1A2930] border border-[#1A2930]/10">
-                  Live status: {shipment.status}
+                  Live status: {String(status || "Booked")}
                 </span>
               </div>
 
@@ -443,10 +642,8 @@ const ShipmentDetails = () => {
                 <div className="flex items-start gap-2 text-sm text-[#1A2930]">
                   <FaMapMarkerAlt className="mt-0.5 text-[#1A2930]" />
                   <div>
-                    <p className="font-semibold">{shipment.from}</p>
-                    <p className="text-xs text-slate-500">
-                      Shipper: {shipment.shipper}
-                    </p>
+                    <p className="font-semibold">{origin}</p>
+                    <p className="text-xs text-slate-500">Shipper: {shipper}</p>
                   </div>
                 </div>
               </div>
@@ -458,131 +655,16 @@ const ShipmentDetails = () => {
                 <div className="flex items-start gap-2 text-sm text-[#1A2930]">
                   <FaMapMarkerAlt className="mt-0.5 text-[#1A2930]" />
                   <div>
-                    <p className="font-semibold">{shipment.destination}</p>
+                    <p className="font-semibold">{destination}</p>
                     <p className="text-xs text-slate-500">
-                      Consignee: {shipment.consignee}
+                      Consignee: {consignee}
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Mode-specific (unchanged) */}
-            {mode === "roro" && shipment.vehicle && (
-              <div className="bg-[#FFF7E6] rounded-lg p-4 border border-[#FFE0A8]">
-                <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#A16207] mb-2">
-                  Vehicle details (RoRo)
-                </p>
-                <div className="grid gap-3 md:grid-cols-2 text-xs md:text-sm text-[#92400E]">
-                  <div>
-                    <p>
-                      <span className="font-semibold">Make / Model: </span>
-                      {shipment.vehicle.makeModel}
-                    </p>
-                    <p>
-                      <span className="font-semibold">Chassis number: </span>
-                      {shipment.vehicle.chassisNumber}
-                    </p>
-                    <p>
-                      <span className="font-semibold">Registration: </span>
-                      {shipment.vehicle.registrationNumber}
-                    </p>
-                  </div>
-                  <div>
-                    <p>
-                      <span className="font-semibold">Units: </span>
-                      {shipment.vehicle.units}
-                    </p>
-                    <p>
-                      <span className="font-semibold">Dimensions: </span>
-                      {shipment.vehicle.dimensions}
-                    </p>
-                    <p>
-                      <span className="font-semibold">Commercial value: </span>
-                      {shipment.vehicle.commercialValue}
-                    </p>
-                    <p>
-                      <span className="font-semibold">Customs required: </span>
-                      {shipment.vehicle.customsRequired ? "Yes" : "No"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {mode === "container" && shipment.container && (
-              <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E5E7EB]">
-                <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-2">
-                  Container details
-                </p>
-                <div className="grid gap-3 md:grid-cols-2 text-xs md:text-sm text-[#1A2930]">
-                  <div>
-                    <p>
-                      <span className="font-semibold">Container no.: </span>
-                      {shipment.container.containerNumber}
-                    </p>
-                    <p>
-                      <span className="font-semibold">Size / type: </span>
-                      {shipment.container.sizeType}
-                    </p>
-                  </div>
-                  <div>
-                    <p>
-                      <span className="font-semibold">Pieces: </span>
-                      {shipment.container.pieces}
-                    </p>
-                    <p>
-                      <span className="font-semibold">Cargo: </span>
-                      {shipment.container.cargoDescription}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {mode === "air" && shipment.air && (
-              <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E5E7EB]">
-                <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-2">
-                  Air freight details
-                </p>
-                <div className="grid gap-3 md:grid-cols-2 text-xs md:text-sm text-[#1A2930]">
-                  <div>
-                    <p>
-                      <span className="font-semibold">Service level: </span>
-                      {shipment.air.serviceLevel}
-                    </p>
-                    <p>
-                      <span className="font-semibold">AWB number: </span>
-                      {shipment.air.awbNumber}
-                    </p>
-                  </div>
-                  <div>
-                    <p>
-                      <span className="font-semibold">Pieces: </span>
-                      {shipment.air.pieces}
-                    </p>
-                    <p>
-                      <span className="font-semibold">Cargo: </span>
-                      {shipment.air.cargoDescription}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {(mode === "cargo" || mode === "documents") &&
-              shipment.cargoDescription && (
-                <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E5E7EB]">
-                  <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-2">
-                    Cargo details
-                  </p>
-                  <p className="text-xs md:text-sm text-[#1A2930]">
-                    {shipment.cargoDescription}
-                  </p>
-                </div>
-              )}
-
-            {/* Documents (B) */}
+            {/* Documents */}
             <div className="bg-[#F9FAFB] rounded-lg border border-[#E5E7EB] overflow-hidden">
               <div className="px-4 py-3 border-b border-[#E5E7EB] bg-white">
                 <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB]">
@@ -595,18 +677,18 @@ const ShipmentDetails = () => {
               </div>
 
               <div className="p-4">
-                {shipment.documents && shipment.documents.length > 0 ? (
+                {documents.length > 0 ? (
                   <div className="divide-y divide-[#E5E7EB] rounded-lg border border-[#E5E7EB] bg-white">
-                    {shipment.documents.map((doc, index) => {
-                      const available = Boolean(doc?.available);
+                    {documents.map((doc, index) => {
                       const actionable = canActOnDoc(doc);
-
+                      const typeText = String(
+                        doc?.type || doc?.name || "Document"
+                      ).trim();
                       const statusText = String(doc?.status || "").trim();
-                      const typeText = String(doc?.type || "Document").trim();
 
                       return (
                         <div
-                          key={index}
+                          key={doc?._id || index}
                           className="px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
                         >
                           <div className="flex items-start gap-3">
@@ -621,15 +703,10 @@ const ShipmentDetails = () => {
                                 {statusText || "Status pending"}
                               </p>
 
-                              {!available ? (
+                              {!actionable ? (
                                 <p className="mt-1 text-[11px] text-slate-500 inline-flex items-center gap-2">
                                   <FaInfoCircle className="text-[#9A9EAB]" />
-                                  Not yet available
-                                </p>
-                              ) : !actionable ? (
-                                <p className="mt-1 text-[11px] text-slate-500 inline-flex items-center gap-2">
-                                  <FaInfoCircle className="text-[#9A9EAB]" />
-                                  Available — link will be provided shortly
+                                  Link not provided yet
                                 </p>
                               ) : null}
                             </div>
@@ -639,21 +716,19 @@ const ShipmentDetails = () => {
                             <button
                               type="button"
                               onClick={() => handleViewDoc(doc)}
-                              disabled={!available || !actionable}
+                              disabled={!actionable}
                               className={`
                                 inline-flex items-center gap-2
                                 px-3 py-2 rounded-full text-[12px] font-semibold
                                 border transition
                                 ${
-                                  !available || !actionable
+                                  !actionable
                                     ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
                                     : "bg-[#1A2930] text-white border-[#1A2930] hover:bg-[#FFA500] hover:text-[#1A2930] hover:border-[#FFA500]"
                                 }
                               `}
                               title={
-                                !available
-                                  ? "Not yet available"
-                                  : !actionable
+                                !actionable
                                   ? "Link not provided yet"
                                   : "View document"
                               }
@@ -665,21 +740,19 @@ const ShipmentDetails = () => {
                             <button
                               type="button"
                               onClick={() => handleDownloadDoc(doc)}
-                              disabled={!available || !actionable}
+                              disabled={!actionable}
                               className={`
                                 inline-flex items-center gap-2
                                 px-3 py-2 rounded-full text-[12px] font-semibold
                                 border transition
                                 ${
-                                  !available || !actionable
+                                  !actionable
                                     ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
                                     : "bg-white text-[#1A2930] border-[#1A2930]/40 hover:border-[#FFA500] hover:text-[#FFA500]"
                                 }
                               `}
                               title={
-                                !available
-                                  ? "Not yet available"
-                                  : !actionable
+                                !actionable
                                   ? "Link not provided yet"
                                   : "Download document"
                               }
@@ -701,7 +774,7 @@ const ShipmentDetails = () => {
             </div>
 
             {/* Feedback */}
-            <ShipmentFeedback reference={shipment.reference} />
+            <ShipmentFeedback reference={reference} />
           </div>
         </div>
       </div>
