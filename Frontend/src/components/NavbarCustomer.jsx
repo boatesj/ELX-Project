@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { FaBars, FaTimes, FaUser, FaSignOutAlt } from "react-icons/fa";
+import {
+  FaBars,
+  FaTimes,
+  FaUser,
+  FaSignOutAlt,
+  FaPhoneAlt,
+  FaEnvelope,
+  FaExchangeAlt,
+} from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 // ✅ Customer-only keys (must match CustomerLogin.jsx)
@@ -132,8 +140,19 @@ export default function NavbarCustomer() {
     navigate("/login", { replace: true });
   };
 
+  const handleSwitchAccount = () => {
+    // Clears the active session only (sessionStorage + customer tokens)
+    // Use this when you want to sign out and sign in as another user,
+    // WITHOUT wiping "remembered on this device" keys.
+    clearCustomerAuth();
+    setAuth({ token: null, user: null });
+    setAccountOpen(false);
+    closeDrawer();
+    navigate("/login", { replace: true });
+  };
+
   const handleClearRemembered = () => {
-    // Clears "remember me" device state. We also log out for clarity.
+    // Clears "remember me" device state (localStorage). We also log out for clarity.
     clearRememberedOnDevice();
     clearCustomerAuth();
     setAuth({ token: null, user: null });
@@ -144,6 +163,9 @@ export default function NavbarCustomer() {
 
   // ✅ Customer portal nav must not expose internal routes
   const navLinks = [{ label: "My Shipments", to: "/myshipments" }];
+
+  const SUPPORT_PHONE = "+44 20 8979 6054";
+  const SUPPORT_EMAIL = "cs@ellcworth.com";
 
   return (
     <header className="w-full z-20 fixed top-0 left-0">
@@ -210,6 +232,7 @@ export default function NavbarCustomer() {
                   "
                   role="menu"
                 >
+                  {/* Signed in */}
                   <div className="px-4 py-3 border-b border-white/10">
                     <p className="text-[11px] uppercase tracking-[0.22em] text-white/55">
                       Signed in
@@ -219,6 +242,47 @@ export default function NavbarCustomer() {
                     </p>
                   </div>
 
+                  {/* Support */}
+                  <div className="px-4 py-3 border-b border-white/10">
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-white/55">
+                      Support
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      <a
+                        href={`tel:${SUPPORT_PHONE.replace(/\s+/g, "")}`}
+                        className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition"
+                      >
+                        <FaPhoneAlt className="text-[#FFA500]" />
+                        <span className="truncate">{SUPPORT_PHONE}</span>
+                      </a>
+                      <a
+                        href={`mailto:${SUPPORT_EMAIL}`}
+                        className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition"
+                      >
+                        <FaEnvelope className="text-[#FFA500]" />
+                        <span className="truncate">{SUPPORT_EMAIL}</span>
+                      </a>
+                    </div>
+                    <p className="mt-2 text-[11px] text-white/45 leading-relaxed">
+                      For shipment updates, document support, or account access.
+                    </p>
+                  </div>
+
+                  {/* Switch account */}
+                  <button
+                    type="button"
+                    onClick={handleSwitchAccount}
+                    className="w-full text-left px-4 py-3 text-sm font-semibold text-white/85 hover:bg-white/5 transition flex items-center gap-2 border-b border-white/10"
+                    role="menuitem"
+                    title="Sign out and sign in as another customer"
+                  >
+                    <span className="h-8 w-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/80">
+                      <FaExchangeAlt />
+                    </span>
+                    Switch account
+                  </button>
+
+                  {/* Clear remembered login */}
                   <button
                     type="button"
                     onClick={handleClearRemembered}
@@ -226,13 +290,13 @@ export default function NavbarCustomer() {
                     role="menuitem"
                     title="Clears stored/remembered customer login on this device"
                   >
-                    {/* reuse icon container style */}
                     <span className="h-8 w-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white/80">
                       <FaUser />
                     </span>
                     Clear remembered login on this device
                   </button>
 
+                  {/* Logout */}
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -329,6 +393,54 @@ export default function NavbarCustomer() {
                 </Link>
               ))}
 
+              {/* Support */}
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-white/60 font-semibold">
+                  Support
+                </p>
+                <div className="mt-3 space-y-2">
+                  <a
+                    href={`tel:${SUPPORT_PHONE.replace(/\s+/g, "")}`}
+                    className="flex items-center gap-2 text-sm text-white/85 hover:text-white transition"
+                  >
+                    <FaPhoneAlt className="text-[#FFA500]" />
+                    <span className="truncate">{SUPPORT_PHONE}</span>
+                  </a>
+                  <a
+                    href={`mailto:${SUPPORT_EMAIL}`}
+                    className="flex items-center gap-2 text-sm text-white/85 hover:text-white transition"
+                  >
+                    <FaEnvelope className="text-[#FFA500]" />
+                    <span className="truncate">{SUPPORT_EMAIL}</span>
+                  </a>
+                </div>
+                <p className="mt-2 text-[11px] text-white/45 leading-relaxed">
+                  Shipment updates, documents, or account access.
+                </p>
+              </div>
+
+              {/* Switch account */}
+              <button
+                type="button"
+                onClick={handleSwitchAccount}
+                className="
+                  w-full text-left
+                  rounded-2xl border border-white/10
+                  bg-white/5
+                  px-4 py-3
+                  text-sm font-semibold
+                  tracking-[0.12em]
+                  text-white/85
+                  hover:bg-white/10 transition
+                  flex items-center gap-2
+                "
+                title="Sign out and sign in as another customer"
+              >
+                <FaExchangeAlt />
+                Switch account
+              </button>
+
+              {/* Clear remembered login */}
               <button
                 type="button"
                 onClick={handleClearRemembered}
@@ -349,6 +461,7 @@ export default function NavbarCustomer() {
                 Clear remembered login
               </button>
 
+              {/* Logout */}
               <button
                 type="button"
                 onClick={handleLogout}
