@@ -13,15 +13,14 @@ import {
   FaInfoCircle,
 } from "react-icons/fa";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { customerAuthRequest } from "../../requestMethods";
 
 // ✅ Customer-only keys (must match CustomerLogin.jsx)
 const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
 const CUSTOMER_TOKEN_KEY = "elx_customer_token";
 const CUSTOMER_USER_KEY = "elx_customer_user";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const SHIPMENT_BY_ID = (id) => `${API_BASE_URL}/api/v1/shipments/${id}`;
+const SHIPMENT_PATH = (id) => `/api/v1/shipments/${id}`;
 
 function safeJsonParse(raw) {
   try {
@@ -242,13 +241,11 @@ function getDocUrl(doc) {
 
 // ✅ Robustly pick shipment from various response shapes
 function pickShipment(payload) {
-  // preferred future shapes:
   if (payload && typeof payload === "object") {
     if (payload.data && typeof payload.data === "object") return payload.data;
     if (payload.shipment && typeof payload.shipment === "object")
       return payload.shipment;
   }
-  // current controller returns shipment object directly
   if (payload && typeof payload === "object" && payload._id) return payload;
   return null;
 }
@@ -439,35 +436,12 @@ const ShipmentDetails = () => {
       setErrMsg("");
 
       try {
-        const res = await fetch(SHIPMENT_BY_ID(id), {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+        // ✅ Using customerAuthRequest (Frontend requestMethods)
+        const res = await customerAuthRequest.get(SHIPMENT_PATH(id), {
           signal: ac.signal,
         });
 
-        if (res.status === 401) {
-          clearCustomerAuth();
-          setShipment(null);
-          setErrMsg("Your session has expired. Please sign in again.");
-          navigate("/login", { replace: true });
-          return;
-        }
-
-        if (res.status === 404) {
-          setShipment(null);
-          setErrMsg("Shipment not found.");
-          return;
-        }
-
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(text || `Request failed (${res.status})`);
-        }
-
-        const payload = await res.json().catch(() => ({}));
+        const payload = res?.data ?? {};
         const picked = pickShipment(payload);
 
         if (!picked) {
@@ -478,7 +452,29 @@ const ShipmentDetails = () => {
 
         setShipment(picked);
       } catch (e) {
-        if (e?.name === "AbortError") return;
+        if (
+          e?.name === "CanceledError" ||
+          e?.name === "AbortError" ||
+          e?.code === "ERR_CANCELED"
+        )
+          return;
+
+        const status = e?.response?.status;
+
+        if (status === 401) {
+          clearCustomerAuth();
+          setShipment(null);
+          setErrMsg("Your session has expired. Please sign in again.");
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        if (status === 404) {
+          setShipment(null);
+          setErrMsg("Shipment not found.");
+          return;
+        }
+
         setShipment(null);
         setErrMsg(
           "We couldn’t load this shipment right now. Please go back and try again."

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-
-// ✅ Customer-only keys (must match CustomerLogin.jsx)
-const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
-const CUSTOMER_TOKEN_KEY = "elx_customer_token";
-const CUSTOMER_USER_KEY = "elx_customer_user";
+import {
+  CUSTOMER_SESSION_KEY,
+  CUSTOMER_TOKEN_KEY,
+  CUSTOMER_USER_KEY,
+  clearCustomerAuth,
+} from "@/requestMethods";
 
 // ✅ Single source of truth: allowed roles for customer portal
 const ALLOWED_CUSTOMER_ROLES = new Set(["customer", "user", "shipper"]);
@@ -15,14 +16,6 @@ function safeJsonParse(raw) {
   } catch {
     return null;
   }
-}
-
-function clearCustomerAuth() {
-  localStorage.removeItem(CUSTOMER_SESSION_KEY);
-  localStorage.removeItem(CUSTOMER_TOKEN_KEY);
-  localStorage.removeItem(CUSTOMER_USER_KEY);
-  sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
-  sessionStorage.removeItem(CUSTOMER_USER_KEY);
 }
 
 function readCustomerAuth() {
@@ -81,6 +74,7 @@ export default function RequireCustomerAuth({ children }) {
 
   const isAllowed = useMemo(() => Boolean(auth?.token && auth?.user), [auth]);
 
+  // Guard redirect (runs on mount + whenever route changes)
   useEffect(() => {
     const current = readCustomerAuth();
     setAuth(current);
@@ -94,6 +88,5 @@ export default function RequireCustomerAuth({ children }) {
   }, [navigate, location.pathname]);
 
   if (!isAllowed) return null;
-
   return children;
 }
