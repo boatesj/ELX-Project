@@ -76,11 +76,18 @@ const getStatusClasses = (status) => {
   if (s === "booked") {
     return "bg-[#FFA500]/15 text-[#FFA500] border border-[#FFA500]/50";
   }
-  if (s === "loaded" || s === "in transit" || s === "in_transit") {
+  if (
+    ["at_origin_yard", "loaded", "sailed", "in transit", "in_transit"].includes(
+      s
+    )
+  ) {
     return "bg-[#9A9EAB]/20 text-[#1A2930] border border-[#9A9EAB]/60";
   }
-  if (s === "arrived" || s === "delivered" || s === "completed") {
+  if (["arrived", "cleared", "delivered"].includes(s)) {
     return "bg-emerald-500/15 text-emerald-300 border border-emerald-500/50";
+  }
+  if (s === "cancelled") {
+    return "bg-red-500/15 text-red-600 border border-red-500/40";
   }
   return "bg-gray-100 text-gray-700 border border-gray-300";
 };
@@ -96,8 +103,12 @@ const formatModeLabel = (mode) => {
       return "Secure document shipment";
     case "air":
       return "Air freight";
-    case "cargo":
-      return "General cargo";
+    case "lcl":
+      return "Less-than-container load (LCL)";
+    case "pallets":
+      return "Palletised freight";
+    case "parcels":
+      return "Parcels / small packages";
     default:
       return "Shipment";
   }
@@ -105,9 +116,11 @@ const formatModeLabel = (mode) => {
 
 const statusRank = (status) => {
   const s = String(status || "").toLowerCase();
-  if (s === "arrived" || s === "delivered" || s === "completed") return 3;
-  if (s === "loaded" || s === "in transit" || s === "in_transit") return 2;
-  if (s === "booked") return 1;
+  if (["delivered"].includes(s)) return 5;
+  if (["cleared"].includes(s)) return 4;
+  if (["arrived"].includes(s)) return 3;
+  if (["sailed", "loaded", "at_origin_yard"].includes(s)) return 2;
+  if (["booked"].includes(s)) return 1;
   return 0;
 };
 
@@ -134,87 +147,110 @@ function toDisplayDate(val) {
   }
 }
 
+/**
+ * Backend shape:
+ * trackingEvents[]: { status, event, location, date }
+ */
 function buildTimeline(shipment) {
   const raw = Array.isArray(shipment?.trackingEvents)
     ? shipment.trackingEvents
-    : Array.isArray(shipment?.tracking)
-    ? shipment.tracking
-    : null;
+    : [];
 
-  if (raw && raw.length) {
-    return raw
-      .map((e, idx) => ({
-        id: String(e?._id || `${shipment?._id || shipment?.id}-t-${idx}`),
-        label: String(e?.label || e?.title || e?.event || "Update"),
-        location: String(e?.location || e?.place || ""),
-        at: String(e?.at || e?.date || e?.createdAt || ""),
-        state: String(e?.status || e?.state || "").toLowerCase(),
-      }))
+  if (raw.length) {
+    // Sort oldest -> newest by date
+    const sorted = [...raw].sort((a, b) => {
+      const ad = new Date(a?.date || 0).getTime();
+      const bd = new Date(b?.date || 0).getTime();
+      return ad - bd;
+    });
+
+    // Mark latest as current, previous as done
+    return sorted
+      .map((e, idx) => {
+        const isLast = idx === sorted.length - 1;
+        return {
+          id: `${shipment?._id || shipment?.id}-t-${idx}`,
+          label: String(e?.event || "Update"),
+          location: String(e?.location || ""),
+          at: e?.date ? toDisplayDate(e.date) : "",
+          state: isLast ? "current" : "done",
+          badge: String(e?.status || "").trim(),
+        };
+      })
       .filter((e) => e.label.trim().length > 0);
   }
 
-  // fallback timeline from status
+  // Fallback timeline from status
   const rank = statusRank(shipment?.status);
-  const bookedAt =
-    shipment?.bookingDate || shipment?.date || shipment?.createdAt || "";
+  const bookedAt = shipment?.createdAt ? toDisplayDate(shipment.createdAt) : "";
 
   const base = [
     {
       id: `${shipment?._id || shipment?.id}-m-1`,
       label: "Booking confirmed",
-      location: shipment?.origin || shipment?.from || "",
-      at: bookedAt ? toDisplayDate(bookedAt) : "",
+      location: shipment?.ports?.originPort || shipment?.originAddress || "",
+      at: bookedAt,
       state: rank >= 1 ? "done" : "upcoming",
     },
     {
       id: `${shipment?._id || shipment?.id}-m-2`,
-      label: "Loaded / in transit",
+      label: "In transit",
       location: "",
       at: "",
-      state: rank === 2 ? "current" : rank >= 3 ? "done" : "upcoming",
+      state: rank >= 2 ? (rank === 2 ? "current" : "done") : "upcoming",
     },
     {
       id: `${shipment?._id || shipment?.id}-m-3`,
       label: "Arrived at destination",
-      location: shipment?.destination || shipment?.to || "",
+      location:
+        shipment?.ports?.destinationPort || shipment?.destinationAddress || "",
       at: "",
-      state: rank === 3 ? "current" : "upcoming",
+      state: rank >= 3 ? (rank === 3 ? "current" : "done") : "upcoming",
+    },
+    {
+      id: `${shipment?._id || shipment?.id}-m-4`,
+      label: "Customs cleared",
+      location: "",
+      at: "",
+      state: rank >= 4 ? (rank === 4 ? "current" : "done") : "upcoming",
+    },
+    {
+      id: `${shipment?._id || shipment?.id}-m-5`,
+      label: "Delivered",
+      location: shipment?.destinationAddress || "",
+      at: "",
+      state: rank >= 5 ? "current" : "upcoming",
     },
   ];
 
-  if (rank === 1) {
-    base[0].state = "current";
-    base[1].state = "upcoming";
-    base[2].state = "upcoming";
-  }
-  if (rank === 2) {
-    base[0].state = "done";
-    base[1].state = "current";
-    base[2].state = "upcoming";
-  }
-  if (rank === 3) {
-    base[0].state = "done";
-    base[1].state = "done";
-    base[2].state = "current";
-  }
+  // Normalize "current" for low ranks
+  if (rank === 0) base[0].state = "current";
 
   return base;
 }
 
 /**
- * Doc action rules (safe, fail-closed):
- * - If doc has a URL => allow actions
- * - Otherwise disable and show message
- *
- * Later, backend can return signed URLs.
+ * Backend documents[]: { name, fileUrl, uploadedAt, uploadedBy }
  */
 function canActOnDoc(doc) {
-  const url = String(doc?.url || doc?.href || doc?.link || "").trim();
+  const url = String(doc?.fileUrl || "").trim();
   return url.length > 0;
 }
-
 function getDocUrl(doc) {
-  return String(doc?.url || doc?.href || doc?.link || "").trim();
+  return String(doc?.fileUrl || "").trim();
+}
+
+// ✅ Robustly pick shipment from various response shapes
+function pickShipment(payload) {
+  // preferred future shapes:
+  if (payload && typeof payload === "object") {
+    if (payload.data && typeof payload.data === "object") return payload.data;
+    if (payload.shipment && typeof payload.shipment === "object")
+      return payload.shipment;
+  }
+  // current controller returns shipment object directly
+  if (payload && typeof payload === "object" && payload._id) return payload;
+  return null;
 }
 
 const ShipmentFeedback = ({ reference }) => {
@@ -325,6 +361,8 @@ const MilestoneRow = ({ item, isLast }) => {
     ? "bg-[#FFA500]/10 text-[#A16207] border border-[#FFA500]/25"
     : "bg-slate-500/10 text-slate-700 border border-slate-500/20";
 
+  const smallTag = item?.badge ? String(item.badge).trim() : "";
+
   return (
     <div className="flex items-start gap-3">
       <div className="flex flex-col items-center">
@@ -337,9 +375,16 @@ const MilestoneRow = ({ item, isLast }) => {
       <div className="flex-1 pb-5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className={`text-sm md:text-base font-semibold ${titleColor}`}>
-              {toTitleCase(item.label)}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className={`text-sm md:text-base font-semibold ${titleColor}`}>
+                {toTitleCase(item.label)}
+              </p>
+              {smallTag ? (
+                <span className="hidden md:inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#1A2930]/5 text-[#1A2930] border border-[#1A2930]/10">
+                  {smallTag}
+                </span>
+              ) : null}
+            </div>
 
             <div className={`mt-1 text-xs md:text-sm ${metaColor} space-y-0.5`}>
               {item.location ? (
@@ -423,13 +468,15 @@ const ShipmentDetails = () => {
         }
 
         const payload = await res.json().catch(() => ({}));
-        const data =
-          payload?.data ||
-          payload?.shipment ||
-          payload?.result ||
-          (payload?.ok ? payload : null);
+        const picked = pickShipment(payload);
 
-        setShipment(data || null);
+        if (!picked) {
+          setShipment(null);
+          setErrMsg("We received an unexpected response for this shipment.");
+          return;
+        }
+
+        setShipment(picked);
       } catch (e) {
         if (e?.name === "AbortError") return;
         setShipment(null);
@@ -445,51 +492,26 @@ const ShipmentDetails = () => {
     return () => ac.abort();
   }, [id, navigate]);
 
-  const timeline = useMemo(() => {
-    if (!shipment) return [];
-    return buildTimeline(shipment);
-  }, [shipment]);
+  const timeline = useMemo(
+    () => (shipment ? buildTimeline(shipment) : []),
+    [shipment]
+  );
 
-  const reference =
-    shipment?.referenceNo ||
-    shipment?.reference ||
-    shipment?.referenceNumber ||
-    "—";
+  const reference = shipment?.referenceNo || "—";
+  const bookedAt = shipment?.createdAt ? toDisplayDate(shipment.createdAt) : "";
+  const status = shipment?.status || "pending";
+  const mode = shipment?.mode || "";
 
-  const bookedAt =
-    shipment?.bookingDate || shipment?.date || shipment?.createdAt || "";
-
-  const status = shipment?.status || shipment?.shipmentStatus || "Booked";
-
-  const mode = shipment?.mode || shipment?.serviceType || shipment?.type || "";
-
-  const origin =
-    shipment?.origin ||
-    shipment?.from ||
-    shipment?.pickupAddress ||
-    shipment?.pickupCity ||
-    "—";
-
+  const origin = shipment?.originAddress || shipment?.ports?.originPort || "—";
   const destination =
-    shipment?.destination ||
-    shipment?.to ||
-    shipment?.deliveryAddress ||
-    shipment?.deliveryCity ||
-    "—";
+    shipment?.destinationAddress || shipment?.ports?.destinationPort || "—";
 
-  const shipper =
-    shipment?.shipper ||
-    shipment?.shipperName ||
-    shipment?.customer?.fullname ||
-    "—";
-
-  const consignee =
-    shipment?.consignee || shipment?.consigneeName || shipment?.receiver || "—";
+  const shipperName =
+    shipment?.shipper?.name || shipment?.customer?.fullname || "—";
+  const consigneeName = shipment?.consignee?.name || "—";
 
   const documents = Array.isArray(shipment?.documents)
     ? shipment.documents
-    : Array.isArray(shipment?.docs)
-    ? shipment.docs
     : [];
 
   const handleViewDoc = (doc) => {
@@ -504,7 +526,6 @@ const ShipmentDetails = () => {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  // ---------- Render ----------
   if (loading) {
     return (
       <div className="bg-[#1A2930] min-h-[60vh] py-8">
@@ -579,17 +600,17 @@ const ShipmentDetails = () => {
                   ${getStatusClasses(status)}
                 `}
               >
-                {String(status || "Booked")}
+                {String(status || "pending")}
               </span>
 
               <div className="flex items-center gap-2 text-xs md:text-sm text-slate-600">
                 <FaCalendarAlt className="text-[#9A9EAB]" />
-                <span>Booked: {bookedAt ? toDisplayDate(bookedAt) : "—"}</span>
+                <span>Booked: {bookedAt || "—"}</span>
               </div>
 
               <div className="flex items-center gap-2 text-xs md:text-sm text-slate-600">
                 <FaTruck className="text-[#9A9EAB]" />
-                <span>{destination}</span>
+                <span>{shipment?.ports?.destinationPort || destination}</span>
               </div>
             </div>
           </div>
@@ -609,7 +630,7 @@ const ShipmentDetails = () => {
                   </p>
                 </div>
                 <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#1A2930]/5 text-[#1A2930] border border-[#1A2930]/10">
-                  Live status: {String(status || "Booked")}
+                  Live status: {String(status || "pending")}
                 </span>
               </div>
 
@@ -643,7 +664,9 @@ const ShipmentDetails = () => {
                   <FaMapMarkerAlt className="mt-0.5 text-[#1A2930]" />
                   <div>
                     <p className="font-semibold">{origin}</p>
-                    <p className="text-xs text-slate-500">Shipper: {shipper}</p>
+                    <p className="text-xs text-slate-500">
+                      Shipper: {shipperName}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -657,7 +680,7 @@ const ShipmentDetails = () => {
                   <div>
                     <p className="font-semibold">{destination}</p>
                     <p className="text-xs text-slate-500">
-                      Consignee: {consignee}
+                      Consignee: {consigneeName}
                     </p>
                   </div>
                 </div>
@@ -681,14 +704,14 @@ const ShipmentDetails = () => {
                   <div className="divide-y divide-[#E5E7EB] rounded-lg border border-[#E5E7EB] bg-white">
                     {documents.map((doc, index) => {
                       const actionable = canActOnDoc(doc);
-                      const typeText = String(
-                        doc?.type || doc?.name || "Document"
-                      ).trim();
-                      const statusText = String(doc?.status || "").trim();
+                      const nameText = String(doc?.name || "Document").trim();
+                      const uploadedAt = doc?.uploadedAt
+                        ? toDisplayDate(doc.uploadedAt)
+                        : "";
 
                       return (
                         <div
-                          key={doc?._id || index}
+                          key={`${nameText}-${index}`}
                           className="px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
                         >
                           <div className="flex items-start gap-3">
@@ -697,10 +720,12 @@ const ShipmentDetails = () => {
                             </div>
                             <div>
                               <p className="text-sm font-semibold text-[#1A2930]">
-                                {typeText}
+                                {nameText}
                               </p>
                               <p className="text-[11px] text-slate-500 mt-0.5">
-                                {statusText || "Status pending"}
+                                {uploadedAt
+                                  ? `Uploaded: ${uploadedAt}`
+                                  : "Uploaded: —"}
                               </p>
 
                               {!actionable ? (

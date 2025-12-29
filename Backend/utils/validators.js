@@ -84,7 +84,7 @@ const validateObjectIdParam = (name = "id") => [
 ];
 
 /**
- * Validate tracking event (cleaned up to match your data model)
+ * Validate tracking event
  */
 const validateTrackingEvent = [
   body("event")
@@ -108,7 +108,7 @@ const validateTrackingEvent = [
 ];
 
 /**
- * Validate shipment document upload
+ * Validate shipment document add (admin)
  */
 const validateDocument = [
   body("name")
@@ -120,27 +120,24 @@ const validateDocument = [
 ];
 
 /**
- * Validate shipment creation – aligned with the reimagined Shipment model
- *
- * We enforce:
- * - customer (User ObjectId)
- * - referenceNo
- * - core shipper + consignee fields
- * - ports.originPort / ports.destinationPort
- *
- * Other fields are optional but validated when present.
+ * Validate shipment creation – aligned with controller behavior:
+ * - customer is OPTIONAL (admin may provide; customers will be set server-side)
+ * - referenceNo is OPTIONAL (model generates; controller deletes unless keepRef)
+ * - shipper/consignee/ports remain REQUIRED
  */
 const validateShipmentCreate = [
-  // Core ownership & identity
+  // Ownership & identity
   body("customer")
+    .optional()
     .isMongoId()
     .withMessage("Customer ID must be a valid ObjectId"),
 
   body("referenceNo")
+    .optional()
     .isString()
     .trim()
     .notEmpty()
-    .withMessage("Reference number is required"),
+    .withMessage("Reference number must be a non-empty string if provided"),
 
   // Basic classification
   body("shipmentType")
@@ -270,7 +267,7 @@ const validateShipmentCreate = [
     .isISO8601()
     .withMessage("ETA must be a valid ISO date"),
 
-  // Cargo – light-touch validation so modes can diverge
+  // Cargo – light-touch validation
   body("cargo.description")
     .optional()
     .isString()
