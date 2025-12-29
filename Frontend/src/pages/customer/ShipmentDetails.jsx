@@ -13,14 +13,14 @@ import {
   FaInfoCircle,
 } from "react-icons/fa";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { authRequest } from "../../requestMethods";
+import { customerAuthRequest } from "../../requestMethods";
 
 // ✅ Customer-only keys (must match CustomerLogin.jsx)
 const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
 const CUSTOMER_TOKEN_KEY = "elx_customer_token";
 const CUSTOMER_USER_KEY = "elx_customer_user";
 
-const SHIPMENT_BY_ID_PATH = (id) => `/api/v1/shipments/${id}`;
+const SHIPMENT_PATH = (id) => `/api/v1/shipments/${id}`;
 
 function safeJsonParse(raw) {
   try {
@@ -241,13 +241,11 @@ function getDocUrl(doc) {
 
 // ✅ Robustly pick shipment from various response shapes
 function pickShipment(payload) {
-  // preferred future shapes:
   if (payload && typeof payload === "object") {
     if (payload.data && typeof payload.data === "object") return payload.data;
     if (payload.shipment && typeof payload.shipment === "object")
       return payload.shipment;
   }
-  // current controller returns shipment object directly
   if (payload && typeof payload === "object" && payload._id) return payload;
   return null;
 }
@@ -438,15 +436,12 @@ const ShipmentDetails = () => {
       setErrMsg("");
 
       try {
-        // ✅ Using Frontend/src/requestMethods.js (axios instance)
-        const resp = await authRequest.get(SHIPMENT_BY_ID_PATH(id), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        // ✅ Using customerAuthRequest (Frontend requestMethods)
+        const res = await customerAuthRequest.get(SHIPMENT_PATH(id), {
           signal: ac.signal,
         });
 
-        const payload = resp?.data ?? {};
+        const payload = res?.data ?? {};
         const picked = pickShipment(payload);
 
         if (!picked) {
@@ -457,7 +452,12 @@ const ShipmentDetails = () => {
 
         setShipment(picked);
       } catch (e) {
-        if (e?.name === "CanceledError" || e?.name === "AbortError") return;
+        if (
+          e?.name === "CanceledError" ||
+          e?.name === "AbortError" ||
+          e?.code === "ERR_CANCELED"
+        )
+          return;
 
         const status = e?.response?.status;
 
