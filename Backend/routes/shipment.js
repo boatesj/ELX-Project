@@ -13,6 +13,10 @@ const {
   addDocument,
   updateStatus,
   getDashboardStats,
+
+  // ✅ NEW quote handlers
+  saveQuote,
+  sendQuoteEmail,
 } = require("../controllers/shipment");
 
 const { requireAuth, requireRole } = require("../middleware/auth");
@@ -135,6 +139,36 @@ router.get(
   validateObjectIdParam("id"),
   handleValidation,
   getOneShipment
+);
+
+/**
+ * ✅ NEW
+ * @route   PATCH /shipments/:id/quote
+ * @desc    Save/update quote draft on a shipment (admin only)
+ * @access  Admin
+ */
+router.patch(
+  "/:id/quote",
+  requireAuth,
+  requireRole("admin"),
+  validateObjectIdParam("id"),
+  handleValidation,
+  saveQuote
+);
+
+/**
+ * ✅ NEW
+ * @route   POST /shipments/:id/quote/send
+ * @desc    Email the quote to the shipper email and set status = quoted (admin only)
+ * @access  Admin
+ */
+router.post(
+  "/:id/quote/send",
+  requireAuth,
+  requireRole("admin"),
+  validateObjectIdParam("id"),
+  handleValidation,
+  sendQuoteEmail
 );
 
 /**

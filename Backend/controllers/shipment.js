@@ -2,6 +2,24 @@
 const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
 
+// ✅ Import BackgroundServices mail dispatcher (adjust path if needed)
+let dispatchMail = null;
+try {
+  // From Backend/controllers -> ../../BackgroundServices/EmailService/helpers/sendmail.js
+  // If your folder structure differs, update this path.
+  // eslint-disable-next-line global-require
+  ({
+    dispatchMail,
+  } = require("../../BackgroundServices/EmailService/helpers/sendmail"));
+} catch (e) {
+  // Keep API usable even if mail service isn't wired in this environment
+  dispatchMail = null;
+  console.warn(
+    "⚠️ Email dispatcher not available. sendQuoteEmail will fail until dispatchMail is wired.",
+    e?.message
+  );
+}
+
 /**
  * Role helpers (your requireAuth normalizes role to lower-case)
  * Admin in token may be "admin"; in DB enum you also have "Admin".
@@ -116,10 +134,220 @@ function sanitizeUpdatesForRole(req, updates) {
     delete clean.notifications;
     delete clean.paymentStatus;
     delete clean.status; // admin-only via PATCH status route anyway
+
+    // ✅ Quote is admin-only
+    delete clean.quote;
   }
 
   return clean;
 }
+
+// ---------------- QUOTE HELPERS ----------------
+
+function toMoney(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return 0;
+  return Math.round(x * 100) / 100;
+}
+
+function computeQuoteTotals(rawQuote = {}) {
+  const currency = String(rawQuote.currency || "GBP").trim() || "GBP";
+  const lineItems = Array.isArray(rawQuote.lineItems) ? rawQuote.lineItems : [];
+
+  const normalizedItems = lineItems
+    .filter((li) => li && String(li.label || "").trim())
+    .map((li) => {
+      const qty = Number(li.qty ?? 1);
+      const unitPrice = Number(li.unitPrice ?? 0);
+
+      const safeQty = Number.isFinite(qty) ? qty : 1;
+      const safeUnit = Number.isFinite(unitPrice) ? unitPrice : 0;
+
+      const computedAmount = toMoney(safeQty * safeUnit);
+      const amount = toMoney(li.amount ?? computedAmount);
+
+      const taxRate = Number(li.taxRate ?? 0);
+      const safeTaxRate = Number.isFinite(taxRate) ? taxRate : 0;
+
+      const tax = toMoney((amount * safeTaxRate) / 100);
+
+      return {
+        code: String(li.code || "").trim(),
+        label: String(li.label || "").trim(),
+        qty: safeQty,
+        unitPrice: toMoney(safeUnit),
+        amount: toMoney(amount),
+        taxRate: safeTaxRate,
+        _tax: tax, // internal compute only
+      };
+    });
+
+  const subtotal = toMoney(
+    normalizedItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0)
+  );
+
+  const taxTotal = toMoney(
+    normalizedItems.reduce((sum, li) => sum + (Number(li._tax) || 0), 0)
+  );
+
+  const total = toMoney(subtotal + taxTotal);
+
+  // Strip internal field
+  const finalItems = normalizedItems.map(({ _tax, ...rest }) => rest);
+
+  return {
+    currency,
+    validUntil: rawQuote.validUntil ? new Date(rawQuote.validUntil) : undefined,
+    notesToCustomer: String(rawQuote.notesToCustomer || "").trim(),
+    internalNotes: String(rawQuote.internalNotes || "").trim(),
+    lineItems: finalItems,
+    subtotal,
+    taxTotal,
+    total,
+  };
+}
+
+function formatCurrency(amount, currency = "GBP") {
+  const n = Number(amount || 0);
+  try {
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+    }).format(n);
+  } catch {
+    return `${currency} ${toMoney(n).toFixed(2)}`;
+  }
+}
+
+function escapeHtml(str) {
+  return String(str || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function buildQuoteEmailHtml({ shipment, quote }) {
+  const ref = escapeHtml(shipment.referenceNo || "");
+  const shipperName = escapeHtml(shipment.shipper?.name || "Customer");
+  const origin = escapeHtml(shipment.ports?.originPort || "");
+  const dest = escapeHtml(shipment.ports?.destinationPort || "");
+  const serviceType = escapeHtml(shipment.serviceType || "");
+  const mode = escapeHtml(shipment.mode || "");
+  const validUntil = quote.validUntil
+    ? new Date(quote.validUntil).toLocaleDateString("en-GB")
+    : null;
+
+  const rows = (quote.lineItems || [])
+    .map((li) => {
+      const label = escapeHtml(li.label);
+      const qty = escapeHtml(li.qty);
+      const unit = formatCurrency(li.unitPrice, quote.currency);
+      const amt = formatCurrency(li.amount, quote.currency);
+      return `
+        <tr>
+          <td style="padding:10px 8px;border-bottom:1px solid #eee;">${label}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #eee;text-align:right;">${qty}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #eee;text-align:right;">${escapeHtml(
+            unit
+          )}</td>
+          <td style="padding:10px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${escapeHtml(
+            amt
+          )}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  const notes = quote.notesToCustomer
+    ? `<div style="margin-top:12px;color:#334155;font-size:14px;line-height:1.4;">
+         <strong>Notes:</strong><br/>${escapeHtml(
+           quote.notesToCustomer
+         ).replaceAll("\n", "<br/>")}
+       </div>`
+    : "";
+
+  return `
+  <div style="font-family:Arial,Helvetica,sans-serif;background:#f8fafc;padding:24px;">
+    <div style="max-width:720px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
+      <div style="padding:18px 22px;background:#1A2930;color:#fff;">
+        <div style="font-size:14px;letter-spacing:0.06em;text-transform:uppercase;opacity:.9;">Ellcworth Express</div>
+        <div style="margin-top:6px;font-size:18px;font-weight:700;">Freight Quote</div>
+        <div style="margin-top:6px;font-size:12px;opacity:.9;">Reference: <span style="font-family:monospace;">${ref}</span></div>
+      </div>
+
+      <div style="padding:18px 22px;">
+        <p style="margin:0 0 10px 0;font-size:14px;color:#0f172a;">Dear ${shipperName},</p>
+        <p style="margin:0 0 14px 0;font-size:14px;color:#334155;line-height:1.4;">
+          Thank you for your request. Please find our quote below for <strong>${origin} → ${dest}</strong>
+          (${serviceType}${mode ? ` · ${mode}` : ""}).
+        </p>
+
+        <table style="width:100%;border-collapse:collapse;font-size:14px;color:#0f172a;">
+          <thead>
+            <tr>
+              <th style="text-align:left;padding:10px 8px;border-bottom:2px solid #e5e7eb;">Charge</th>
+              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid #e5e7eb;">Qty</th>
+              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid #e5e7eb;">Unit</th>
+              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid #e5e7eb;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || ""}
+          </tbody>
+        </table>
+
+        <div style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:12px;">
+          <div style="display:flex;justify-content:flex-end;gap:24px;font-size:14px;color:#0f172a;">
+            <div style="text-align:right;">
+              <div style="color:#64748b;">Subtotal</div>
+              <div style="font-weight:700;">${escapeHtml(
+                formatCurrency(quote.subtotal, quote.currency)
+              )}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="color:#64748b;">Tax</div>
+              <div style="font-weight:700;">${escapeHtml(
+                formatCurrency(quote.taxTotal, quote.currency)
+              )}</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="color:#64748b;">Total</div>
+              <div style="font-weight:800;font-size:16px;">${escapeHtml(
+                formatCurrency(quote.total, quote.currency)
+              )}</div>
+            </div>
+          </div>
+        </div>
+
+        ${
+          validUntil
+            ? `<div style="margin-top:10px;color:#64748b;font-size:12px;">Quote valid until: <strong>${escapeHtml(
+                validUntil
+              )}</strong></div>`
+            : ""
+        }
+
+        ${notes}
+
+        <div style="margin-top:16px;color:#334155;font-size:14px;line-height:1.4;">
+          If you would like to proceed, please reply to this email quoting your reference number above.
+          (Customer portal acceptance will be added next.)
+        </div>
+
+        <div style="margin-top:18px;color:#64748b;font-size:12px;">
+          Kind regards,<br/>
+          Ellcworth Express Operations
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+// ---------------- CONTROLLERS ----------------
 
 /**
  * CREATE SHIPMENT
@@ -531,6 +759,182 @@ async function updateStatus(req, res) {
 }
 
 /**
+ * ✅ SAVE QUOTE (admin only — route enforces)
+ * --------------------------------------------------
+ * @route   PATCH /api/v1/shipments/:id/quote
+ * Body: { quote: { currency, validUntil, notesToCustomer, internalNotes, lineItems[] } }
+ */
+async function saveQuote(req, res) {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
+
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid shipment id" });
+    }
+
+    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
+    if (!shipment)
+      return res.status(404).json({ message: "Shipment not found" });
+
+    const incoming = req.body?.quote || req.body || {};
+    const computed = computeQuoteTotals(incoming);
+
+    if (!computed.lineItems || computed.lineItems.length === 0) {
+      return res.status(400).json({
+        message: "Quote must contain at least one line item with a label.",
+      });
+    }
+
+    // Versioning: bump if quote exists
+    const prevVersion = shipment.quote?.version || 0;
+    const nextVersion = prevVersion ? prevVersion + 1 : 1;
+
+    shipment.quote = {
+      ...(shipment.quote ? shipment.quote.toObject?.() : {}),
+      ...computed,
+      version: nextVersion,
+      sentAt: shipment.quote?.sentAt, // keep if already sent (we only set on send endpoint)
+      acceptedAt: shipment.quote?.acceptedAt,
+      acceptedByEmail: shipment.quote?.acceptedByEmail,
+    };
+
+    // Optional: if in request_received, move to under_review when quote draft saved
+    if (shipment.status === "request_received") {
+      shipment.status = "under_review";
+    }
+
+    shipment.trackingEvents.push({
+      status: "update",
+      event: `Quote draft saved (v${nextVersion})`,
+      location: "",
+      date: new Date(),
+      meta: {
+        updatedBy: req?.user?.id || null,
+        source: "admin_quote_save",
+        quoteVersion: nextVersion,
+        total: shipment.quote.total,
+        currency: shipment.quote.currency,
+      },
+    });
+
+    await shipment.save();
+
+    return res.status(200).json({
+      message: "Quote saved",
+      shipment,
+    });
+  } catch (err) {
+    console.error("Error saving quote:", err);
+    return res.status(500).json({
+      message: "Failed to save quote",
+      error: err.message,
+    });
+  }
+}
+
+/**
+ * ✅ SEND QUOTE EMAIL (admin only — route enforces)
+ * --------------------------------------------------
+ * @route   POST /api/v1/shipments/:id/quote/send
+ * Optional body: { toEmail }  // defaults to shipment.shipper.email
+ */
+async function sendQuoteEmail(req, res) {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
+
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid shipment id" });
+    }
+
+    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
+    if (!shipment)
+      return res.status(404).json({ message: "Shipment not found" });
+
+    if (
+      !shipment.quote ||
+      !Array.isArray(shipment.quote.lineItems) ||
+      shipment.quote.lineItems.length === 0
+    ) {
+      return res
+        .status(400)
+        .json({ message: "No saved quote found. Save the quote first." });
+    }
+
+    // Recompute totals defensively (in case something changed)
+    const computed = computeQuoteTotals(shipment.quote);
+    shipment.quote.subtotal = computed.subtotal;
+    shipment.quote.taxTotal = computed.taxTotal;
+    shipment.quote.total = computed.total;
+
+    const toEmail = String(
+      req.body?.toEmail || shipment.shipper?.email || ""
+    ).trim();
+    if (!toEmail) {
+      return res
+        .status(400)
+        .json({
+          message: "No recipient email found (shipper.email is missing).",
+        });
+    }
+
+    if (!dispatchMail) {
+      return res.status(500).json({
+        message:
+          "Email dispatcher not available. Wire BackgroundServices EmailService or provide dispatchMail in this environment.",
+      });
+    }
+
+    const subject = `Ellcworth Express Quote — ${shipment.referenceNo}`;
+    const html = buildQuoteEmailHtml({ shipment, quote: shipment.quote });
+
+    const from =
+      process.env.EMAIL_FROM || process.env.EMAIL || "no-reply@ellcworth.com";
+
+    await dispatchMail({
+      from,
+      to: toEmail,
+      subject,
+      html,
+    });
+
+    shipment.quote.sentAt = new Date();
+    shipment.status = "quoted";
+
+    shipment.trackingEvents.push({
+      status: "update",
+      event: `Quote sent to customer (${toEmail})`,
+      location: "",
+      date: new Date(),
+      meta: {
+        updatedBy: req?.user?.id || null,
+        source: "admin_quote_send",
+        toEmail,
+        quoteVersion: shipment.quote.version || 1,
+        total: shipment.quote.total,
+        currency: shipment.quote.currency,
+      },
+    });
+
+    await shipment.save();
+
+    return res.status(200).json({
+      message: "Quote emailed successfully",
+      shipment,
+    });
+  } catch (err) {
+    console.error("Error sending quote email:", err);
+    return res.status(500).json({
+      message: "Failed to send quote email",
+      error: err.message,
+    });
+  }
+}
+
+/**
  * DASHBOARD STATS (admin only — route enforces)
  * Shape aligned with Home.jsx expectations.
  */
@@ -707,4 +1111,8 @@ module.exports = {
   addDocument,
   updateStatus,
   getDashboardStats,
+
+  // ✅ NEW exports
+  saveQuote,
+  sendQuoteEmail,
 };

@@ -12,6 +12,8 @@ import CustomerLogin from "@/pages/auth/CustomerLogin.jsx";
 // Customer
 import MyShipments from "@/pages/customer/MyShipments.jsx";
 import ShipmentDetails from "@/pages/customer/ShipmentDetails.jsx";
+import NewBooking from "@/pages/customer/NewBooking.jsx";
+import EditBooking from "@/pages/customer/EditBooking.jsx";
 import RequireCustomerAuth from "@/components/auth/RequireCustomerAuth.jsx";
 
 const router = createBrowserRouter([
@@ -42,6 +44,40 @@ const router = createBrowserRouter([
         element: (
           <RequireCustomerAuth>
             <ShipmentDetails />
+          </RequireCustomerAuth>
+        ),
+      },
+      {
+        path: "newbooking",
+        element: (
+          <RequireCustomerAuth>
+            <NewBooking />
+          </RequireCustomerAuth>
+        ),
+      },
+      {
+        path: "shipmentedit/:id",
+        element: (
+          <RequireCustomerAuth>
+            <EditBooking />
+          </RequireCustomerAuth>
+        ),
+      },
+
+      // Customer fallbacks (explicit)
+      {
+        path: "myshipments/*",
+        element: (
+          <RequireCustomerAuth>
+            <NotFound />
+          </RequireCustomerAuth>
+        ),
+      },
+      {
+        path: "shipmentdetails",
+        element: (
+          <RequireCustomerAuth>
+            <NotFound />
           </RequireCustomerAuth>
         ),
       },

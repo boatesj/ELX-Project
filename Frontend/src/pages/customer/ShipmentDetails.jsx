@@ -11,64 +11,12 @@ import {
   FaDownload,
   FaEye,
   FaInfoCircle,
+  FaEdit,
 } from "react-icons/fa";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { customerAuthRequest } from "../../requestMethods";
-
-// ✅ Customer-only keys (must match CustomerLogin.jsx)
-const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
-const CUSTOMER_TOKEN_KEY = "elx_customer_token";
-const CUSTOMER_USER_KEY = "elx_customer_user";
+import { customerAuthRequest, CUSTOMER_TOKEN_KEY } from "@/requestMethods";
 
 const SHIPMENT_PATH = (id) => `/api/v1/shipments/${id}`;
-
-function safeJsonParse(raw) {
-  try {
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function clearCustomerAuth() {
-  localStorage.removeItem(CUSTOMER_SESSION_KEY);
-  localStorage.removeItem(CUSTOMER_TOKEN_KEY);
-  localStorage.removeItem(CUSTOMER_USER_KEY);
-  sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
-  sessionStorage.removeItem(CUSTOMER_USER_KEY);
-}
-
-function readCustomerAuth() {
-  const token =
-    localStorage.getItem(CUSTOMER_TOKEN_KEY) ||
-    sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
-
-  const session = safeJsonParse(localStorage.getItem(CUSTOMER_SESSION_KEY));
-
-  // expiry enforcement (customer session only)
-  if (session?.expiresAt) {
-    const exp = new Date(session.expiresAt).getTime();
-    if (!Number.isNaN(exp) && Date.now() > exp) {
-      clearCustomerAuth();
-      return { token: null, user: null };
-    }
-  }
-
-  const userRaw =
-    localStorage.getItem(CUSTOMER_USER_KEY) ||
-    sessionStorage.getItem(CUSTOMER_USER_KEY);
-
-  const user = safeJsonParse(userRaw) || session?.user || null;
-
-  // Extra safety: customer portal must never treat admin as authenticated
-  const role = String(user?.role || "").toLowerCase();
-  if (role === "admin") {
-    clearCustomerAuth();
-    return { token: null, user: null };
-  }
-
-  return { token: token || null, user };
-}
 
 const getStatusClasses = (status) => {
   const s = String(status || "").toLowerCase();
@@ -146,24 +94,18 @@ function toDisplayDate(val) {
   }
 }
 
-/**
- * Backend shape:
- * trackingEvents[]: { status, event, location, date }
- */
 function buildTimeline(shipment) {
   const raw = Array.isArray(shipment?.trackingEvents)
     ? shipment.trackingEvents
     : [];
 
   if (raw.length) {
-    // Sort oldest -> newest by date
     const sorted = [...raw].sort((a, b) => {
       const ad = new Date(a?.date || 0).getTime();
       const bd = new Date(b?.date || 0).getTime();
       return ad - bd;
     });
 
-    // Mark latest as current, previous as done
     return sorted
       .map((e, idx) => {
         const isLast = idx === sorted.length - 1;
@@ -179,7 +121,6 @@ function buildTimeline(shipment) {
       .filter((e) => e.label.trim().length > 0);
   }
 
-  // Fallback timeline from status
   const rank = statusRank(shipment?.status);
   const bookedAt = shipment?.createdAt ? toDisplayDate(shipment.createdAt) : "";
 
@@ -222,15 +163,10 @@ function buildTimeline(shipment) {
     },
   ];
 
-  // Normalize "current" for low ranks
   if (rank === 0) base[0].state = "current";
-
   return base;
 }
 
-/**
- * Backend documents[]: { name, fileUrl, uploadedAt, uploadedBy }
- */
 function canActOnDoc(doc) {
   const url = String(doc?.fileUrl || "").trim();
   return url.length > 0;
@@ -239,7 +175,6 @@ function getDocUrl(doc) {
   return String(doc?.fileUrl || "").trim();
 }
 
-// ✅ Robustly pick shipment from various response shapes
 function pickShipment(payload) {
   if (payload && typeof payload === "object") {
     if (payload.data && typeof payload.data === "object") return payload.data;
@@ -262,7 +197,6 @@ const ShipmentFeedback = ({ reference }) => {
     setSubmitting(true);
 
     try {
-      // Phase 5: minimal, operational (no backend wiring yet)
       console.log("Feedback submitted:", { reference, message });
       setSubmitted(true);
       setMessage("");
@@ -415,13 +349,28 @@ const ShipmentDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const [hasToken, setHasToken] = useState(() => {
+    const local = localStorage.getItem(CUSTOMER_TOKEN_KEY);
+    const session = sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
+    return Boolean(local || session);
+  });
+
   const [shipment, setShipment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState("");
 
   useEffect(() => {
-    const { token } = readCustomerAuth();
-    if (!token) {
+    const onStorage = () => {
+      const local = localStorage.getItem(CUSTOMER_TOKEN_KEY);
+      const session = sessionStorage.getItem(CUSTOMER_TOKEN_KEY);
+      setHasToken(Boolean(local || session));
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  useEffect(() => {
+    if (!hasToken) {
       setLoading(false);
       setShipment(null);
       setErrMsg("");
@@ -436,7 +385,6 @@ const ShipmentDetails = () => {
       setErrMsg("");
 
       try {
-        // ✅ Using customerAuthRequest (Frontend requestMethods)
         const res = await customerAuthRequest.get(SHIPMENT_PATH(id), {
           signal: ac.signal,
         });
@@ -461,14 +409,6 @@ const ShipmentDetails = () => {
 
         const status = e?.response?.status;
 
-        if (status === 401) {
-          clearCustomerAuth();
-          setShipment(null);
-          setErrMsg("Your session has expired. Please sign in again.");
-          navigate("/login", { replace: true });
-          return;
-        }
-
         if (status === 404) {
           setShipment(null);
           setErrMsg("Shipment not found.");
@@ -486,7 +426,7 @@ const ShipmentDetails = () => {
     })();
 
     return () => ac.abort();
-  }, [id, navigate]);
+  }, [id, navigate, hasToken]);
 
   const timeline = useMemo(
     () => (shipment ? buildTimeline(shipment) : []),
@@ -569,8 +509,18 @@ const ShipmentDetails = () => {
               <span>Back to my shipments</span>
             </button>
           </Link>
-          <div className="hidden md:flex items-center text-[11px] uppercase tracking-[0.2em] text-[#9A9EAB]">
-            CUSTOMER PORTAL · ELLCWORTH EXPRESS
+
+          <div className="flex items-center gap-3">
+            <Link to={`/shipmentedit/${id}`}>
+              <button className="inline-flex items-center gap-2 text-xs md:text-sm px-3 py-2 rounded-full border border-white/20 text-slate-100 hover:border-[#FFA500] hover:text-[#FFA500] hover:bg-[#FFA500]/10 transition">
+                <FaEdit />
+                Edit booking
+              </button>
+            </Link>
+
+            <div className="hidden md:flex items-center text-[11px] uppercase tracking-[0.2em] text-[#9A9EAB]">
+              CUSTOMER PORTAL · ELLCWORTH EXPRESS
+            </div>
           </div>
         </div>
 

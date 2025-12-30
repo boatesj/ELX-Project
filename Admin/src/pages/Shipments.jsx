@@ -14,6 +14,19 @@ const formatStatusLabel = (status) => {
 
 const getStatusClasses = (status) => {
   switch (status) {
+    // ✅ Request / Quote pipeline
+    case "request_received":
+      return "bg-[#1A2930]/10 text-[#1A2930] border border-[#1A2930]/25";
+    case "under_review":
+      return "bg-blue-100 text-blue-800 border border-blue-200";
+    case "quoted":
+      return "bg-indigo-100 text-indigo-800 border border-indigo-200";
+    case "customer_requested_changes":
+      return "bg-amber-100 text-amber-800 border border-amber-200";
+    case "customer_approved":
+      return "bg-emerald-100 text-emerald-800 border border-emerald-200";
+
+    // Existing
     case "pending":
       return "bg-gray-100 text-gray-700 border border-gray-300";
     case "booked":
@@ -35,6 +48,14 @@ const getStatusClasses = (status) => {
   }
 };
 
+const REQUEST_STATUSES = new Set([
+  "request_received",
+  "under_review",
+  "quoted",
+  "customer_requested_changes",
+  "customer_approved",
+]);
+
 const Shipments = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -43,7 +64,10 @@ const Shipments = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  // ✅ Controlled pagination (fixes “stuck” pagination issues)
+  // ✅ Filter mode
+  const [viewMode, setViewMode] = useState("all"); // all | requests | operational
+
+  // ✅ Controlled pagination
   const [paginationModel, setPaginationModel] = useState({
     page: 0,
     pageSize: 5,
@@ -95,8 +119,6 @@ const Shipments = () => {
       { field: "destination", headerName: "Destination", width: 170 },
       { field: "mode", headerName: "Mode", width: 110 },
       { field: "weight", headerName: "Weight", width: 120 },
-
-      // ✅ New: Documents count
       {
         field: "docsCount",
         headerName: "Docs",
@@ -123,11 +145,10 @@ const Shipments = () => {
           );
         },
       },
-
       {
         field: "status",
         headerName: "Status",
-        width: 160,
+        width: 190,
         renderCell: (params) => (
           <div className="flex items-center h-full">
             <span
@@ -140,7 +161,6 @@ const Shipments = () => {
           </div>
         ),
       },
-
       {
         field: "actions",
         headerName: "Actions",
@@ -150,9 +170,15 @@ const Shipments = () => {
         renderCell: (params) => {
           const id = params.row._id;
 
+          /**
+           * ✅ CRITICAL FIX:
+           * Use RELATIVE links so Admin works under /admin (or any base path).
+           * - From /shipments -> `to={`${id}`}` navigates to /shipments/:id (within Admin app)
+           * - Works whether Admin is hosted at / or /admin
+           */
           return (
             <div className="flex items-center h-full gap-2">
-              <Link to={`/shipments/${id}`}>
+              <Link to={`${id}`}>
                 <button
                   type="button"
                   className="
@@ -165,8 +191,7 @@ const Shipments = () => {
                 </button>
               </Link>
 
-              {/* ✅ New: Docs shortcut (anchors to documents section on detail page) */}
-              <Link to={`/shipments/${id}#documents`}>
+              <Link to={`${id}#documents`}>
                 <button
                   type="button"
                   className="
@@ -234,10 +259,7 @@ const Shipments = () => {
           mode: s.mode || "",
           weight: s.cargo?.weight || "",
           status: s.status || "pending",
-
-          // ✅ docsCount derived from backend Shipment.documents array
           docsCount: Array.isArray(s.documents) ? s.documents.length : 0,
-
           raw: s,
         }));
 
@@ -263,14 +285,52 @@ const Shipments = () => {
     getShipments();
   }, [redirectToLogin]);
 
+  const filteredRows = useMemo(() => {
+    if (viewMode === "requests") {
+      return rows.filter((r) => REQUEST_STATUSES.has(r.status));
+    }
+    if (viewMode === "operational") {
+      return rows.filter((r) => !REQUEST_STATUSES.has(r.status));
+    }
+    return rows;
+  }, [rows, viewMode]);
+
   return (
     <div className="bg-[#D9D9D9] rounded-md p-3 sm:p-5 lg:p-[20px]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-        <h1 className="text-[18px] sm:text-[20px] font-semibold">
-          All Shipments
-        </h1>
+        <div className="flex flex-col gap-2">
+          <h1 className="text-[18px] sm:text-[20px] font-semibold">
+            All Shipments
+          </h1>
 
-        <Link to="/newshipment" className="w-full sm:w-auto">
+          {/* ✅ Quick filter */}
+          <div className="inline-flex w-fit rounded-full bg-white border border-slate-200 p-1">
+            {[
+              { id: "all", label: "All" },
+              { id: "requests", label: "Requests" },
+              { id: "operational", label: "Operational" },
+            ].map((t) => {
+              const active = viewMode === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setViewMode(t.id)}
+                  className={`px-3 py-1 rounded-full text-[11px] font-semibold transition ${
+                    active
+                      ? "bg-[#FFA500] text-black"
+                      : "bg-transparent text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ✅ RELATIVE: from /shipments -> ../newshipment */}
+        <Link to={`../newshipment`} className="w-full sm:w-auto">
           <button className="w-full sm:w-auto bg-[#1A2930] text-white px-4 py-2.5 rounded-md hover:bg-[#FFA500] hover:text-black transition font-semibold">
             New Shipment
           </button>
@@ -289,12 +349,12 @@ const Shipments = () => {
           <div className="bg-white rounded-md p-4 shadow-md text-sm text-gray-600">
             Loading shipments...
           </div>
-        ) : rows.length === 0 ? (
+        ) : filteredRows.length === 0 ? (
           <div className="bg-white rounded-md p-4 shadow-md text-sm text-gray-600">
             No shipments found.
           </div>
         ) : (
-          rows.map((row) => (
+          filteredRows.map((row) => (
             <div
               key={row._id}
               className="bg-white rounded-md p-4 shadow-md border border-slate-100"
@@ -309,7 +369,6 @@ const Shipments = () => {
                     {row.weight ? `• ${row.weight}` : ""}
                   </div>
 
-                  {/* ✅ Docs badge */}
                   <div className="mt-2 inline-flex items-center gap-2">
                     <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
                       <FaFileAlt className="text-slate-500" />
@@ -360,14 +419,13 @@ const Shipments = () => {
               </div>
 
               <div className="mt-4 flex items-center gap-2">
-                <Link to={`/shipments/${row._id}`} className="flex-1">
+                <Link to={`${row._id}`} className="flex-1">
                   <button className="w-full px-3 py-2 rounded-md font-semibold text-xs bg-[#FFA500] text-black hover:bg-[#e69300] transition">
                     Edit
                   </button>
                 </Link>
 
-                {/* ✅ Docs shortcut */}
-                <Link to={`/shipments/${row._id}#documents`} className="flex-1">
+                <Link to={`${row._id}#documents`} className="flex-1">
                   <button className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md font-semibold text-xs bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition">
                     <FaFileAlt />
                     Docs
@@ -390,7 +448,7 @@ const Shipments = () => {
       {/* DESKTOP: DataGrid */}
       <div className="hidden lg:block bg-white rounded-md p-4 shadow-md">
         <DataGrid
-          rows={rows}
+          rows={filteredRows}
           getRowId={(row) => row._id}
           columns={columns}
           loading={loading}
@@ -400,6 +458,13 @@ const Shipments = () => {
           paginationModel={paginationModel}
           onPaginationModelChange={setPaginationModel}
           autoHeight
+          sx={{
+            color: "#0f172a",
+            "& .MuiDataGrid-columnHeaders": { color: "#0f172a" },
+            "& .MuiDataGrid-cell": { color: "#0f172a" },
+            "& .MuiDataGrid-footerContainer": { color: "#0f172a" },
+            "& .MuiTablePagination-root": { color: "#0f172a" },
+          }}
         />
       </div>
     </div>
