@@ -347,6 +347,32 @@ function buildQuoteEmailHtml({ shipment, quote }) {
   `;
 }
 
+// ---------------- CHARGES HELPERS ----------------
+
+function normalizeCharges(rawCharges) {
+  const list = Array.isArray(rawCharges) ? rawCharges : [];
+
+  return list
+    .filter((c) => c && String(c.label || "").trim())
+    .map((c) => {
+      const label = String(c.label || "").trim();
+      const amountNum = Number(c.amount);
+      const amount = Number.isFinite(amountNum) ? toMoney(amountNum) : 0;
+
+      return {
+        label,
+        amount,
+        currency: String(c.currency || "GBP").trim() || "GBP",
+        category: String(c.category || "").trim(),
+      };
+    });
+}
+
+function sumCharges(charges) {
+  const list = Array.isArray(charges) ? charges : [];
+  return toMoney(list.reduce((sum, c) => sum + (Number(c.amount) || 0), 0));
+}
+
 // ---------------- CONTROLLERS ----------------
 
 /**
@@ -550,6 +576,68 @@ async function updateShipment(req, res) {
     console.error("Error updating shipment:", err);
     return res.status(500).json({
       message: "Failed to update shipment",
+      error: err.message,
+    });
+  }
+}
+
+/**
+ * ✅ UPDATE CHARGES (admin only — route enforces)
+ * --------------------------------------------------
+ * @route   PATCH /api/v1/shipments/:id/charges
+ * Body: { charges: [{label, amount, currency, category}, ...] } OR just an array
+ */
+async function updateCharges(req, res) {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
+
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid shipment id" });
+    }
+
+    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
+    if (!shipment) {
+      return res.status(404).json({ message: "Shipment not found" });
+    }
+
+    const incoming = Array.isArray(req.body)
+      ? req.body
+      : Array.isArray(req.body?.charges)
+      ? req.body.charges
+      : [];
+
+    const charges = normalizeCharges(incoming);
+
+    // Allow saving empty array (clearing charges) — intentional
+    shipment.charges = charges;
+
+    shipment.trackingEvents.push({
+      status: "update",
+      event: `Charges updated (${charges.length} line${
+        charges.length === 1 ? "" : "s"
+      })`,
+      location: "",
+      date: new Date(),
+      meta: {
+        updatedBy: req?.user?.id || null,
+        source: "admin_charges_update",
+        lineCount: charges.length,
+        total: sumCharges(charges),
+        currency: charges.find((c) => c?.currency)?.currency || "GBP",
+      },
+    });
+
+    await shipment.save();
+
+    return res.status(200).json({
+      message: "Charges updated",
+      shipment,
+    });
+  } catch (err) {
+    console.error("Error updating charges:", err);
+    return res.status(500).json({
+      message: "Failed to update charges",
       error: err.message,
     });
   }
@@ -874,11 +962,9 @@ async function sendQuoteEmail(req, res) {
       req.body?.toEmail || shipment.shipper?.email || ""
     ).trim();
     if (!toEmail) {
-      return res
-        .status(400)
-        .json({
-          message: "No recipient email found (shipper.email is missing).",
-        });
+      return res.status(400).json({
+        message: "No recipient email found (shipper.email is missing).",
+      });
     }
 
     if (!dispatchMail) {
@@ -1106,6 +1192,7 @@ module.exports = {
   getOneShipment,
   getUserShipment,
   updateShipment,
+  updateCharges,
   deleteShipment,
   addTrackingEvent,
   addDocument,
