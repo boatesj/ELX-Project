@@ -24,6 +24,14 @@ const SERVICE_LEVELS = [
 const PAYMENT_STATUSES = ["unpaid", "part_paid", "paid", "on_account"];
 
 const SHIPMENT_STATUSES = [
+  // ✅ Request → Quote → Approval (new)
+  "request_received",
+  "under_review",
+  "quoted",
+  "customer_requested_changes",
+  "customer_approved",
+
+  // Existing operational statuses
   "pending",
   "booked",
   "at_origin_yard",
@@ -71,7 +79,7 @@ const validateRegister = [
     .notEmpty()
     .withMessage("Address is required"),
   body("age")
-    .optional()
+    .optional({ nullable: true })
     .isInt({ min: 0, max: 130 })
     .withMessage("Age must be a valid number between 0 and 130"),
 ];
@@ -93,16 +101,16 @@ const validateTrackingEvent = [
     .notEmpty()
     .withMessage("Event description is required"),
   body("date")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isISO8601()
     .withMessage("Date must be in ISO8601 format"),
   body("location")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Location must be a string"),
   body("meta")
-    .optional()
+    .optional({ nullable: true })
     .isObject()
     .withMessage("Meta must be an object if provided"),
 ];
@@ -120,20 +128,20 @@ const validateDocument = [
 ];
 
 /**
- * Validate shipment creation – aligned with controller behavior:
- * - customer is OPTIONAL (admin may provide; customers will be set server-side)
- * - referenceNo is OPTIONAL (model generates; controller deletes unless keepRef)
- * - shipper/consignee/ports remain REQUIRED
+ * Validate shipment creation – aligned with staged intake (corporate standard):
+ * - required: shipper.name/address/email, consignee.name/address, ports origin/destination
+ * - optional fields can be missing OR null OR "" at request stage
+ * - format validation triggers only when a real value exists
  */
 const validateShipmentCreate = [
   // Ownership & identity
   body("customer")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isMongoId()
     .withMessage("Customer ID must be a valid ObjectId"),
 
   body("referenceNo")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .notEmpty()
@@ -141,16 +149,16 @@ const validateShipmentCreate = [
 
   // Basic classification
   body("shipmentType")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isIn(SHIPMENT_TYPES)
     .withMessage(`Shipment type must be one of: ${SHIPMENT_TYPES.join(", ")}`),
 
   body("serviceLevel")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isIn(SERVICE_LEVELS)
     .withMessage(`Service level must be one of: ${SERVICE_LEVELS.join(", ")}`),
 
-  // Shipper
+  // Shipper (required)
   body("shipper.name")
     .isString()
     .trim()
@@ -165,12 +173,12 @@ const validateShipmentCreate = [
     .isEmail()
     .withMessage("Shipper email must be a valid email address"),
   body("shipper.phone")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Shipper phone must be a string"),
 
-  // Consignee
+  // Consignee (name/address required, email optional)
   body("consignee.name")
     .isString()
     .trim()
@@ -181,33 +189,36 @@ const validateShipmentCreate = [
     .trim()
     .notEmpty()
     .withMessage("Consignee address is required"),
+
+  // ✅ Corporate: accept "", null, missing — validate only if a real value exists
   body("consignee.email")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isEmail()
     .withMessage("Consignee email must be a valid email address"),
+
   body("consignee.phone")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Consignee phone must be a string"),
 
   // Notify party (fully optional)
   body("notify.name")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Notify name must be a string"),
   body("notify.address")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Notify address must be a string"),
   body("notify.email")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isEmail()
     .withMessage("Notify email must be a valid email address"),
   body("notify.phone")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Notify phone must be a string"),
@@ -226,145 +237,145 @@ const validateShipmentCreate = [
 
   // Mode & status
   body("mode")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isIn(SHIPMENT_MODES)
     .withMessage(`Mode must be one of: ${SHIPMENT_MODES.join(", ")}`),
 
   body("status")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isIn(SHIPMENT_STATUSES)
     .withMessage(`Status must be one of: ${SHIPMENT_STATUSES.join(", ")}`),
 
   // Commercials
   body("incoterm")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Incoterm must be a string"),
   body("cargoValue.amount")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isFloat({ gt: 0 })
     .withMessage("Cargo value amount must be a positive number"),
   body("cargoValue.currency")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Cargo value currency must be a string"),
   body("paymentStatus")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isIn(PAYMENT_STATUSES)
     .withMessage(
       `Payment status must be one of: ${PAYMENT_STATUSES.join(", ")}`
     ),
 
-  // Dates
+  // ✅ Corporate: accept null/"" for date fields at request stage
   body("shippingDate")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isISO8601()
     .withMessage("Shipping date must be a valid ISO date"),
   body("eta")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isISO8601()
     .withMessage("ETA must be a valid ISO date"),
 
   // Cargo – light-touch validation
   body("cargo.description")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Cargo description must be a string"),
 
   body("cargo.weight")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Cargo weight must be a string"),
 
   body("cargo.volumeCbm")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isFloat({ gt: 0 })
     .withMessage("Cargo volume (cbm) must be a positive number"),
 
   body("cargo.packageCount")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isInt({ min: 1 })
     .withMessage("Package count must be at least 1"),
 
   // Vehicle (RoRo)
   body("cargo.vehicle.make")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Vehicle make must be a string"),
   body("cargo.vehicle.model")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Vehicle model must be a string"),
   body("cargo.vehicle.year")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Vehicle year must be a string"),
   body("cargo.vehicle.vin")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Vehicle VIN must be a string"),
   body("cargo.vehicle.registrationNo")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Vehicle registration number must be a string"),
 
   // Container
   body("cargo.container.containerNo")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Container number must be a string"),
   body("cargo.container.size")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Container size must be a string"),
   body("cargo.container.sealNo")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Seal number must be a string"),
 
   // Secure documents shipment
   body("cargo.documentsShipment.count")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isInt({ min: 1 })
     .withMessage("Documents count must be at least 1"),
   body("cargo.documentsShipment.docTypes")
-    .optional()
+    .optional({ nullable: true })
     .isArray()
     .withMessage("Document types must be an array of strings"),
   body("cargo.documentsShipment.secure")
-    .optional()
+    .optional({ nullable: true })
     .isBoolean()
     .withMessage("Documents secure flag must be boolean"),
 
-  // ✅ NEW: allow these fields through validation (you use them in the Admin Shipment edit page)
+  // Allow these fields through validation
   body("serviceType")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isIn(["sea_freight", "air_freight"])
     .withMessage("Service type must be one of: sea_freight, air_freight"),
   body("cargoType")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isIn(["vehicle", "container", "lcl"])
     .withMessage("Cargo type must be one of: vehicle, container, lcl"),
 
-  // ✅ NEW: allow value-added services payload (your UI sends services.repacking.*)
+  // Allow value-added services payload
   body("services.repacking.required")
-    .optional()
+    .optional({ nullable: true })
     .isBoolean()
     .withMessage("Repacking required flag must be boolean"),
   body("services.repacking.notes")
-    .optional()
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
     .withMessage("Repacking notes must be a string"),

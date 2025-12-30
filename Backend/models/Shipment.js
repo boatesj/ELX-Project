@@ -72,15 +72,60 @@ const PackageSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// ------------------ QUOTE SUBSCHEMAS ------------------
+const QuoteLineSchema = new mongoose.Schema(
+  {
+    code: { type: String, trim: true, default: "" }, // e.g. OCEAN_FREIGHT
+    label: { type: String, required: true, trim: true }, // e.g. "Ocean freight"
+    qty: { type: Number, default: 1, min: 0 },
+    unitPrice: { type: Number, default: 0, min: 0 },
+    amount: { type: Number, default: 0, min: 0 }, // can be computed (qty * unitPrice)
+    taxRate: { type: Number, default: 0, min: 0 }, // e.g. 20 for VAT
+  },
+  { _id: false }
+);
+
+const QuoteSchema = new mongoose.Schema(
+  {
+    currency: { type: String, default: "GBP", trim: true },
+    validUntil: { type: Date },
+    notesToCustomer: { type: String, trim: true, default: "" },
+    internalNotes: { type: String, trim: true, default: "" },
+
+    lineItems: { type: [QuoteLineSchema], default: [] },
+
+    subtotal: { type: Number, default: 0, min: 0 },
+    taxTotal: { type: Number, default: 0, min: 0 },
+    total: { type: Number, default: 0, min: 0 },
+
+    version: { type: Number, default: 1, min: 1 },
+
+    sentAt: { type: Date },
+    acceptedAt: { type: Date },
+    acceptedByEmail: { type: String, trim: true },
+  },
+  { _id: false }
+);
+
 // ------------------ MAIN SCHEMA ------------------
 
 const ShipmentSchema = new mongoose.Schema(
   {
-    // Owner / creator (registered user)
+    // Owner / creator (registered user) — OPTIONAL for web quote requests
     customer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: function () {
+        // Allow anonymous lead stage (request/quote workflow) without forcing an account
+        const leadStatuses = [
+          "request_received",
+          "under_review",
+          "quoted",
+          "customer_requested_changes",
+          "customer_approved",
+        ];
+        return !leadStatuses.includes(this.status);
+      },
     },
 
     // Who keyed in the booking (often an Ellcworth admin)
@@ -94,6 +139,38 @@ const ShipmentSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+    },
+
+    // ✅ Quote / request classification (used by your QuoteSection payload)
+    serviceType: {
+      type: String,
+      enum: ["sea_freight", "air_freight"],
+      trim: true,
+    },
+    cargoType: {
+      type: String,
+      enum: ["vehicle", "container", "lcl"],
+      trim: true,
+    },
+
+    // ✅ Value-added services (used by your UI)
+    services: {
+      repacking: {
+        required: { type: Boolean, default: false },
+        notes: { type: String, trim: true, default: "" },
+      },
+    },
+
+    // ✅ meta/audit bucket (web_quote intake etc.)
+    meta: {
+      type: Object,
+      default: {},
+    },
+
+    // ✅ Quote object (admin pricing + customer-facing quote)
+    quote: {
+      type: QuoteSchema,
+      default: undefined,
     },
 
     // Basic classification
@@ -122,7 +199,7 @@ const ShipmentSchema = new mongoose.Schema(
       name: { type: String, required: true, trim: true },
       address: { type: String, required: true, trim: true },
       phone: { type: String, trim: true },
-      email: { type: String, trim: true },
+      email: { type: String, trim: true }, // optional at request stage
     },
 
     // Notify party (optional)
@@ -219,17 +296,24 @@ const ShipmentSchema = new mongoose.Schema(
     vessel: {
       name: { type: String, trim: true },
       voyage: { type: String, trim: true },
-      // For air we can still reuse these two fields or add more later
     },
 
     // Shipping & arrival estimates
     shippingDate: { type: Date },
     eta: { type: Date },
 
-    // Shipment lifecycle status (internal tracking)
+    // ✅ Shipment lifecycle status (now includes request/quote workflow)
     status: {
       type: String,
       enum: [
+        // Request → Quote workflow
+        "request_received",
+        "under_review",
+        "quoted",
+        "customer_requested_changes",
+        "customer_approved",
+
+        // Operational
         "pending",
         "booked",
         "at_origin_yard",
