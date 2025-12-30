@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { customerAuthRequest, publicRequest } from "../requestMethods"; // ✅ update path if needed
 
 const SERVICE_TABS = [
   { id: "container", label: "Container shipping" },
@@ -6,24 +7,347 @@ const SERVICE_TABS = [
   { id: "air", label: "Air freight" },
 ];
 
+/**
+ * Remove "bad optional" values that trigger express-validator:
+ * - null
+ * - undefined
+ * - "" (empty string)
+ *
+ * Keeps objects/arrays if they contain meaningful values.
+ * NOTE: We do NOT blank out required placeholders like "To be confirmed".
+ */
+function deepPrune(value) {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value === "string" && value.trim() === "") return undefined;
+
+  if (Array.isArray(value)) {
+    const cleaned = value.map(deepPrune).filter((v) => v !== undefined);
+    return cleaned.length ? cleaned : undefined;
+  }
+
+  if (typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      const cleaned = deepPrune(v);
+      if (cleaned !== undefined) out[k] = cleaned;
+    }
+    return Object.keys(out).length ? out : undefined;
+  }
+
+  return value;
+}
+
+function normaliseDateToIso(value) {
+  // Accept:
+  // - "YYYY-MM-DD" (from <input type="date">)
+  // - Date object
+  // - ISO string
+  if (!value) return undefined;
+
+  if (value instanceof Date) {
+    const t = value.getTime();
+    return Number.isFinite(t) ? value.toISOString() : undefined;
+  }
+
+  const s = String(value).trim();
+  if (!s) return undefined;
+
+  // If it looks like YYYY-MM-DD, convert to ISO midnight UTC
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const d = new Date(`${s}T00:00:00.000Z`);
+    return Number.isFinite(d.getTime()) ? d.toISOString() : undefined;
+  }
+
+  // Otherwise let it pass as-is (backend isISO8601 will validate)
+  return s;
+}
+
 const QuoteSection = () => {
   const [activeService, setActiveService] = useState("container");
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [createdRef, setCreatedRef] = useState("");
 
   const serviceLabel = useMemo(
     () => getServiceLabel(activeService),
     [activeService]
   );
 
-  const handleSubmit = (e) => {
+  const pickClient = () => {
+    // If customer token exists, use customer client; else use public client.
+    const token =
+      localStorage.getItem("elx_customer_token") ||
+      sessionStorage.getItem("elx_customer_token") ||
+      null;
+
+    return token ? customerAuthRequest : publicRequest;
+  };
+
+  const buildPayloadFromForm = (fd, serviceId) => {
+    const leadName = String(fd.get("lead_name") || "").trim();
+    const leadEmail = String(fd.get("lead_email") || "").trim();
+    const leadPhone = String(fd.get("lead_phone") || "").trim();
+
+    const nowIso = new Date().toISOString();
+
+    // Shared defaults (validator requires shipper/consignee/ports)
+    const base = {
+      status: "request_received",
+      paymentStatus: "unpaid",
+
+      shipper: {
+        name: leadName,
+        address: "To be confirmed",
+        email: leadEmail,
+        phone: leadPhone || "",
+      },
+
+      // Consignee info may be unknown at request stage
+      consignee: {
+        name: "To be confirmed",
+        address: "To be confirmed",
+        // email omitted intentionally
+        // phone omitted intentionally
+      },
+
+      // Keep notify optional; empty object is okay (we'll prune if empty)
+      notify: {},
+
+      ports: {
+        originPort: "",
+        destinationPort: "",
+      },
+
+      cargo: {
+        description: "",
+        weight: "",
+        vehicle: {},
+        container: {},
+        documentsShipment: {},
+      },
+
+      services: {
+        repacking: {
+          required: false,
+          notes: "",
+        },
+      },
+
+      meta: {
+        source: "web_quote",
+        createdAtClient: nowIso,
+        serviceTab: serviceId,
+      },
+    };
+
+    if (serviceId === "container") {
+      const from = String(fd.get("container_from") || "").trim();
+      const to = String(fd.get("container_to") || "").trim();
+      const cargoType = String(fd.get("container_cargo_type") || "").trim(); // fcl20 | fcl40 | lcl
+      const weight = String(fd.get("container_weight") || "").trim();
+      const readyDate = String(fd.get("container_ready_date") || "").trim();
+      const desc = String(fd.get("container_description") || "").trim();
+
+      base.ports.originPort = from;
+      base.ports.destinationPort = to;
+
+      const isLcl = cargoType === "lcl";
+      base.serviceType = "sea_freight";
+      base.cargoType = isLcl ? "lcl" : "container";
+      base.mode = isLcl ? "LCL" : "Container";
+
+      base.cargo.weight = weight ? `${weight} kg` : "";
+
+      // ✅ send ISO string if provided; otherwise omit
+      base.shippingDate = normaliseDateToIso(readyDate);
+
+      base.cargo.description = [
+        "Quote request · Container",
+        `Cargo: ${cargoType || "—"}`,
+        desc ? `Description: ${desc}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      base.meta.intake = {
+        container: {
+          cargoType,
+          weightKg: weight || null,
+          readyDate: readyDate || null,
+          description: desc || "",
+        },
+      };
+
+      return base;
+    }
+
+    if (serviceId === "roro") {
+      const from = String(fd.get("roro_from") || "").trim();
+      const to = String(fd.get("roro_to") || "").trim();
+      const vehicleType = String(fd.get("roro_vehicle_type") || "").trim();
+      const makeModel = String(fd.get("roro_make_model") || "").trim();
+      const running = String(fd.get("roro_running") || "runner").trim();
+      const delivery = String(fd.get("roro_delivery") || "delivered").trim();
+      const dimensions = String(fd.get("roro_dimensions") || "").trim();
+
+      base.ports.originPort = from;
+      base.ports.destinationPort = to;
+
+      base.serviceType = "sea_freight";
+      base.cargoType = "vehicle";
+      base.mode = "RoRo";
+
+      base.cargo.vehicle = {
+        make: makeModel,
+        model: "",
+        year: "",
+        vin: "",
+        registrationNo: "",
+      };
+
+      base.cargo.description = [
+        "Quote request · RoRo",
+        `Vehicle: ${vehicleType || "—"}`,
+        makeModel ? `Make/Model: ${makeModel}` : null,
+        `Condition: ${running === "runner" ? "Runs & drives" : "Non-runner"}`,
+        `Port access: ${
+          delivery === "delivered" ? "Delivered to port" : "Need collection"
+        }`,
+        dimensions ? `Dims: ${dimensions}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      base.meta.intake = {
+        roro: {
+          from,
+          to,
+          vehicleType,
+          makeModel,
+          running,
+          delivery,
+          dimensions,
+        },
+      };
+
+      return base;
+    }
+
+    // air
+    const from = String(fd.get("air_from") || "").trim();
+    const to = String(fd.get("air_to") || "").trim();
+    const airType = String(fd.get("air_type") || "").trim(); // docs | parcels | freight
+    const weight = String(fd.get("air_weight") || "").trim();
+    const dims = String(fd.get("air_dimensions") || "").trim();
+    const deadline = String(fd.get("air_deadline") || "").trim();
+
+    base.ports.originPort = from;
+    base.ports.destinationPort = to;
+
+    base.serviceType = "air_freight";
+
+    if (airType === "docs") {
+      base.mode = "Documents";
+      base.cargoType = "lcl";
+      base.cargo.documentsShipment = {
+        count: 1,
+        docTypes: ["Documents"],
+        secure: true,
+      };
+    } else {
+      base.mode = "Air";
+      base.cargoType = "lcl";
+    }
+
+    base.cargo.weight = weight ? `${weight} kg` : "";
+
+    base.cargo.description = [
+      "Quote request · Air freight",
+      `Type: ${airType || "—"}`,
+      weight ? `Weight: ${weight} kg` : null,
+      dims ? `Dims: ${dims}` : null,
+      deadline ? `Deadline: ${deadline}` : null,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    base.meta.intake = {
+      air: {
+        from,
+        to,
+        airType,
+        weightKg: weight || null,
+        dimensions: dims,
+        deadline: deadline || null,
+      },
+    };
+
+    return base;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Phase 4: UI-only lead capture (no backend wiring yet).
-    // Keep it quiet + professional.
-    setSubmitted(true);
+    // ✅ capture form element immediately; don't rely on e.currentTarget after await
+    const formEl = e.currentTarget;
 
-    // Optional: auto-hide the success notice after a bit
-    window.setTimeout(() => setSubmitted(false), 6500);
+    setSubmitError("");
+    setCreatedRef("");
+    setSubmitting(true);
+
+    try {
+      const fd = new FormData(formEl);
+
+      let payload = buildPayloadFromForm(fd, activeService);
+
+      // Guard (ports required by validator)
+      if (!payload?.ports?.originPort || !payload?.ports?.destinationPort) {
+        throw new Error("Please provide both origin and destination.");
+      }
+
+      // ✅ prune out null/""/undefined so validators don’t trip
+      payload = deepPrune(payload) || {};
+
+      // (After prune) still ensure required objects exist
+      if (!payload.shipper || !payload.consignee || !payload.ports) {
+        throw new Error("Missing required quote fields. Please try again.");
+      }
+
+      const client = pickClient();
+      const res = await client.post("/api/v1/shipments", payload);
+
+      const created = res.data?.shipment || res.data?.data || res.data;
+      const ref = created?.referenceNo || "";
+
+      setSubmitted(true);
+      setCreatedRef(ref);
+
+      // ✅ reset safely
+      if (formEl && typeof formEl.reset === "function") {
+        formEl.reset();
+      }
+
+      window.setTimeout(() => setSubmitted(false), 6500);
+    } catch (err) {
+      // ✅ surface express-validator errors array if present
+      const api = err?.response?.data;
+      const firstFieldError =
+        Array.isArray(api?.errors) && api.errors.length
+          ? `${api.errors[0].field}: ${api.errors[0].message}`
+          : "";
+
+      const msg =
+        firstFieldError ||
+        api?.message ||
+        err?.message ||
+        "Sorry — we couldn’t submit your request. Please try again.";
+
+      setSubmitError(msg);
+      setSubmitted(false);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -81,6 +405,8 @@ const QuoteSection = () => {
                   onClick={() => {
                     setActiveService(tab.id);
                     setSubmitted(false);
+                    setSubmitError("");
+                    setCreatedRef("");
                   }}
                   className={`
                     w-full sm:w-auto
@@ -115,14 +441,29 @@ const QuoteSection = () => {
             shadow-[0_22px_45px_rgba(15,23,42,0.18)]
           "
         >
+          {submitError ? (
+            <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-left">
+              <p className="text-sm md:text-base font-semibold text-red-900">
+                We couldn’t submit your request.
+              </p>
+              <p className="text-xs md:text-sm text-red-800 mt-1">
+                {submitError}
+              </p>
+            </div>
+          ) : null}
+
           {submitted ? (
             <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left">
               <p className="text-sm md:text-base font-semibold text-emerald-900">
                 Thank you — we’ve received your request.
               </p>
               <p className="text-xs md:text-sm text-emerald-800 mt-1">
-                In the next iteration this will submit directly to Ellcworth.
-                For now, it confirms the UX flow is working.
+                Our team will review and come back with a quote.{" "}
+                {createdRef ? (
+                  <span className="font-mono font-semibold">
+                    Ref: {createdRef}
+                  </span>
+                ) : null}
               </p>
             </div>
           ) : null}
@@ -183,6 +524,7 @@ const QuoteSection = () => {
             <div className="pt-4 text-center">
               <button
                 type="submit"
+                disabled={submitting}
                 className="
                   inline-flex items-center justify-center
                   rounded-full
@@ -196,9 +538,12 @@ const QuoteSection = () => {
                   focus:outline-none
                   focus:ring-2 focus:ring-[#FFA500]/80
                   focus:ring-offset-2 focus:ring-offset-white
+                  disabled:opacity-60 disabled:cursor-not-allowed
                 "
               >
-                Start your {serviceLabel} quote
+                {submitting
+                  ? "Submitting..."
+                  : `Start your ${serviceLabel} quote`}
               </button>
 
               <p className="text-xs md:text-sm text-gray-500 mt-3">

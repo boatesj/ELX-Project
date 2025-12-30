@@ -1,8 +1,13 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { authRequest } from "../requestMethods";
 
 const STATUS_OPTIONS = [
+  "request_received",
+  "under_review",
+  "quoted",
+  "customer_requested_changes",
+  "customer_approved",
   "pending",
   "booked",
   "at_origin_yard",
@@ -61,9 +66,12 @@ const uiModeToBackendMode = (serviceType, uiMode) => {
     if (uiMode === "lcl") return "LCL";
     return "Container";
   }
+
   if (serviceType === "air_freight") {
-    return "Container";
+    if (uiMode === "air_docs") return "Documents";
+    return "Air";
   }
+
   return "Container";
 };
 
@@ -201,6 +209,7 @@ const Textarea = (props) => (
 const Shipment = () => {
   const { shipmentId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation(); // ✅ B) add
 
   const [shipment, setShipment] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -220,6 +229,19 @@ const Shipment = () => {
   const [openCargo, setOpenCargo] = useState(false);
   const [openDocs, setOpenDocs] = useState(false);
   const [openServices, setOpenServices] = useState(false);
+
+  // ✅ C) add this effect after state declarations
+  useEffect(() => {
+    if (location.hash === "#documents") {
+      setOpenDocs(true);
+
+      // small delay to allow accordion render
+      window.setTimeout(() => {
+        const el = document.getElementById("documents-anchor");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 120);
+    }
+  }, [location.hash]);
 
   const [form, setForm] = useState({
     // Core identifiers
@@ -1418,6 +1440,9 @@ const Shipment = () => {
               open={openDocs}
               onToggle={() => setOpenDocs((v) => !v)}
             >
+              {/* ✅ D) anchor at top of Documents content */}
+              <div id="documents-anchor" />
+
               {docError ? (
                 <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md">
                   {docError}
@@ -1495,6 +1520,9 @@ const Shipment = () => {
           {/* Documents (desktop card) */}
           <div className="hidden xl:block">
             <Card title="Documents">
+              {/* ✅ D) anchor at top of Documents content */}
+              <div id="documents-anchor" />
+
               {docError ? (
                 <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md">
                   {docError}

@@ -11,6 +11,7 @@ import {
   FaDownload,
   FaEye,
   FaInfoCircle,
+  FaEdit,
 } from "react-icons/fa";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { customerAuthRequest, CUSTOMER_TOKEN_KEY } from "@/requestMethods";
@@ -93,24 +94,18 @@ function toDisplayDate(val) {
   }
 }
 
-/**
- * Backend shape:
- * trackingEvents[]: { status, event, location, date }
- */
 function buildTimeline(shipment) {
   const raw = Array.isArray(shipment?.trackingEvents)
     ? shipment.trackingEvents
     : [];
 
   if (raw.length) {
-    // Sort oldest -> newest by date
     const sorted = [...raw].sort((a, b) => {
       const ad = new Date(a?.date || 0).getTime();
       const bd = new Date(b?.date || 0).getTime();
       return ad - bd;
     });
 
-    // Mark latest as current, previous as done
     return sorted
       .map((e, idx) => {
         const isLast = idx === sorted.length - 1;
@@ -126,7 +121,6 @@ function buildTimeline(shipment) {
       .filter((e) => e.label.trim().length > 0);
   }
 
-  // Fallback timeline from status
   const rank = statusRank(shipment?.status);
   const bookedAt = shipment?.createdAt ? toDisplayDate(shipment.createdAt) : "";
 
@@ -169,15 +163,10 @@ function buildTimeline(shipment) {
     },
   ];
 
-  // Normalize "current" for low ranks
   if (rank === 0) base[0].state = "current";
-
   return base;
 }
 
-/**
- * Backend documents[]: { name, fileUrl, uploadedAt, uploadedBy }
- */
 function canActOnDoc(doc) {
   const url = String(doc?.fileUrl || "").trim();
   return url.length > 0;
@@ -186,7 +175,6 @@ function getDocUrl(doc) {
   return String(doc?.fileUrl || "").trim();
 }
 
-// ✅ Robustly pick shipment from various response shapes
 function pickShipment(payload) {
   if (payload && typeof payload === "object") {
     if (payload.data && typeof payload.data === "object") return payload.data;
@@ -209,7 +197,6 @@ const ShipmentFeedback = ({ reference }) => {
     setSubmitting(true);
 
     try {
-      // Phase 5: minimal, operational (no backend wiring yet)
       console.log("Feedback submitted:", { reference, message });
       setSubmitted(true);
       setMessage("");
@@ -372,7 +359,6 @@ const ShipmentDetails = () => {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState("");
 
-  // Keep in sync if user logs in/out in another tab
   useEffect(() => {
     const onStorage = () => {
       const local = localStorage.getItem(CUSTOMER_TOKEN_KEY);
@@ -423,7 +409,6 @@ const ShipmentDetails = () => {
 
         const status = e?.response?.status;
 
-        // 401/403 handled by interceptor (auto-logout + redirect)
         if (status === 404) {
           setShipment(null);
           setErrMsg("Shipment not found.");
@@ -524,8 +509,18 @@ const ShipmentDetails = () => {
               <span>Back to my shipments</span>
             </button>
           </Link>
-          <div className="hidden md:flex items-center text-[11px] uppercase tracking-[0.2em] text-[#9A9EAB]">
-            CUSTOMER PORTAL · ELLCWORTH EXPRESS
+
+          <div className="flex items-center gap-3">
+            <Link to={`/shipmentedit/${id}`}>
+              <button className="inline-flex items-center gap-2 text-xs md:text-sm px-3 py-2 rounded-full border border-white/20 text-slate-100 hover:border-[#FFA500] hover:text-[#FFA500] hover:bg-[#FFA500]/10 transition">
+                <FaEdit />
+                Edit booking
+              </button>
+            </Link>
+
+            <div className="hidden md:flex items-center text-[11px] uppercase tracking-[0.2em] text-[#9A9EAB]">
+              CUSTOMER PORTAL · ELLCWORTH EXPRESS
+            </div>
           </div>
         </div>
 

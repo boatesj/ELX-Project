@@ -34,6 +34,14 @@ function readCustomerToken() {
 }
 
 /**
+ * ✅ Public axios client (no auth)
+ * Used for public quote requests / lead capture.
+ */
+export const publicRequest = axios.create({
+  baseURL: API_BASE_URL,
+});
+
+/**
  * Customer-protected axios client (customer portal)
  * - Attaches Bearer token automatically
  * - Auto-logout on 401/403

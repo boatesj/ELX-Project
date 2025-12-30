@@ -218,7 +218,7 @@ function Layout() {
 
         {/* Main content */}
         <main className="flex-1 min-w-0">
-          <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-4">
+          <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-4 text-slate-900">
             <Outlet />
           </div>
         </main>
