@@ -2,21 +2,19 @@
 const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
 
-// ✅ Import BackgroundServices mail dispatcher (adjust path if needed)
-let dispatchMail = null;
+// ✅ Optional BackgroundServices mail dispatcher
+// Keeps the API running even if BackgroundServices is not wired in this environment
+let dispatchMail;
+
 try {
-  // From Backend/controllers -> ../../BackgroundServices/EmailService/helpers/sendmail.js
-  // If your folder structure differs, update this path.
+  // Backend/controllers → ../../BackgroundServices/helpers/sendmail.js
   // eslint-disable-next-line global-require
-  ({
-    dispatchMail,
-  } = require("../../BackgroundServices/EmailService/helpers/sendmail"));
-} catch (e) {
-  // Keep API usable even if mail service isn't wired in this environment
+  ({ dispatchMail } = require("../../BackgroundServices/helpers/sendmail"));
+} catch (err) {
   dispatchMail = null;
   console.warn(
-    "⚠️ Email dispatcher not available. sendQuoteEmail will fail until dispatchMail is wired.",
-    e?.message
+    "⚠️ Email dispatcher not available. Quote emails will be skipped in this environment.",
+    err?.message
   );
 }
 
