@@ -730,8 +730,9 @@ const Shipment = () => {
     return "";
   };
 
+  // ✅ FIXED: returns boolean so send flow can stop safely
   const handleSaveQuoteDraft = async () => {
-    if (!shipmentId) return;
+    if (!shipmentId) return false;
 
     setQuoteMsg("");
     setQuoteError("");
@@ -739,7 +740,7 @@ const Shipment = () => {
     const vErr = validateQuoteDraft();
     if (vErr) {
       setQuoteError(vErr);
-      return;
+      return false;
     }
 
     try {
@@ -781,16 +782,19 @@ const Shipment = () => {
       if (newStatus) setForm((p) => ({ ...p, status: newStatus }));
 
       setQuoteMsg("Quote draft saved.");
+      return true;
     } catch (err) {
       console.error("❌ Error saving quote:", err?.response?.data || err);
       setQuoteError(
         err?.response?.data?.message || "Failed to save quote draft."
       );
+      return false;
     } finally {
       setQuoteSaving(false);
     }
   };
 
+  // ✅ FIXED: stop if save fails + use backend status if returned
   const handleSendQuoteEmail = async () => {
     if (!shipmentId) return;
 
@@ -804,7 +808,8 @@ const Shipment = () => {
     }
 
     // Best UX: ensure latest draft saved before sending
-    await handleSaveQuoteDraft();
+    const ok = await handleSaveQuoteDraft();
+    if (!ok) return;
 
     try {
       setQuoteSending(true);
@@ -820,8 +825,13 @@ const Shipment = () => {
       if (updated)
         setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
 
-      setForm((p) => ({ ...p, status: "quoted" }));
-      setQuoteMsg("Quote emailed successfully. Status set to QUOTED.");
+      const newStatus = updated?.status || "quoted";
+      setForm((p) => ({ ...p, status: newStatus }));
+      setQuoteMsg(
+        `Quote emailed successfully. Status set to ${String(
+          newStatus
+        ).toUpperCase()}.`
+      );
     } catch (err) {
       console.error("❌ Error sending quote:", err?.response?.data || err);
       setQuoteError(err?.response?.data?.message || "Failed to email quote.");
@@ -1450,7 +1460,6 @@ const Shipment = () => {
                           placeholder="Amount (optional)"
                           min="0"
                           step="0.01"
-                          hint="Leave blank to auto-calc"
                         />
                         <Input
                           type="number"
