@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FaShip, FaTruck, FaUserShield } from "react-icons/fa";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+import { rootRequest } from "../requestMethods";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -25,41 +23,35 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+      const { data } = await rootRequest.post("/auth/login", {
+        email,
+        password,
       });
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Login failed");
-      }
-
-      const data = await res.json();
-      console.log("🔐 Login response:", data);
-
-      if (data.accessToken) {
+      // Keep existing behaviour
+      if (data?.accessToken) {
         localStorage.setItem("token", data.accessToken);
       }
 
       localStorage.setItem(
         "user",
         JSON.stringify({
-          id: data._id,
-          fullname: data.fullname,
-          email: data.email,
-          role: data.role,
-          status: data.status,
+          id: data?._id,
+          fullname: data?.fullname,
+          email: data?.email,
+          role: data?.role,
+          status: data?.status,
         })
       );
 
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Something went wrong logging in.");
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Something went wrong logging in.";
+      console.error("Admin login error:", err);
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
