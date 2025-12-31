@@ -2,24 +2,12 @@
 const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
 
-// ✅ Optional BackgroundServices mail dispatcher
-// Keeps the API running even if BackgroundServices is not wired in this environment
-let dispatchMail;
-
-try {
-  // Backend/controllers → ../../BackgroundServices/helpers/sendmail.js
-  // eslint-disable-next-line global-require
-  ({ dispatchMail } = require("../../BackgroundServices/helpers/sendmail"));
-} catch (err) {
-  dispatchMail = null;
-  console.warn(
-    "⚠️ Email dispatcher not available. Quote emails will be skipped in this environment.",
-    err?.message
-  );
-}
+// ✅ Mail dispatcher (local util abstraction)
+// Controllers should not depend on BackgroundServices folder structure.
+const { dispatchMail } = require("../utils/dispatchMail");
 
 /**
- * Role helpers (your requireAuth normalizes role to lower-case)
+ * Role helpers (requireAuth normalizes role to lower-case)
  * Admin in token may be "admin"; in DB enum you also have "Admin".
  */
 function isAdmin(req) {
@@ -956,33 +944,46 @@ async function sendQuoteEmail(req, res) {
     shipment.quote.taxTotal = computed.taxTotal;
     shipment.quote.total = computed.total;
 
-    const toEmail = String(
+    const customerEmail = String(
       req.body?.toEmail || shipment.shipper?.email || ""
     ).trim();
-    if (!toEmail) {
+
+    if (!customerEmail) {
       return res.status(400).json({
         message: "No recipient email found (shipper.email is missing).",
       });
     }
 
-    if (!dispatchMail) {
-      return res.status(500).json({
-        message:
-          "Email dispatcher not available. Wire BackgroundServices EmailService or provide dispatchMail in this environment.",
-      });
-    }
+    // Build bodies
+    const htmlBody = buildQuoteEmailHtml({ shipment, quote: shipment.quote });
 
-    const subject = `Ellcworth Express Quote — ${shipment.referenceNo}`;
-    const html = buildQuoteEmailHtml({ shipment, quote: shipment.quote });
+    // Optional but recommended: plain-text fallback
+    const origin = shipment?.ports?.originPort || "";
+    const destination = shipment?.ports?.destinationPort || "";
+    const validUntil = shipment.quote?.validUntil
+      ? new Date(shipment.quote.validUntil).toLocaleDateString("en-GB")
+      : "";
 
-    const from =
-      process.env.EMAIL_FROM || process.env.EMAIL || "no-reply@ellcworth.com";
+    const textBody = [
+      "Ellcworth Express — Freight Quote",
+      `Reference: ${shipment.referenceNo || ""}`,
+      "",
+      `Route: ${origin} -> ${destination}`,
+      `Total: ${shipment.quote?.currency || "GBP"} ${toMoney(
+        shipment.quote?.total || 0
+      ).toFixed(2)}`,
+      validUntil ? `Valid until: ${validUntil}` : "",
+      "",
+      "To proceed, reply to this email quoting your reference number.",
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     await dispatchMail({
-      from,
-      to: toEmail,
-      subject,
-      html,
+      to: customerEmail,
+      subject: `Your Ellcworth Quote — ${shipment.referenceNo}`,
+      html: htmlBody,
+      text: textBody, // optional but recommended
     });
 
     shipment.quote.sentAt = new Date();
@@ -990,13 +991,13 @@ async function sendQuoteEmail(req, res) {
 
     shipment.trackingEvents.push({
       status: "update",
-      event: `Quote sent to customer (${toEmail})`,
+      event: `Quote sent to customer (${customerEmail})`,
       location: "",
       date: new Date(),
       meta: {
         updatedBy: req?.user?.id || null,
         source: "admin_quote_send",
-        toEmail,
+        toEmail: customerEmail,
         quoteVersion: shipment.quote.version || 1,
         total: shipment.quote.total,
         currency: shipment.quote.currency,
