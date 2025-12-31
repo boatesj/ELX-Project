@@ -1,7 +1,9 @@
 import axios from "axios";
 
-const API_BASE_URL =
+const API_ROOT_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+const API_V1_BASE_URL = `${API_ROOT_URL}/api/v1`;
 
 /**
  * Customer auth storage keys
@@ -34,20 +36,31 @@ function readCustomerToken() {
 }
 
 /**
- * ✅ Public axios client (no auth)
- * Used for public quote requests / lead capture.
+ * ✅ ROOT axios client (no auth)
+ * Use this for non-v1 endpoints like:
+ * - /auth/*
+ * - /config/*
+ * - /health
  */
-export const publicRequest = axios.create({
-  baseURL: API_BASE_URL,
+export const rootRequest = axios.create({
+  baseURL: API_ROOT_URL,
 });
 
 /**
- * Customer-protected axios client (customer portal)
+ * ✅ Public axios client (no auth) — v1 canonical
+ * Use for public v1 endpoints (lead capture, public shipment quote request endpoints, etc.)
+ */
+export const publicRequest = axios.create({
+  baseURL: API_V1_BASE_URL,
+});
+
+/**
+ * Customer-protected axios client (customer portal) — v1 canonical
  * - Attaches Bearer token automatically
  * - Auto-logout on 401/403
  */
 export const customerAuthRequest = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: API_V1_BASE_URL,
 });
 
 customerAuthRequest.interceptors.request.use(
