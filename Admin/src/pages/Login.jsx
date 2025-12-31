@@ -3,6 +3,23 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { FaShip, FaTruck, FaUserShield } from "react-icons/fa";
 import { rootRequest } from "../requestMethods";
 
+// ✅ Admin-only storage keys (avoid collisions with Customer Portal)
+const ADMIN_TOKEN_KEY = "elx_admin_token";
+const ADMIN_USER_KEY = "elx_admin_user";
+
+// Legacy keys (keep for backwards compatibility with existing authRequest usage)
+const LEGACY_TOKEN_KEY = "token";
+const LEGACY_USER_KEY = "user";
+
+// Prevent open-redirects (only allow internal paths)
+function safeRedirect(value, fallback = "/shipments") {
+  const v = String(value || "").trim();
+  if (!v) return fallback;
+  if (!v.startsWith("/")) return fallback;
+  if (v.startsWith("//")) return fallback;
+  return v;
+}
+
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -13,9 +30,8 @@ const Login = () => {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Read ?redirect=/users if present, else default to /shipments
   const searchParams = new URLSearchParams(location.search);
-  const redirectTo = searchParams.get("redirect") || "/shipments";
+  const redirectTo = safeRedirect(searchParams.get("redirect"), "/shipments");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,19 +44,37 @@ const Login = () => {
         password,
       });
 
-      // Keep existing behaviour
-      if (data?.accessToken) {
-        localStorage.setItem("token", data.accessToken);
+      const token = data?.accessToken || data?.token || "";
+      const u = data?.user || data || {};
+
+      if (!token) {
+        setError("Login failed: access token missing from server response.");
+        return;
       }
 
+      // ✅ Store admin-scoped keys
+      localStorage.setItem(ADMIN_TOKEN_KEY, token);
       localStorage.setItem(
-        "user",
+        ADMIN_USER_KEY,
         JSON.stringify({
-          id: data?._id,
-          fullname: data?.fullname,
-          email: data?.email,
-          role: data?.role,
-          status: data?.status,
+          id: u?._id || u?.id,
+          fullname: u?.fullname,
+          email: u?.email,
+          role: u?.role,
+          status: u?.status,
+        })
+      );
+
+      // ✅ Also store legacy keys so existing authRequest keeps working today
+      localStorage.setItem(LEGACY_TOKEN_KEY, token);
+      localStorage.setItem(
+        LEGACY_USER_KEY,
+        JSON.stringify({
+          id: u?._id || u?.id,
+          fullname: u?.fullname,
+          email: u?.email,
+          role: u?.role,
+          status: u?.status,
         })
       );
 
