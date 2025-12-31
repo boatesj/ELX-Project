@@ -2,26 +2,12 @@
 const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
 
-// ✅ Import BackgroundServices mail dispatcher (adjust path if needed)
-let dispatchMail = null;
-try {
-  // From Backend/controllers -> ../../BackgroundServices/EmailService/helpers/sendmail.js
-  // If your folder structure differs, update this path.
-  // eslint-disable-next-line global-require
-  ({
-    dispatchMail,
-  } = require("../../BackgroundServices/EmailService/helpers/sendmail"));
-} catch (e) {
-  // Keep API usable even if mail service isn't wired in this environment
-  dispatchMail = null;
-  console.warn(
-    "⚠️ Email dispatcher not available. sendQuoteEmail will fail until dispatchMail is wired.",
-    e?.message
-  );
-}
+// ✅ Mail dispatcher (local util abstraction)
+// Controllers should not depend on BackgroundServices folder structure.
+const { dispatchMail } = require("../utils/dispatchMail");
 
 /**
- * Role helpers (your requireAuth normalizes role to lower-case)
+ * Role helpers (requireAuth normalizes role to lower-case)
  * Admin in token may be "admin"; in DB enum you also have "Admin".
  */
 function isAdmin(req) {
@@ -347,6 +333,32 @@ function buildQuoteEmailHtml({ shipment, quote }) {
   `;
 }
 
+// ---------------- CHARGES HELPERS ----------------
+
+function normalizeCharges(rawCharges) {
+  const list = Array.isArray(rawCharges) ? rawCharges : [];
+
+  return list
+    .filter((c) => c && String(c.label || "").trim())
+    .map((c) => {
+      const label = String(c.label || "").trim();
+      const amountNum = Number(c.amount);
+      const amount = Number.isFinite(amountNum) ? toMoney(amountNum) : 0;
+
+      return {
+        label,
+        amount,
+        currency: String(c.currency || "GBP").trim() || "GBP",
+        category: String(c.category || "").trim(),
+      };
+    });
+}
+
+function sumCharges(charges) {
+  const list = Array.isArray(charges) ? charges : [];
+  return toMoney(list.reduce((sum, c) => sum + (Number(c.amount) || 0), 0));
+}
+
 // ---------------- CONTROLLERS ----------------
 
 /**
@@ -550,6 +562,68 @@ async function updateShipment(req, res) {
     console.error("Error updating shipment:", err);
     return res.status(500).json({
       message: "Failed to update shipment",
+      error: err.message,
+    });
+  }
+}
+
+/**
+ * ✅ UPDATE CHARGES (admin only — route enforces)
+ * --------------------------------------------------
+ * @route   PATCH /api/v1/shipments/:id/charges
+ * Body: { charges: [{label, amount, currency, category}, ...] } OR just an array
+ */
+async function updateCharges(req, res) {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
+
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid shipment id" });
+    }
+
+    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
+    if (!shipment) {
+      return res.status(404).json({ message: "Shipment not found" });
+    }
+
+    const incoming = Array.isArray(req.body)
+      ? req.body
+      : Array.isArray(req.body?.charges)
+      ? req.body.charges
+      : [];
+
+    const charges = normalizeCharges(incoming);
+
+    // Allow saving empty array (clearing charges) — intentional
+    shipment.charges = charges;
+
+    shipment.trackingEvents.push({
+      status: "update",
+      event: `Charges updated (${charges.length} line${
+        charges.length === 1 ? "" : "s"
+      })`,
+      location: "",
+      date: new Date(),
+      meta: {
+        updatedBy: req?.user?.id || null,
+        source: "admin_charges_update",
+        lineCount: charges.length,
+        total: sumCharges(charges),
+        currency: charges.find((c) => c?.currency)?.currency || "GBP",
+      },
+    });
+
+    await shipment.save();
+
+    return res.status(200).json({
+      message: "Charges updated",
+      shipment,
+    });
+  } catch (err) {
+    console.error("Error updating charges:", err);
+    return res.status(500).json({
+      message: "Failed to update charges",
       error: err.message,
     });
   }
@@ -870,35 +944,46 @@ async function sendQuoteEmail(req, res) {
     shipment.quote.taxTotal = computed.taxTotal;
     shipment.quote.total = computed.total;
 
-    const toEmail = String(
+    const customerEmail = String(
       req.body?.toEmail || shipment.shipper?.email || ""
     ).trim();
-    if (!toEmail) {
-      return res
-        .status(400)
-        .json({
-          message: "No recipient email found (shipper.email is missing).",
-        });
-    }
 
-    if (!dispatchMail) {
-      return res.status(500).json({
-        message:
-          "Email dispatcher not available. Wire BackgroundServices EmailService or provide dispatchMail in this environment.",
+    if (!customerEmail) {
+      return res.status(400).json({
+        message: "No recipient email found (shipper.email is missing).",
       });
     }
 
-    const subject = `Ellcworth Express Quote — ${shipment.referenceNo}`;
-    const html = buildQuoteEmailHtml({ shipment, quote: shipment.quote });
+    // Build bodies
+    const htmlBody = buildQuoteEmailHtml({ shipment, quote: shipment.quote });
 
-    const from =
-      process.env.EMAIL_FROM || process.env.EMAIL || "no-reply@ellcworth.com";
+    // Optional but recommended: plain-text fallback
+    const origin = shipment?.ports?.originPort || "";
+    const destination = shipment?.ports?.destinationPort || "";
+    const validUntil = shipment.quote?.validUntil
+      ? new Date(shipment.quote.validUntil).toLocaleDateString("en-GB")
+      : "";
+
+    const textBody = [
+      "Ellcworth Express — Freight Quote",
+      `Reference: ${shipment.referenceNo || ""}`,
+      "",
+      `Route: ${origin} -> ${destination}`,
+      `Total: ${shipment.quote?.currency || "GBP"} ${toMoney(
+        shipment.quote?.total || 0
+      ).toFixed(2)}`,
+      validUntil ? `Valid until: ${validUntil}` : "",
+      "",
+      "To proceed, reply to this email quoting your reference number.",
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     await dispatchMail({
-      from,
-      to: toEmail,
-      subject,
-      html,
+      to: customerEmail,
+      subject: `Your Ellcworth Quote — ${shipment.referenceNo}`,
+      html: htmlBody,
+      text: textBody, // optional but recommended
     });
 
     shipment.quote.sentAt = new Date();
@@ -906,13 +991,13 @@ async function sendQuoteEmail(req, res) {
 
     shipment.trackingEvents.push({
       status: "update",
-      event: `Quote sent to customer (${toEmail})`,
+      event: `Quote sent to customer (${customerEmail})`,
       location: "",
       date: new Date(),
       meta: {
         updatedBy: req?.user?.id || null,
         source: "admin_quote_send",
-        toEmail,
+        toEmail: customerEmail,
         quoteVersion: shipment.quote.version || 1,
         total: shipment.quote.total,
         currency: shipment.quote.currency,
@@ -1106,6 +1191,7 @@ module.exports = {
   getOneShipment,
   getUserShipment,
   updateShipment,
+  updateCharges,
   deleteShipment,
   addTrackingEvent,
   addDocument,

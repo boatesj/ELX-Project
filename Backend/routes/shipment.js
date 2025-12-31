@@ -17,6 +17,9 @@ const {
   // ✅ NEW quote handlers
   saveQuote,
   sendQuoteEmail,
+
+  // ✅ NEW charges handler
+  updateCharges,
 } = require("../controllers/shipment");
 
 const { requireAuth, requireRole } = require("../middleware/auth");
@@ -139,6 +142,21 @@ router.get(
   validateObjectIdParam("id"),
   handleValidation,
   getOneShipment
+);
+
+/**
+ * ✅ NEW
+ * @route   PATCH /shipments/:id/charges
+ * @desc    Overwrite shipment charges[] (admin only)
+ * @access  Admin
+ */
+router.patch(
+  "/:id/charges",
+  requireAuth,
+  requireRole("admin"),
+  validateObjectIdParam("id"),
+  handleValidation,
+  updateCharges
 );
 
 /**

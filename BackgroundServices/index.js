@@ -12,7 +12,12 @@ const { DeliveredShipmentEmail } = require("./EmailService/DeliveredShipment");
 dotenv.config();
 
 // --- DB CONNECTION ---
-const DB = process.env.DB;
+const DB = process.env.MONGO_URI || process.env.DB;
+
+if (!DB) {
+  throw new Error("No Mongo URI found (set MONGO_URI or DB)");
+}
+
 mongoose
   .connect(DB)
   .then(() => {
