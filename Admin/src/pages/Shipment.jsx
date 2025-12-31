@@ -368,7 +368,14 @@ const Shipment = () => {
     notesToCustomer: "",
     internalNotes: "",
     lineItems: [
-      { code: "", label: "Freight", qty: 1, unitPrice: 0, amount: "", taxRate: 0 },
+      {
+        code: "",
+        label: "Freight",
+        qty: 1,
+        unitPrice: 0,
+        amount: "",
+        taxRate: 0,
+      },
     ],
   });
 
@@ -718,7 +725,8 @@ const Shipment = () => {
     const items = Array.isArray(quoteForm.lineItems) ? quoteForm.lineItems : [];
     const ok = items.some((li) => String(li.label || "").trim());
     if (!ok) return "Quote must contain at least one line item label.";
-    if (!form.shipperEmail) return "Shipper email is missing (needed to send quote).";
+    if (!form.shipperEmail)
+      return "Shipper email is missing (needed to send quote).";
     return "";
   };
 
@@ -740,7 +748,9 @@ const Shipment = () => {
       const payload = {
         quote: {
           currency: String(quoteForm.currency || "GBP").trim() || "GBP",
-          validUntil: quoteForm.validUntil ? new Date(quoteForm.validUntil) : undefined,
+          validUntil: quoteForm.validUntil
+            ? new Date(quoteForm.validUntil)
+            : undefined,
           notesToCustomer: quoteForm.notesToCustomer || "",
           internalNotes: quoteForm.internalNotes || "",
           lineItems: (quoteForm.lineItems || []).map((li) => ({
@@ -748,16 +758,23 @@ const Shipment = () => {
             label: li.label || "",
             qty: Number(li.qty ?? 1),
             unitPrice: Number(li.unitPrice ?? 0),
-            amount: li.amount === "" || li.amount === null || li.amount === undefined ? undefined : Number(li.amount),
+            amount:
+              li.amount === "" || li.amount === null || li.amount === undefined
+                ? undefined
+                : Number(li.amount),
             taxRate: Number(li.taxRate ?? 0),
           })),
         },
       };
 
-      const res = await authRequest.patch(`/api/v1/shipments/${shipmentId}/quote`, payload);
+      const res = await authRequest.patch(
+        `/api/v1/shipments/${shipmentId}/quote`,
+        payload
+      );
       const updated = res.data?.shipment || res.data?.data || res.data;
 
-      if (updated) setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
+      if (updated)
+        setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
 
       // If backend bumped status from request_received -> under_review, reflect in local form
       const newStatus = updated?.status;
@@ -766,7 +783,9 @@ const Shipment = () => {
       setQuoteMsg("Quote draft saved.");
     } catch (err) {
       console.error("❌ Error saving quote:", err?.response?.data || err);
-      setQuoteError(err?.response?.data?.message || "Failed to save quote draft.");
+      setQuoteError(
+        err?.response?.data?.message || "Failed to save quote draft."
+      );
     } finally {
       setQuoteSaving(false);
     }
@@ -790,12 +809,16 @@ const Shipment = () => {
     try {
       setQuoteSending(true);
 
-      const res = await authRequest.post(`/api/v1/shipments/${shipmentId}/quote/send`, {
-        // optional override: toEmail
-      });
+      const res = await authRequest.post(
+        `/api/v1/shipments/${shipmentId}/quote/send`,
+        {
+          // optional override: toEmail
+        }
+      );
 
       const updated = res.data?.shipment || res.data?.data || res.data;
-      if (updated) setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
+      if (updated)
+        setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
 
       setForm((p) => ({ ...p, status: "quoted" }));
       setQuoteMsg("Quote emailed successfully. Status set to QUOTED.");
@@ -848,7 +871,9 @@ const Shipment = () => {
 
   const currentModeOptions = MODE_OPTIONS[form.serviceType] || [];
   const quoteCurrency = quoteForm.currency || "GBP";
-  const sentAt = shipment?.quote?.sentAt ? new Date(shipment.quote.sentAt).toLocaleString("en-GB") : "";
+  const sentAt = shipment?.quote?.sentAt
+    ? new Date(shipment.quote.sentAt).toLocaleString("en-GB")
+    : "";
   const quoteVersion = shipment?.quote?.version || 0;
 
   return (
@@ -896,7 +921,11 @@ const Shipment = () => {
 
               {shipment?.quote?.total ? (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200">
-                  Quote: {formatMoney(shipment.quote.total, shipment.quote.currency || "GBP")}
+                  Quote:{" "}
+                  {formatMoney(
+                    shipment.quote.total,
+                    shipment.quote.currency || "GBP"
+                  )}
                 </span>
               ) : null}
             </div>
@@ -1179,7 +1208,9 @@ const Shipment = () => {
           {/* Vessel / Flight */}
           <div className="xl:hidden">
             <Section
-              title={isSea ? "Vessel (optional)" : "Airline / flight (optional)"}
+              title={
+                isSea ? "Vessel (optional)" : "Airline / flight (optional)"
+              }
               subtitle="Carrier and reference numbers."
               open={openVessel}
               onToggle={() => setOpenVessel((v) => !v)}
@@ -1192,7 +1223,9 @@ const Shipment = () => {
                     placeholder={isSea ? "MV Great Africa" : "British Airways"}
                   />
                 </Field>
-                <Field label={isSea ? "Voyage / rotation" : "Flight no. / MAWB"}>
+                <Field
+                  label={isSea ? "Voyage / rotation" : "Flight no. / MAWB"}
+                >
                   <Input
                     value={form.vesselVoyage}
                     onChange={handleChange("vesselVoyage")}
@@ -1204,7 +1237,11 @@ const Shipment = () => {
           </div>
 
           <div className="hidden xl:block">
-            <Card title={isSea ? "Vessel (optional)" : "Airline / flight (optional)"}>
+            <Card
+              title={
+                isSea ? "Vessel (optional)" : "Airline / flight (optional)"
+              }
+            >
               <div className="grid grid-cols-2 gap-4">
                 <Field label={isSea ? "Vessel name" : "Airline / carrier"}>
                   <Input
@@ -1213,7 +1250,9 @@ const Shipment = () => {
                     placeholder={isSea ? "MV Great Africa" : "British Airways"}
                   />
                 </Field>
-                <Field label={isSea ? "Voyage / rotation" : "Flight no. / MAWB"}>
+                <Field
+                  label={isSea ? "Voyage / rotation" : "Flight no. / MAWB"}
+                >
                   <Input
                     value={form.vesselVoyage}
                     onChange={handleChange("vesselVoyage")}
@@ -1248,7 +1287,8 @@ const Shipment = () => {
                     Repacking / consolidation required
                   </label>
                   <p className="text-[10px] text-gray-500">
-                    For loose items, pallets or secure documents needing re-boxing, tamper-proof packaging or consolidation.
+                    For loose items, pallets or secure documents needing
+                    re-boxing, tamper-proof packaging or consolidation.
                   </p>
                 </div>
               </div>
@@ -1284,7 +1324,8 @@ const Shipment = () => {
                     Repacking / consolidation required
                   </label>
                   <p className="text-[10px] text-gray-500">
-                    For loose items, pallets or secure documents needing re-boxing, tamper-proof packaging or consolidation.
+                    For loose items, pallets or secure documents needing
+                    re-boxing, tamper-proof packaging or consolidation.
                   </p>
                 </div>
               </div>
@@ -1329,9 +1370,14 @@ const Shipment = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Currency">
-                  <Select value={quoteForm.currency} onChange={setQuoteField("currency")}>
+                  <Select
+                    value={quoteForm.currency}
+                    onChange={setQuoteField("currency")}
+                  >
                     {["GBP", "USD", "EUR", "GHS", "NGN"].map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
                     ))}
                   </Select>
                 </Field>
@@ -1359,12 +1405,16 @@ const Shipment = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <Input
                           value={li.label || ""}
-                          onChange={(e) => updateQuoteItem(idx, "label", e.target.value)}
+                          onChange={(e) =>
+                            updateQuoteItem(idx, "label", e.target.value)
+                          }
                           placeholder="Label (e.g. Ocean freight, UK handling)"
                         />
                         <Input
                           value={li.code || ""}
-                          onChange={(e) => updateQuoteItem(idx, "code", e.target.value)}
+                          onChange={(e) =>
+                            updateQuoteItem(idx, "code", e.target.value)
+                          }
                           placeholder="Code (optional)"
                           className="font-mono"
                         />
@@ -1374,7 +1424,9 @@ const Shipment = () => {
                         <Input
                           type="number"
                           value={li.qty ?? 1}
-                          onChange={(e) => updateQuoteItem(idx, "qty", e.target.value)}
+                          onChange={(e) =>
+                            updateQuoteItem(idx, "qty", e.target.value)
+                          }
                           placeholder="Qty"
                           min="0"
                           step="1"
@@ -1382,7 +1434,9 @@ const Shipment = () => {
                         <Input
                           type="number"
                           value={li.unitPrice ?? 0}
-                          onChange={(e) => updateQuoteItem(idx, "unitPrice", e.target.value)}
+                          onChange={(e) =>
+                            updateQuoteItem(idx, "unitPrice", e.target.value)
+                          }
                           placeholder="Unit price"
                           min="0"
                           step="0.01"
@@ -1390,7 +1444,9 @@ const Shipment = () => {
                         <Input
                           type="number"
                           value={li.amount ?? ""}
-                          onChange={(e) => updateQuoteItem(idx, "amount", e.target.value)}
+                          onChange={(e) =>
+                            updateQuoteItem(idx, "amount", e.target.value)
+                          }
                           placeholder="Amount (optional)"
                           min="0"
                           step="0.01"
@@ -1399,7 +1455,9 @@ const Shipment = () => {
                         <Input
                           type="number"
                           value={li.taxRate ?? 0}
-                          onChange={(e) => updateQuoteItem(idx, "taxRate", e.target.value)}
+                          onChange={(e) =>
+                            updateQuoteItem(idx, "taxRate", e.target.value)
+                          }
                           placeholder="Tax %"
                           min="0"
                           step="0.01"
@@ -1408,9 +1466,17 @@ const Shipment = () => {
 
                       <div className="mt-2 flex items-center justify-between">
                         <span className="text-[11px] text-gray-600">
-                          Line tax: {formatMoney((toMoney(li.amount || (Number(li.qty || 1) * Number(li.unitPrice || 0))) * Number(li.taxRate || 0)) / 100), quoteCurrency)}
+                          Line tax:{" "}
+                          {formatMoney(
+                            (toMoney(
+                              li.amount ||
+                                Number(li.qty || 1) * Number(li.unitPrice || 0)
+                            ) *
+                              Number(li.taxRate || 0)) /
+                              100,
+                            quoteCurrency
+                          )}
                         </span>
-
                         <button
                           type="button"
                           onClick={() => removeQuoteItem(idx)}
@@ -1481,7 +1547,11 @@ const Shipment = () => {
                     disabled={quoteSaving || quoteSending}
                     className="inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {quoteSaving ? "Saving..." : `Save quote draft${quoteVersion ? ` (v${quoteVersion})` : ""}`}
+                    {quoteSaving
+                      ? "Saving..."
+                      : `Save quote draft${
+                          quoteVersion ? ` (v${quoteVersion})` : ""
+                        }`}
                   </button>
 
                   <button
@@ -1495,7 +1565,8 @@ const Shipment = () => {
                 </div>
 
                 <p className="text-[10px] text-slate-500 mt-2">
-                  Recipient: <span className="font-mono">{form.shipperEmail || "—"}</span>
+                  Recipient:{" "}
+                  <span className="font-mono">{form.shipperEmail || "—"}</span>
                 </p>
               </div>
             </Section>
@@ -1503,17 +1574,20 @@ const Shipment = () => {
 
           {/* ✅ QUOTE BUILDER (desktop card) */}
           <div className="hidden xl:block">
-            <Card title="Quote builder" right={
-              shipment?.quote?.sentAt ? (
-                <span className="text-[11px] px-2 py-1 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200">
-                  Sent · {sentAt}
-                </span>
-              ) : (
-                <span className="text-[11px] px-2 py-1 rounded-full bg-slate-50 text-slate-700 border border-slate-200">
-                  Draft
-                </span>
-              )
-            }>
+            <Card
+              title="Quote builder"
+              right={
+                shipment?.quote?.sentAt ? (
+                  <span className="text-[11px] px-2 py-1 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200">
+                    Sent · {sentAt}
+                  </span>
+                ) : (
+                  <span className="text-[11px] px-2 py-1 rounded-full bg-slate-50 text-slate-700 border border-slate-200">
+                    Draft
+                  </span>
+                )
+              }
+            >
               <div id="quote-anchor" />
 
               {quoteError ? (
@@ -1530,9 +1604,14 @@ const Shipment = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Currency">
-                  <Select value={quoteForm.currency} onChange={setQuoteField("currency")}>
+                  <Select
+                    value={quoteForm.currency}
+                    onChange={setQuoteField("currency")}
+                  >
                     {["GBP", "USD", "EUR", "GHS", "NGN"].map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
                     ))}
                   </Select>
                 </Field>
@@ -1547,7 +1626,9 @@ const Shipment = () => {
               </div>
 
               <div className="mt-4">
-                <p className="text-xs font-semibold text-gray-700">Line items</p>
+                <p className="text-xs font-semibold text-gray-700">
+                  Line items
+                </p>
                 <div className="mt-2 space-y-2">
                   {(quoteForm.lineItems || []).map((li, idx) => (
                     <div
@@ -1557,12 +1638,16 @@ const Shipment = () => {
                       <div className="grid grid-cols-2 gap-3">
                         <Input
                           value={li.label || ""}
-                          onChange={(e) => updateQuoteItem(idx, "label", e.target.value)}
+                          onChange={(e) =>
+                            updateQuoteItem(idx, "label", e.target.value)
+                          }
                           placeholder="Label (e.g. Ocean freight, UK handling)"
                         />
                         <Input
                           value={li.code || ""}
-                          onChange={(e) => updateQuoteItem(idx, "code", e.target.value)}
+                          onChange={(e) =>
+                            updateQuoteItem(idx, "code", e.target.value)
+                          }
                           placeholder="Code (optional)"
                           className="font-mono"
                         />
@@ -1572,7 +1657,9 @@ const Shipment = () => {
                         <Input
                           type="number"
                           value={li.qty ?? 1}
-                          onChange={(e) => updateQuoteItem(idx, "qty", e.target.value)}
+                          onChange={(e) =>
+                            updateQuoteItem(idx, "qty", e.target.value)
+                          }
                           placeholder="Qty"
                           min="0"
                           step="1"
@@ -1580,7 +1667,9 @@ const Shipment = () => {
                         <Input
                           type="number"
                           value={li.unitPrice ?? 0}
-                          onChange={(e) => updateQuoteItem(idx, "unitPrice", e.target.value)}
+                          onChange={(e) =>
+                            updateQuoteItem(idx, "unitPrice", e.target.value)
+                          }
                           placeholder="Unit price"
                           min="0"
                           step="0.01"
@@ -1588,7 +1677,9 @@ const Shipment = () => {
                         <Input
                           type="number"
                           value={li.amount ?? ""}
-                          onChange={(e) => updateQuoteItem(idx, "amount", e.target.value)}
+                          onChange={(e) =>
+                            updateQuoteItem(idx, "amount", e.target.value)
+                          }
                           placeholder="Amount (optional)"
                           min="0"
                           step="0.01"
@@ -1596,7 +1687,9 @@ const Shipment = () => {
                         <Input
                           type="number"
                           value={li.taxRate ?? 0}
-                          onChange={(e) => updateQuoteItem(idx, "taxRate", e.target.value)}
+                          onChange={(e) =>
+                            updateQuoteItem(idx, "taxRate", e.target.value)
+                          }
                           placeholder="Tax %"
                           min="0"
                           step="0.01"
@@ -1605,7 +1698,16 @@ const Shipment = () => {
 
                       <div className="mt-2 flex items-center justify-between">
                         <span className="text-[11px] text-gray-600">
-                          Line tax: {formatMoney((toMoney(li.amount || (Number(li.qty || 1) * Number(li.unitPrice || 0))) * Number(li.taxRate || 0)) / 100), quoteCurrency)}
+                          Line tax:{" "}
+                          {formatMoney(
+                            (toMoney(
+                              li.amount ||
+                                Number(li.qty || 1) * Number(li.unitPrice || 0)
+                            ) *
+                              Number(li.taxRate || 0)) /
+                              100,
+                            quoteCurrency
+                          )}
                         </span>
 
                         <button
@@ -1675,7 +1777,10 @@ const Shipment = () => {
 
                 <div className="mt-3 flex items-center justify-between">
                   <div className="text-[11px] text-slate-600">
-                    Recipient: <span className="font-mono">{form.shipperEmail || "—"}</span>
+                    Recipient:{" "}
+                    <span className="font-mono">
+                      {form.shipperEmail || "—"}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -1685,7 +1790,11 @@ const Shipment = () => {
                       disabled={quoteSaving || quoteSending}
                       className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {quoteSaving ? "Saving..." : `Save quote draft${quoteVersion ? ` (v${quoteVersion})` : ""}`}
+                      {quoteSaving
+                        ? "Saving..."
+                        : `Save quote draft${
+                            quoteVersion ? ` (v${quoteVersion})` : ""
+                          }`}
                     </button>
 
                     <button
