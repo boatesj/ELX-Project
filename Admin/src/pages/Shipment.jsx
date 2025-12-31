@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { authRequest } from "../requestMethods";
 
@@ -85,6 +85,19 @@ const formatStatusLabel = (status) => {
 
 const getStatusClasses = (status) => {
   switch (status) {
+    // Request / Quote pipeline
+    case "request_received":
+      return "bg-[#1A2930]/10 text-[#1A2930] border border-[#1A2930]/25";
+    case "under_review":
+      return "bg-blue-100 text-blue-800 border border-blue-200";
+    case "quoted":
+      return "bg-indigo-100 text-indigo-800 border border-indigo-200";
+    case "customer_requested_changes":
+      return "bg-amber-100 text-amber-800 border border-amber-200";
+    case "customer_approved":
+      return "bg-emerald-100 text-emerald-800 border border-emerald-200";
+
+    // Operational
     case "pending":
       return "bg-gray-100 text-gray-700 border border-gray-300";
     case "booked":
@@ -206,10 +219,65 @@ const Textarea = (props) => (
   />
 );
 
+// ---------- Quote helpers (Admin UI side) ----------
+const toMoney = (n) => {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return 0;
+  return Math.round(x * 100) / 100;
+};
+
+const formatMoney = (amount, currency = "GBP") => {
+  const n = Number(amount || 0);
+  try {
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+    }).format(n);
+  } catch {
+    return `${currency} ${toMoney(n).toFixed(2)}`;
+  }
+};
+
+const computeUiTotals = (lineItems = []) => {
+  const items = Array.isArray(lineItems) ? lineItems : [];
+  const clean = items.map((li) => {
+    const qty = Number(li.qty ?? 1);
+    const unitPrice = Number(li.unitPrice ?? 0);
+    const amount =
+      li.amount !== undefined && li.amount !== null && li.amount !== ""
+        ? Number(li.amount)
+        : qty * unitPrice;
+    const taxRate = Number(li.taxRate ?? 0);
+
+    const safeQty = Number.isFinite(qty) ? qty : 1;
+    const safeUnit = Number.isFinite(unitPrice) ? unitPrice : 0;
+    const safeAmount = Number.isFinite(amount) ? amount : safeQty * safeUnit;
+    const safeTaxRate = Number.isFinite(taxRate) ? taxRate : 0;
+
+    const tax = (safeAmount * safeTaxRate) / 100;
+
+    return {
+      ...li,
+      qty: safeQty,
+      unitPrice: toMoney(safeUnit),
+      amount: toMoney(safeAmount),
+      taxRate: safeTaxRate,
+      _tax: toMoney(tax),
+    };
+  });
+
+  const subtotal = toMoney(clean.reduce((s, x) => s + (x.amount || 0), 0));
+  const taxTotal = toMoney(clean.reduce((s, x) => s + (x._tax || 0), 0));
+  const total = toMoney(subtotal + taxTotal);
+
+  return { subtotal, taxTotal, total };
+};
+
 const Shipment = () => {
   const { shipmentId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation(); // ✅ B) add
+  const location = useLocation();
 
   const [shipment, setShipment] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -222,6 +290,12 @@ const Shipment = () => {
   const [docSaving, setDocSaving] = useState(false);
   const [docError, setDocError] = useState("");
 
+  // Quote section state
+  const [quoteSaving, setQuoteSaving] = useState(false);
+  const [quoteSending, setQuoteSending] = useState(false);
+  const [quoteError, setQuoteError] = useState("");
+  const [quoteMsg, setQuoteMsg] = useState("");
+
   // Mobile section toggles
   const [openService, setOpenService] = useState(true);
   const [openVessel, setOpenVessel] = useState(false);
@@ -229,19 +303,7 @@ const Shipment = () => {
   const [openCargo, setOpenCargo] = useState(false);
   const [openDocs, setOpenDocs] = useState(false);
   const [openServices, setOpenServices] = useState(false);
-
-  // ✅ C) add this effect after state declarations
-  useEffect(() => {
-    if (location.hash === "#documents") {
-      setOpenDocs(true);
-
-      // small delay to allow accordion render
-      window.setTimeout(() => {
-        const el = document.getElementById("documents-anchor");
-        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 120);
-    }
-  }, [location.hash]);
+  const [openQuote, setOpenQuote] = useState(false);
 
   const [form, setForm] = useState({
     // Core identifiers
@@ -254,7 +316,7 @@ const Shipment = () => {
     originPort: "",
     destinationPort: "",
     status: "pending",
-    paymentStatus: "unpaid", // ✅ NEW: persist payment status
+    paymentStatus: "unpaid",
     shippingDate: "",
     eta: "",
 
@@ -300,6 +362,16 @@ const Shipment = () => {
     repackingNotes: "",
   });
 
+  const [quoteForm, setQuoteForm] = useState({
+    currency: "GBP",
+    validUntil: "",
+    notesToCustomer: "",
+    internalNotes: "",
+    lineItems: [
+      { code: "", label: "Freight", qty: 1, unitPrice: 0, amount: "", taxRate: 0 },
+    ],
+  });
+
   const handleBack = () => navigate("/shipments");
 
   const handleChange = (field) => (e) => {
@@ -315,6 +387,25 @@ const Shipment = () => {
       return { ...prev, [field]: value };
     });
   };
+
+  // Deep link: #documents / #quote
+  useEffect(() => {
+    if (location.hash === "#documents") {
+      setOpenDocs(true);
+      window.setTimeout(() => {
+        const el = document.getElementById("documents-anchor");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 120);
+    }
+
+    if (location.hash === "#quote") {
+      setOpenQuote(true);
+      window.setTimeout(() => {
+        const el = document.getElementById("quote-anchor");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 120);
+    }
+  }, [location.hash]);
 
   // ---------------- FETCH EXISTING SHIPMENT (EDIT MODE) ----------------
   useEffect(() => {
@@ -334,7 +425,7 @@ const Shipment = () => {
 
         const inferredServiceType =
           s.serviceType ||
-          (s.mode && s.mode.toLowerCase().startsWith("air")
+          (s.mode && String(s.mode).toLowerCase().startsWith("air")
             ? "air_freight"
             : "sea_freight");
 
@@ -351,7 +442,7 @@ const Shipment = () => {
           originPort: s.ports?.originPort || "",
           destinationPort: s.ports?.destinationPort || "",
           status: s.status || "pending",
-          paymentStatus: s.paymentStatus || "unpaid", // ✅ NEW: load payment status
+          paymentStatus: s.paymentStatus || "unpaid",
           shippingDate: s.shippingDate
             ? new Date(s.shippingDate).toISOString().slice(0, 10)
             : "",
@@ -390,6 +481,51 @@ const Shipment = () => {
           repackingRequired: s.services?.repacking?.required ?? false,
           repackingNotes: s.services?.repacking?.notes || "",
         });
+
+        // Quote -> Admin UI form
+        const q = s.quote || null;
+        const quoteLineItems =
+          Array.isArray(q?.lineItems) && q.lineItems.length > 0
+            ? q.lineItems.map((li) => ({
+                code: li.code || "",
+                label: li.label || "",
+                qty: li.qty ?? 1,
+                unitPrice: li.unitPrice ?? 0,
+                amount: li.amount ?? "",
+                taxRate: li.taxRate ?? 0,
+              }))
+            : [
+                {
+                  code: "",
+                  label: "Freight",
+                  qty: 1,
+                  unitPrice: 0,
+                  amount: "",
+                  taxRate: 0,
+                },
+              ];
+
+        setQuoteForm({
+          currency: q?.currency || "GBP",
+          validUntil: q?.validUntil
+            ? new Date(q.validUntil).toISOString().slice(0, 10)
+            : "",
+          notesToCustomer: q?.notesToCustomer || "",
+          internalNotes: q?.internalNotes || "",
+          lineItems: quoteLineItems,
+        });
+
+        // Auto-open quote section if in request pipeline
+        const requestStatuses = new Set([
+          "request_received",
+          "under_review",
+          "quoted",
+          "customer_requested_changes",
+          "customer_approved",
+        ]);
+        if (requestStatuses.has(s.status)) {
+          setOpenQuote(true);
+        }
       } catch (error) {
         console.error(
           "❌ Error fetching shipment:",
@@ -422,7 +558,7 @@ const Shipment = () => {
         serviceType: form.serviceType,
         mode: backendMode,
         status: form.status,
-        paymentStatus: form.paymentStatus || "unpaid", // ✅ NEW: persist payment status
+        paymentStatus: form.paymentStatus || "unpaid",
 
         ports: {
           originPort: form.originPort,
@@ -540,6 +676,137 @@ const Shipment = () => {
     }
   };
 
+  // ---------------- QUOTE: UI handlers ----------------
+  const quoteTotals = useMemo(() => {
+    return computeUiTotals(quoteForm.lineItems);
+  }, [quoteForm.lineItems]);
+
+  const setQuoteField = (field) => (e) => {
+    const val = e.target.value;
+    setQuoteForm((prev) => ({ ...prev, [field]: val }));
+  };
+
+  const updateQuoteItem = (idx, field, value) => {
+    setQuoteForm((prev) => {
+      const items = Array.isArray(prev.lineItems) ? [...prev.lineItems] : [];
+      const current = items[idx] || {};
+      items[idx] = { ...current, [field]: value };
+      return { ...prev, lineItems: items };
+    });
+  };
+
+  const addQuoteItem = () => {
+    setQuoteForm((prev) => ({
+      ...prev,
+      lineItems: [
+        ...(Array.isArray(prev.lineItems) ? prev.lineItems : []),
+        { code: "", label: "", qty: 1, unitPrice: 0, amount: "", taxRate: 0 },
+      ],
+    }));
+  };
+
+  const removeQuoteItem = (idx) => {
+    setQuoteForm((prev) => {
+      const items = Array.isArray(prev.lineItems) ? [...prev.lineItems] : [];
+      if (items.length <= 1) return prev; // keep at least one row
+      items.splice(idx, 1);
+      return { ...prev, lineItems: items };
+    });
+  };
+
+  const validateQuoteDraft = () => {
+    const items = Array.isArray(quoteForm.lineItems) ? quoteForm.lineItems : [];
+    const ok = items.some((li) => String(li.label || "").trim());
+    if (!ok) return "Quote must contain at least one line item label.";
+    if (!form.shipperEmail) return "Shipper email is missing (needed to send quote).";
+    return "";
+  };
+
+  const handleSaveQuoteDraft = async () => {
+    if (!shipmentId) return;
+
+    setQuoteMsg("");
+    setQuoteError("");
+
+    const vErr = validateQuoteDraft();
+    if (vErr) {
+      setQuoteError(vErr);
+      return;
+    }
+
+    try {
+      setQuoteSaving(true);
+
+      const payload = {
+        quote: {
+          currency: String(quoteForm.currency || "GBP").trim() || "GBP",
+          validUntil: quoteForm.validUntil ? new Date(quoteForm.validUntil) : undefined,
+          notesToCustomer: quoteForm.notesToCustomer || "",
+          internalNotes: quoteForm.internalNotes || "",
+          lineItems: (quoteForm.lineItems || []).map((li) => ({
+            code: li.code || "",
+            label: li.label || "",
+            qty: Number(li.qty ?? 1),
+            unitPrice: Number(li.unitPrice ?? 0),
+            amount: li.amount === "" || li.amount === null || li.amount === undefined ? undefined : Number(li.amount),
+            taxRate: Number(li.taxRate ?? 0),
+          })),
+        },
+      };
+
+      const res = await authRequest.patch(`/api/v1/shipments/${shipmentId}/quote`, payload);
+      const updated = res.data?.shipment || res.data?.data || res.data;
+
+      if (updated) setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
+
+      // If backend bumped status from request_received -> under_review, reflect in local form
+      const newStatus = updated?.status;
+      if (newStatus) setForm((p) => ({ ...p, status: newStatus }));
+
+      setQuoteMsg("Quote draft saved.");
+    } catch (err) {
+      console.error("❌ Error saving quote:", err?.response?.data || err);
+      setQuoteError(err?.response?.data?.message || "Failed to save quote draft.");
+    } finally {
+      setQuoteSaving(false);
+    }
+  };
+
+  const handleSendQuoteEmail = async () => {
+    if (!shipmentId) return;
+
+    setQuoteMsg("");
+    setQuoteError("");
+
+    const vErr = validateQuoteDraft();
+    if (vErr) {
+      setQuoteError(vErr);
+      return;
+    }
+
+    // Best UX: ensure latest draft saved before sending
+    await handleSaveQuoteDraft();
+
+    try {
+      setQuoteSending(true);
+
+      const res = await authRequest.post(`/api/v1/shipments/${shipmentId}/quote/send`, {
+        // optional override: toEmail
+      });
+
+      const updated = res.data?.shipment || res.data?.data || res.data;
+      if (updated) setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
+
+      setForm((p) => ({ ...p, status: "quoted" }));
+      setQuoteMsg("Quote emailed successfully. Status set to QUOTED.");
+    } catch (err) {
+      console.error("❌ Error sending quote:", err?.response?.data || err);
+      setQuoteError(err?.response?.data?.message || "Failed to email quote.");
+    } finally {
+      setQuoteSending(false);
+    }
+  };
+
   const isSea = form.serviceType === "sea_freight";
   const isDocs = form.mode === "air_docs";
   const isRoRo = form.mode === "roro" || form.cargoType === "vehicle";
@@ -580,6 +847,9 @@ const Shipment = () => {
   }
 
   const currentModeOptions = MODE_OPTIONS[form.serviceType] || [];
+  const quoteCurrency = quoteForm.currency || "GBP";
+  const sentAt = shipment?.quote?.sentAt ? new Date(shipment.quote.sentAt).toLocaleString("en-GB") : "";
+  const quoteVersion = shipment?.quote?.version || 0;
 
   return (
     <div className="bg-[#D9D9D9] rounded-md p-3 sm:p-5 lg:m-[30px] lg:p-[20px] space-y-4 font-montserrat">
@@ -623,6 +893,12 @@ const Shipment = () => {
                   Secure documents
                 </span>
               ) : null}
+
+              {shipment?.quote?.total ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200">
+                  Quote: {formatMoney(shipment.quote.total, shipment.quote.currency || "GBP")}
+                </span>
+              ) : null}
             </div>
           </div>
         </div>
@@ -647,6 +923,7 @@ const Shipment = () => {
                 Updated: {new Date(shipment.updatedAt).toLocaleString("en-GB")}
               </p>
             ) : null}
+            {sentAt ? <p>Quote sent: {sentAt}</p> : null}
           </div>
         </div>
       </div>
@@ -902,9 +1179,7 @@ const Shipment = () => {
           {/* Vessel / Flight */}
           <div className="xl:hidden">
             <Section
-              title={
-                isSea ? "Vessel (optional)" : "Airline / flight (optional)"
-              }
+              title={isSea ? "Vessel (optional)" : "Airline / flight (optional)"}
               subtitle="Carrier and reference numbers."
               open={openVessel}
               onToggle={() => setOpenVessel((v) => !v)}
@@ -917,9 +1192,7 @@ const Shipment = () => {
                     placeholder={isSea ? "MV Great Africa" : "British Airways"}
                   />
                 </Field>
-                <Field
-                  label={isSea ? "Voyage / rotation" : "Flight no. / MAWB"}
-                >
+                <Field label={isSea ? "Voyage / rotation" : "Flight no. / MAWB"}>
                   <Input
                     value={form.vesselVoyage}
                     onChange={handleChange("vesselVoyage")}
@@ -931,11 +1204,7 @@ const Shipment = () => {
           </div>
 
           <div className="hidden xl:block">
-            <Card
-              title={
-                isSea ? "Vessel (optional)" : "Airline / flight (optional)"
-              }
-            >
+            <Card title={isSea ? "Vessel (optional)" : "Airline / flight (optional)"}>
               <div className="grid grid-cols-2 gap-4">
                 <Field label={isSea ? "Vessel name" : "Airline / carrier"}>
                   <Input
@@ -944,9 +1213,7 @@ const Shipment = () => {
                     placeholder={isSea ? "MV Great Africa" : "British Airways"}
                   />
                 </Field>
-                <Field
-                  label={isSea ? "Voyage / rotation" : "Flight no. / MAWB"}
-                >
+                <Field label={isSea ? "Voyage / rotation" : "Flight no. / MAWB"}>
                   <Input
                     value={form.vesselVoyage}
                     onChange={handleChange("vesselVoyage")}
@@ -981,8 +1248,7 @@ const Shipment = () => {
                     Repacking / consolidation required
                   </label>
                   <p className="text-[10px] text-gray-500">
-                    For loose items, pallets or secure documents needing
-                    re-boxing, tamper-proof packaging or consolidation.
+                    For loose items, pallets or secure documents needing re-boxing, tamper-proof packaging or consolidation.
                   </p>
                 </div>
               </div>
@@ -1018,8 +1284,7 @@ const Shipment = () => {
                     Repacking / consolidation required
                   </label>
                   <p className="text-[10px] text-gray-500">
-                    For loose items, pallets or secure documents needing
-                    re-boxing, tamper-proof packaging or consolidation.
+                    For loose items, pallets or secure documents needing re-boxing, tamper-proof packaging or consolidation.
                   </p>
                 </div>
               </div>
@@ -1040,6 +1305,403 @@ const Shipment = () => {
 
         {/* RIGHT column */}
         <div className="space-y-4">
+          {/* ✅ QUOTE BUILDER (mobile accordion) */}
+          <div className="xl:hidden">
+            <Section
+              title="Quote builder"
+              subtitle="Create the quote lines, save, then email customer."
+              open={openQuote}
+              onToggle={() => setOpenQuote((v) => !v)}
+            >
+              <div id="quote-anchor" />
+
+              {quoteError ? (
+                <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md">
+                  {quoteError}
+                </p>
+              ) : null}
+
+              {quoteMsg ? (
+                <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-md">
+                  {quoteMsg}
+                </p>
+              ) : null}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label="Currency">
+                  <Select value={quoteForm.currency} onChange={setQuoteField("currency")}>
+                    {["GBP", "USD", "EUR", "GHS", "NGN"].map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </Select>
+                </Field>
+
+                <Field label="Valid until">
+                  <Input
+                    type="date"
+                    value={quoteForm.validUntil}
+                    onChange={setQuoteField("validUntil")}
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-3">
+                <p className="text-[11px] font-semibold text-gray-700">
+                  Line items
+                </p>
+
+                <div className="mt-2 space-y-2">
+                  {(quoteForm.lineItems || []).map((li, idx) => (
+                    <div
+                      key={`${idx}-${li.code || "li"}`}
+                      className="border border-slate-200 rounded-md p-3 bg-white"
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <Input
+                          value={li.label || ""}
+                          onChange={(e) => updateQuoteItem(idx, "label", e.target.value)}
+                          placeholder="Label (e.g. Ocean freight, UK handling)"
+                        />
+                        <Input
+                          value={li.code || ""}
+                          onChange={(e) => updateQuoteItem(idx, "code", e.target.value)}
+                          placeholder="Code (optional)"
+                          className="font-mono"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                        <Input
+                          type="number"
+                          value={li.qty ?? 1}
+                          onChange={(e) => updateQuoteItem(idx, "qty", e.target.value)}
+                          placeholder="Qty"
+                          min="0"
+                          step="1"
+                        />
+                        <Input
+                          type="number"
+                          value={li.unitPrice ?? 0}
+                          onChange={(e) => updateQuoteItem(idx, "unitPrice", e.target.value)}
+                          placeholder="Unit price"
+                          min="0"
+                          step="0.01"
+                        />
+                        <Input
+                          type="number"
+                          value={li.amount ?? ""}
+                          onChange={(e) => updateQuoteItem(idx, "amount", e.target.value)}
+                          placeholder="Amount (optional)"
+                          min="0"
+                          step="0.01"
+                          hint="Leave blank to auto-calc"
+                        />
+                        <Input
+                          type="number"
+                          value={li.taxRate ?? 0}
+                          onChange={(e) => updateQuoteItem(idx, "taxRate", e.target.value)}
+                          placeholder="Tax %"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-[11px] text-gray-600">
+                          Line tax: {formatMoney((toMoney(li.amount || (Number(li.qty || 1) * Number(li.unitPrice || 0))) * Number(li.taxRate || 0)) / 100), quoteCurrency)}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => removeQuoteItem(idx)}
+                          className="text-[11px] font-semibold text-red-600 hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={addQuoteItem}
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md bg-slate-100 text-slate-900 hover:bg-slate-200 transition"
+                  >
+                    + Add line
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-1 gap-3">
+                <Field label="Notes to customer">
+                  <Textarea
+                    value={quoteForm.notesToCustomer}
+                    onChange={setQuoteField("notesToCustomer")}
+                    className="h-[80px]"
+                    placeholder="Customer-visible notes (e.g. exclusions, required documents, delivery window)."
+                  />
+                </Field>
+
+                <Field label="Internal notes (admin only)">
+                  <Textarea
+                    value={quoteForm.internalNotes}
+                    onChange={setQuoteField("internalNotes")}
+                    className="h-[70px]"
+                    placeholder="Internal notes (margin, supplier refs, caveats)."
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                <div className="flex items-center justify-between text-[12px]">
+                  <span className="text-slate-600">Subtotal</span>
+                  <span className="font-semibold text-slate-900">
+                    {formatMoney(quoteTotals.subtotal, quoteCurrency)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[12px] mt-1">
+                  <span className="text-slate-600">Tax</span>
+                  <span className="font-semibold text-slate-900">
+                    {formatMoney(quoteTotals.taxTotal, quoteCurrency)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[13px] mt-2">
+                  <span className="text-slate-900 font-semibold">Total</span>
+                  <span className="font-extrabold text-slate-900">
+                    {formatMoney(quoteTotals.total, quoteCurrency)}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSaveQuoteDraft}
+                    disabled={quoteSaving || quoteSending}
+                    className="inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {quoteSaving ? "Saving..." : `Save quote draft${quoteVersion ? ` (v${quoteVersion})` : ""}`}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSendQuoteEmail}
+                    disabled={quoteSaving || quoteSending}
+                    className="inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-md bg-[#FFA500] text-black hover:bg-[#e69300] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {quoteSending ? "Sending..." : "Email quote to customer"}
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-slate-500 mt-2">
+                  Recipient: <span className="font-mono">{form.shipperEmail || "—"}</span>
+                </p>
+              </div>
+            </Section>
+          </div>
+
+          {/* ✅ QUOTE BUILDER (desktop card) */}
+          <div className="hidden xl:block">
+            <Card title="Quote builder" right={
+              shipment?.quote?.sentAt ? (
+                <span className="text-[11px] px-2 py-1 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200">
+                  Sent · {sentAt}
+                </span>
+              ) : (
+                <span className="text-[11px] px-2 py-1 rounded-full bg-slate-50 text-slate-700 border border-slate-200">
+                  Draft
+                </span>
+              )
+            }>
+              <div id="quote-anchor" />
+
+              {quoteError ? (
+                <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md">
+                  {quoteError}
+                </p>
+              ) : null}
+
+              {quoteMsg ? (
+                <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-md">
+                  {quoteMsg}
+                </p>
+              ) : null}
+
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Currency">
+                  <Select value={quoteForm.currency} onChange={setQuoteField("currency")}>
+                    {["GBP", "USD", "EUR", "GHS", "NGN"].map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </Select>
+                </Field>
+
+                <Field label="Valid until">
+                  <Input
+                    type="date"
+                    value={quoteForm.validUntil}
+                    onChange={setQuoteField("validUntil")}
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-4">
+                <p className="text-xs font-semibold text-gray-700">Line items</p>
+                <div className="mt-2 space-y-2">
+                  {(quoteForm.lineItems || []).map((li, idx) => (
+                    <div
+                      key={`${idx}-${li.code || "li"}`}
+                      className="border border-slate-200 rounded-md p-3 bg-white"
+                    >
+                      <div className="grid grid-cols-2 gap-3">
+                        <Input
+                          value={li.label || ""}
+                          onChange={(e) => updateQuoteItem(idx, "label", e.target.value)}
+                          placeholder="Label (e.g. Ocean freight, UK handling)"
+                        />
+                        <Input
+                          value={li.code || ""}
+                          onChange={(e) => updateQuoteItem(idx, "code", e.target.value)}
+                          placeholder="Code (optional)"
+                          className="font-mono"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-3 mt-2">
+                        <Input
+                          type="number"
+                          value={li.qty ?? 1}
+                          onChange={(e) => updateQuoteItem(idx, "qty", e.target.value)}
+                          placeholder="Qty"
+                          min="0"
+                          step="1"
+                        />
+                        <Input
+                          type="number"
+                          value={li.unitPrice ?? 0}
+                          onChange={(e) => updateQuoteItem(idx, "unitPrice", e.target.value)}
+                          placeholder="Unit price"
+                          min="0"
+                          step="0.01"
+                        />
+                        <Input
+                          type="number"
+                          value={li.amount ?? ""}
+                          onChange={(e) => updateQuoteItem(idx, "amount", e.target.value)}
+                          placeholder="Amount (optional)"
+                          min="0"
+                          step="0.01"
+                        />
+                        <Input
+                          type="number"
+                          value={li.taxRate ?? 0}
+                          onChange={(e) => updateQuoteItem(idx, "taxRate", e.target.value)}
+                          placeholder="Tax %"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-[11px] text-gray-600">
+                          Line tax: {formatMoney((toMoney(li.amount || (Number(li.qty || 1) * Number(li.unitPrice || 0))) * Number(li.taxRate || 0)) / 100), quoteCurrency)}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => removeQuoteItem(idx)}
+                          className="text-[11px] font-semibold text-red-600 hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={addQuoteItem}
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md bg-slate-100 text-slate-900 hover:bg-slate-200 transition"
+                  >
+                    + Add line
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                <Field label="Notes to customer">
+                  <Textarea
+                    value={quoteForm.notesToCustomer}
+                    onChange={setQuoteField("notesToCustomer")}
+                    className="h-[90px]"
+                    placeholder="Customer-visible notes (e.g. exclusions, required documents, delivery window)."
+                  />
+                </Field>
+
+                <Field label="Internal notes (admin only)">
+                  <Textarea
+                    value={quoteForm.internalNotes}
+                    onChange={setQuoteField("internalNotes")}
+                    className="h-[90px]"
+                    placeholder="Internal notes (margin, supplier refs, caveats)."
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <div className="flex items-center justify-end gap-10">
+                  <div className="text-right">
+                    <div className="text-[11px] text-slate-500">Subtotal</div>
+                    <div className="text-sm font-semibold text-slate-900">
+                      {formatMoney(quoteTotals.subtotal, quoteCurrency)}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] text-slate-500">Tax</div>
+                    <div className="text-sm font-semibold text-slate-900">
+                      {formatMoney(quoteTotals.taxTotal, quoteCurrency)}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] text-slate-500">Total</div>
+                    <div className="text-[16px] font-extrabold text-slate-900">
+                      {formatMoney(quoteTotals.total, quoteCurrency)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="text-[11px] text-slate-600">
+                    Recipient: <span className="font-mono">{form.shipperEmail || "—"}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveQuoteDraft}
+                      disabled={quoteSaving || quoteSending}
+                      className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {quoteSaving ? "Saving..." : `Save quote draft${quoteVersion ? ` (v${quoteVersion})` : ""}`}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSendQuoteEmail}
+                      disabled={quoteSaving || quoteSending}
+                      className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-md bg-[#FFA500] text-black hover:bg-[#e69300] transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {quoteSending ? "Sending..." : "Email quote to customer"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+
           {/* Parties (mobile accordion) */}
           <div className="xl:hidden">
             <Section
@@ -1440,7 +2102,6 @@ const Shipment = () => {
               open={openDocs}
               onToggle={() => setOpenDocs((v) => !v)}
             >
-              {/* ✅ D) anchor at top of Documents content */}
               <div id="documents-anchor" />
 
               {docError ? (
@@ -1520,7 +2181,6 @@ const Shipment = () => {
           {/* Documents (desktop card) */}
           <div className="hidden xl:block">
             <Card title="Documents">
-              {/* ✅ D) anchor at top of Documents content */}
               <div id="documents-anchor" />
 
               {docError ? (

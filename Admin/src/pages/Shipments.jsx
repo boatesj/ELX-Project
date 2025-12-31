@@ -164,18 +164,13 @@ const Shipments = () => {
       {
         field: "actions",
         headerName: "Actions",
-        width: 285,
+        width: 360,
         sortable: false,
         filterable: false,
         renderCell: (params) => {
           const id = params.row._id;
+          const isRequestRow = REQUEST_STATUSES.has(params.row.status);
 
-          /**
-           * ✅ CRITICAL FIX:
-           * Use RELATIVE links so Admin works under /admin (or any base path).
-           * - From /shipments -> `to={`${id}`}` navigates to /shipments/:id (within Admin app)
-           * - Works whether Admin is hosted at / or /admin
-           */
           return (
             <div className="flex items-center h-full gap-2">
               <Link to={`${id}`}>
@@ -190,6 +185,22 @@ const Shipments = () => {
                   Edit
                 </button>
               </Link>
+
+              {isRequestRow ? (
+                <Link to={`${id}#quote`}>
+                  <button
+                    type="button"
+                    className="
+                      px-3 py-1 rounded-md font-semibold text-xs
+                      bg-indigo-600 text-white
+                      hover:bg-indigo-700 transition
+                    "
+                    title="Build / send quote"
+                  >
+                    Quote
+                  </button>
+                </Link>
+              ) : null}
 
               <Link to={`${id}#documents`}>
                 <button
@@ -354,94 +365,106 @@ const Shipments = () => {
             No shipments found.
           </div>
         ) : (
-          filteredRows.map((row) => (
-            <div
-              key={row._id}
-              className="bg-white rounded-md p-4 shadow-md border border-slate-100"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-slate-900 break-words">
-                    {row.referenceNo || "—"}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    {row.mode ? row.mode.toUpperCase() : "—"}{" "}
-                    {row.weight ? `• ${row.weight}` : ""}
+          filteredRows.map((row) => {
+            const isRequestRow = REQUEST_STATUSES.has(row.status);
+
+            return (
+              <div
+                key={row._id}
+                className="bg-white rounded-md p-4 shadow-md border border-slate-100"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-900 break-words">
+                      {row.referenceNo || "—"}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {row.mode ? row.mode.toUpperCase() : "—"}{" "}
+                      {row.weight ? `• ${row.weight}` : ""}
+                    </div>
+
+                    <div className="mt-2 inline-flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
+                        <FaFileAlt className="text-slate-500" />
+                        Docs:
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                          row.docsCount > 0
+                            ? "bg-[#1A2930]/10 text-[#1A2930] border-[#1A2930]/20"
+                            : "bg-gray-100 text-gray-600 border-gray-200"
+                        }`}
+                      >
+                        {row.docsCount || 0}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="mt-2 inline-flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
-                      <FaFileAlt className="text-slate-500" />
-                      Docs:
+                  <span
+                    className={`shrink-0 px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
+                      row.status
+                    )}`}
+                  >
+                    {formatStatusLabel(row.status)}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500 text-xs">Shipper</span>
+                    <span className="text-slate-900 text-sm font-medium text-right break-words">
+                      {row.shipper || "—"}
                     </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                        row.docsCount > 0
-                          ? "bg-[#1A2930]/10 text-[#1A2930] border-[#1A2930]/20"
-                          : "bg-gray-100 text-gray-600 border-gray-200"
-                      }`}
-                    >
-                      {row.docsCount || 0}
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500 text-xs">Consignee</span>
+                    <span className="text-slate-900 text-sm font-medium text-right break-words">
+                      {row.consignee || "—"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500 text-xs">Route</span>
+                    <span className="text-slate-900 text-sm font-medium text-right break-words">
+                      {(row.from || "—") + " → " + (row.destination || "—")}
                     </span>
                   </div>
                 </div>
 
-                <span
-                  className={`shrink-0 px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
-                    row.status
-                  )}`}
-                >
-                  {formatStatusLabel(row.status)}
-                </span>
-              </div>
+                <div className="mt-4 grid grid-cols-1 gap-2">
+                  <Link to={`${row._id}`} className="w-full">
+                    <button className="w-full px-3 py-2 rounded-md font-semibold text-xs bg-[#FFA500] text-black hover:bg-[#e69300] transition">
+                      Edit
+                    </button>
+                  </Link>
 
-              <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-slate-500 text-xs">Shipper</span>
-                  <span className="text-slate-900 text-sm font-medium text-right break-words">
-                    {row.shipper || "—"}
-                  </span>
-                </div>
+                  {isRequestRow ? (
+                    <Link to={`${row._id}#quote`} className="w-full">
+                      <button className="w-full px-3 py-2 rounded-md font-semibold text-xs bg-indigo-600 text-white hover:bg-indigo-700 transition">
+                        Quote
+                      </button>
+                    </Link>
+                  ) : null}
 
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-slate-500 text-xs">Consignee</span>
-                  <span className="text-slate-900 text-sm font-medium text-right break-words">
-                    {row.consignee || "—"}
-                  </span>
-                </div>
+                  <Link to={`${row._id}#documents`} className="w-full">
+                    <button className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md font-semibold text-xs bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition">
+                      <FaFileAlt />
+                      Docs
+                    </button>
+                  </Link>
 
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-slate-500 text-xs">Route</span>
-                  <span className="text-slate-900 text-sm font-medium text-right break-words">
-                    {(row.from || "—") + " → " + (row.destination || "—")}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center gap-2">
-                <Link to={`${row._id}`} className="flex-1">
-                  <button className="w-full px-3 py-2 rounded-md font-semibold text-xs bg-[#FFA500] text-black hover:bg-[#e69300] transition">
-                    Edit
+                  <button
+                    onClick={() => handleDelete(row._id)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md font-semibold text-xs bg-[#E53935] text-white hover:bg-[#c62828] transition"
+                  >
+                    <FaTrash className="text-white" />
+                    Delete
                   </button>
-                </Link>
-
-                <Link to={`${row._id}#documents`} className="flex-1">
-                  <button className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md font-semibold text-xs bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition">
-                    <FaFileAlt />
-                    Docs
-                  </button>
-                </Link>
-
-                <button
-                  onClick={() => handleDelete(row._id)}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md font-semibold text-xs bg-[#E53935] text-white hover:bg-[#c62828] transition"
-                >
-                  <FaTrash className="text-white" />
-                  Delete
-                </button>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
