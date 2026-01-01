@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { customerAuthRequest, publicRequest } from "../requestMethods"; // ✅ update path if needed
+import { publicRequest } from "../requestMethods"; // ✅ force public for lead requests
 
 const SERVICE_TABS = [
   { id: "container", label: "Container shipping" },
@@ -74,16 +74,6 @@ const QuoteSection = () => {
     [activeService]
   );
 
-  const pickClient = () => {
-    // If customer token exists, use customer client; else use public client.
-    const token =
-      localStorage.getItem("elx_customer_token") ||
-      sessionStorage.getItem("elx_customer_token") ||
-      null;
-
-    return token ? customerAuthRequest : publicRequest;
-  };
-
   const buildPayloadFromForm = (fd, serviceId) => {
     const leadName = String(fd.get("lead_name") || "").trim();
     const leadEmail = String(fd.get("lead_email") || "").trim();
@@ -103,15 +93,19 @@ const QuoteSection = () => {
         phone: leadPhone || "",
       },
 
+      // ✅ NEW: requestor snapshot (unregistered lead)
+      requestor: {
+        name: leadName,
+        email: leadEmail,
+        phone: leadPhone || "",
+      },
+
       // Consignee info may be unknown at request stage
       consignee: {
         name: "To be confirmed",
         address: "To be confirmed",
-        // email omitted intentionally
-        // phone omitted intentionally
       },
 
-      // Keep notify optional; empty object is okay (we'll prune if empty)
       notify: {},
 
       ports: {
@@ -138,7 +132,11 @@ const QuoteSection = () => {
         source: "web_quote",
         createdAtClient: nowIso,
         serviceTab: serviceId,
+        leadStage: true,
       },
+
+      // ✅ Always treat as web portal lead
+      channel: "web_portal",
     };
 
     if (serviceId === "container") {
@@ -158,8 +156,6 @@ const QuoteSection = () => {
       base.mode = isLcl ? "LCL" : "Container";
 
       base.cargo.weight = weight ? `${weight} kg` : "";
-
-      // ✅ send ISO string if provided; otherwise omit
       base.shippingDate = normaliseDateToIso(readyDate);
 
       base.cargo.description = [
@@ -288,8 +284,6 @@ const QuoteSection = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // ✅ capture form element immediately; don't rely on e.currentTarget after await
     const formEl = e.currentTarget;
 
     setSubmitError("");
@@ -298,24 +292,23 @@ const QuoteSection = () => {
 
     try {
       const fd = new FormData(formEl);
-
       let payload = buildPayloadFromForm(fd, activeService);
 
-      // Guard (ports required by validator)
       if (!payload?.ports?.originPort || !payload?.ports?.destinationPort) {
         throw new Error("Please provide both origin and destination.");
       }
 
-      // ✅ prune out null/""/undefined so validators don’t trip
       payload = deepPrune(payload) || {};
 
-      // (After prune) still ensure required objects exist
       if (!payload.shipper || !payload.consignee || !payload.ports) {
         throw new Error("Missing required quote fields. Please try again.");
       }
 
-      const client = pickClient();
-      const res = await client.post("/api/v1/shipments", payload);
+      // ✅ IMPORTANT: lead requests must be PUBLIC (avoid stale customer token)
+      const res = await publicRequest.post(
+        "/api/v1/shipments/public-request",
+        payload
+      );
 
       const created = res.data?.shipment || res.data?.data || res.data;
       const ref = created?.referenceNo || "";
@@ -323,14 +316,12 @@ const QuoteSection = () => {
       setSubmitted(true);
       setCreatedRef(ref);
 
-      // ✅ reset safely
       if (formEl && typeof formEl.reset === "function") {
         formEl.reset();
       }
 
       window.setTimeout(() => setSubmitted(false), 6500);
     } catch (err) {
-      // ✅ surface express-validator errors array if present
       const api = err?.response?.data;
       const firstFieldError =
         Array.isArray(api?.errors) && api.errors.length

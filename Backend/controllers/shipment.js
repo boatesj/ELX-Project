@@ -688,6 +688,57 @@ function sumCharges(charges) {
 
 // ---------------- CONTROLLERS ----------------
 
+/**
+ * ✅ NEW (PUBLIC): create lead shipment from landing page
+ * POST /api/v1/shipments/public-request
+ */
+async function createPublicLeadShipment(req, res) {
+  try {
+    const payload = { ...req.body };
+
+    // Force-safe invariants for lead stage
+    payload.isDeleted = false;
+    payload.channel = "web_portal";
+    payload.status = payload.status || "request_received";
+    payload.paymentStatus = payload.paymentStatus || "unpaid";
+
+    // Never assign ownership/createdBy for public lead requests
+    delete payload.customer;
+    delete payload.createdBy;
+
+    // Ensure requestor snapshot exists (fallback from shipper)
+    const shipperName = String(payload?.shipper?.name || "").trim();
+    const shipperEmail = String(payload?.shipper?.email || "").trim();
+    const shipperPhone = String(payload?.shipper?.phone || "").trim();
+
+    if (!payload.requestor) payload.requestor = {};
+    if (!payload.requestor.name && shipperName)
+      payload.requestor.name = shipperName;
+    if (!payload.requestor.email && shipperEmail)
+      payload.requestor.email = shipperEmail;
+    if (!payload.requestor.phone && shipperPhone)
+      payload.requestor.phone = shipperPhone;
+
+    // Defensive: mark meta lead stage
+    payload.meta = payload.meta || {};
+    payload.meta.leadStage = true;
+    payload.meta.source = payload.meta.source || "web_quote";
+
+    const shipment = await Shipment.create(payload);
+
+    return res.status(201).json({
+      message: "Lead request created successfully.",
+      shipment,
+    });
+  } catch (err) {
+    console.error("Error creating public lead shipment:", err);
+    return res.status(500).json({
+      message: "Failed to create lead request",
+      error: err.message,
+    });
+  }
+}
+
 async function createShipment(req, res) {
   try {
     const payload = { ...req.body };
@@ -1674,4 +1725,7 @@ module.exports = {
 
   // ✅ Booking confirmation
   sendBookingConfirmationEmail,
+
+  // ✅ NEW (PUBLIC)
+  createPublicLeadShipment,
 };
