@@ -274,6 +274,14 @@ const computeUiTotals = (lineItems = []) => {
   return { subtotal, taxTotal, total };
 };
 
+const REQUEST_STATUSES = new Set([
+  "request_received",
+  "under_review",
+  "quoted",
+  "customer_requested_changes",
+  "customer_approved",
+]);
+
 const Shipment = () => {
   const { shipmentId } = useParams();
   const navigate = useNavigate();
@@ -295,6 +303,7 @@ const Shipment = () => {
   const [quoteSending, setQuoteSending] = useState(false);
   const [quoteError, setQuoteError] = useState("");
   const [quoteMsg, setQuoteMsg] = useState("");
+  const [statusActing, setStatusActing] = useState(false);
 
   // Mobile section toggles
   const [openService, setOpenService] = useState(true);
@@ -421,7 +430,7 @@ const Shipment = () => {
         setLoading(true);
         setErrorMsg("");
 
-        const res = await authRequest.get(`/api/v1/shipments/${shipmentId}`);
+        const res = await authRequest.get(`/shipments/${shipmentId}`);
         const s = res.data?.shipment || res.data?.data || res.data;
 
         if (!s) {
@@ -523,14 +532,7 @@ const Shipment = () => {
         });
 
         // Auto-open quote section if in request pipeline
-        const requestStatuses = new Set([
-          "request_received",
-          "under_review",
-          "quoted",
-          "customer_requested_changes",
-          "customer_approved",
-        ]);
-        if (requestStatuses.has(s.status)) {
+        if (REQUEST_STATUSES.has(s.status)) {
           setOpenQuote(true);
         }
       } catch (error) {
@@ -549,6 +551,77 @@ const Shipment = () => {
     if (shipmentId) fetchShipment();
   }, [shipmentId]);
 
+  // ---------------- PAYLOAD BUILDER (single source of truth) ----------------
+  const buildUpdatePayload = (override = {}) => {
+    const backendMode = uiModeToBackendMode(form.serviceType, form.mode);
+
+    const payload = {
+      referenceNo: form.referenceNo || shipment?.referenceNo,
+      serviceType: form.serviceType,
+      mode: backendMode,
+      status: form.status,
+      paymentStatus: form.paymentStatus || "unpaid",
+
+      ports: {
+        originPort: form.originPort,
+        destinationPort: form.destinationPort,
+      },
+
+      shipper: {
+        name: form.shipperName,
+        address: form.shipperAddress,
+        email: form.shipperEmail,
+        phone: form.shipperPhone,
+      },
+      consignee: {
+        name: form.consigneeName,
+        address: form.consigneeAddress,
+        email: form.consigneeEmail,
+        phone: form.consigneePhone,
+      },
+      notify: {
+        name: form.notifyName,
+        address: form.notifyAddress,
+        email: form.notifyEmail,
+        phone: form.notifyPhone,
+      },
+      vessel: {
+        name: form.vesselName,
+        voyage: form.vesselVoyage,
+      },
+      shippingDate: form.shippingDate
+        ? new Date(form.shippingDate)
+        : shipment?.shippingDate,
+      eta: form.eta ? new Date(form.eta) : shipment?.eta,
+
+      cargo: {
+        description: form.cargoDescription,
+        weight: form.cargoWeight,
+        vehicle: {
+          make: form.vehicleMake,
+          model: form.vehicleModel,
+          year: form.vehicleYear,
+          vin: form.vehicleVin,
+        },
+        container: {
+          containerNo: form.containerNo,
+          size: form.containerSize,
+          sealNo: form.containerSealNo,
+        },
+      },
+      services: {
+        repacking: {
+          required: form.repackingRequired,
+          notes: form.repackingNotes,
+        },
+      },
+      ...override,
+    };
+
+    if (form.cargoType) payload.cargoType = form.cargoType;
+    return payload;
+  };
+
   // ---------------- SAVE / UPDATE BOOKING ----------------
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -558,76 +631,9 @@ const Shipment = () => {
       setSaving(true);
       setErrorMsg("");
 
-      const backendMode = uiModeToBackendMode(form.serviceType, form.mode);
+      const payload = buildUpdatePayload();
 
-      const payload = {
-        referenceNo: form.referenceNo || shipment.referenceNo,
-        serviceType: form.serviceType,
-        mode: backendMode,
-        status: form.status,
-        paymentStatus: form.paymentStatus || "unpaid",
-
-        ports: {
-          originPort: form.originPort,
-          destinationPort: form.destinationPort,
-        },
-
-        shipper: {
-          name: form.shipperName,
-          address: form.shipperAddress,
-          email: form.shipperEmail,
-          phone: form.shipperPhone,
-        },
-        consignee: {
-          name: form.consigneeName,
-          address: form.consigneeAddress,
-          email: form.consigneeEmail,
-          phone: form.consigneePhone,
-        },
-        notify: {
-          name: form.notifyName,
-          address: form.notifyAddress,
-          email: form.notifyEmail,
-          phone: form.notifyPhone,
-        },
-        vessel: {
-          name: form.vesselName,
-          voyage: form.vesselVoyage,
-        },
-        shippingDate: form.shippingDate
-          ? new Date(form.shippingDate)
-          : shipment.shippingDate,
-        eta: form.eta ? new Date(form.eta) : shipment.eta,
-
-        cargo: {
-          description: form.cargoDescription,
-          weight: form.cargoWeight,
-          vehicle: {
-            make: form.vehicleMake,
-            model: form.vehicleModel,
-            year: form.vehicleYear,
-            vin: form.vehicleVin,
-          },
-          container: {
-            containerNo: form.containerNo,
-            size: form.containerSize,
-            sealNo: form.containerSealNo,
-          },
-        },
-        services: {
-          repacking: {
-            required: form.repackingRequired,
-            notes: form.repackingNotes,
-          },
-        },
-      };
-
-      if (form.cargoType) payload.cargoType = form.cargoType;
-
-      const res = await authRequest.put(
-        `/api/v1/shipments/${shipmentId}`,
-        payload
-      );
+      const res = await authRequest.put(`/shipments/${shipmentId}`, payload);
       const updated = res.data?.shipment || res.data?.data || res.data;
 
       setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
@@ -646,6 +652,49 @@ const Shipment = () => {
     }
   };
 
+  // ---------------- QUICK STATUS ACTIONS (Option B) ----------------
+  const quickSetStatus = async (nextStatus, opts = {}) => {
+    if (!shipmentId || !shipment) return;
+
+    try {
+      setStatusActing(true);
+      setErrorMsg("");
+      setQuoteError("");
+      setQuoteMsg("");
+
+      // Keep form in sync immediately (UI feedback)
+      setForm((p) => ({ ...p, status: nextStatus }));
+
+      const payload = buildUpdatePayload({ status: nextStatus });
+
+      const res = await authRequest.put(`/shipments/${shipmentId}`, payload);
+      const updated = res.data?.shipment || res.data?.data || res.data;
+
+      if (updated) {
+        setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
+        if (updated?.status) setForm((p) => ({ ...p, status: updated.status }));
+      }
+
+      setQuoteMsg(
+        opts?.successMsg ||
+          `Status updated to ${formatStatusLabel(nextStatus)}.`
+      );
+    } catch (err) {
+      console.error("❌ Error updating status:", err?.response?.data || err);
+
+      // revert to current shipment status if possible
+      const fallback = shipment?.status || form.status;
+      setForm((p) => ({ ...p, status: fallback }));
+
+      setQuoteError(
+        err?.response?.data?.message ||
+          "Failed to update status. Please try again."
+      );
+    } finally {
+      setStatusActing(false);
+    }
+  };
+
   // ---------------- DOCUMENTS: ADD / MANAGE ----------------
   const handleAddDocument = async () => {
     if (!shipmentId) return;
@@ -659,13 +708,10 @@ const Shipment = () => {
       setDocSaving(true);
       setDocError("");
 
-      const res = await authRequest.post(
-        `/api/v1/shipments/${shipmentId}/documents`,
-        {
-          name: newDocName.trim(),
-          fileUrl: newDocUrl.trim(),
-        }
-      );
+      const res = await authRequest.post(`/shipments/${shipmentId}/documents`, {
+        name: newDocName.trim(),
+        fileUrl: newDocUrl.trim(),
+      });
 
       const docs = res.data?.data || [];
 
@@ -769,7 +815,7 @@ const Shipment = () => {
       };
 
       const res = await authRequest.patch(
-        `/api/v1/shipments/${shipmentId}/quote`,
+        `/shipments/${shipmentId}/quote`,
         payload
       );
       const updated = res.data?.shipment || res.data?.data || res.data;
@@ -815,7 +861,7 @@ const Shipment = () => {
       setQuoteSending(true);
 
       const res = await authRequest.post(
-        `/api/v1/shipments/${shipmentId}/quote/send`,
+        `/shipments/${shipmentId}/quote/send`,
         {
           // optional override: toEmail
         }
@@ -849,6 +895,29 @@ const Shipment = () => {
     form.cargoType === "container" ||
     form.cargoType === "lcl";
 
+  const currentModeOptions = MODE_OPTIONS[form.serviceType] || [];
+  const quoteCurrency = quoteForm.currency || "GBP";
+  const sentAt = shipment?.quote?.sentAt
+    ? new Date(shipment.quote.sentAt).toLocaleString("en-GB")
+    : "";
+  const quoteVersion = shipment?.quote?.version || 0;
+
+  // ----- Option B gating -----
+  const isRequestPipeline = REQUEST_STATUSES.has(form.status);
+  const isQuotedStage =
+    form.status === "quoted" || form.status === "customer_requested_changes";
+  const isApprovedStage = form.status === "customer_approved";
+  const isBookedStage = form.status === "booked";
+
+  const canMarkApproved =
+    !statusActing && !saving && !quoteSending && !quoteSaving && isQuotedStage;
+  const canConfirmBooking =
+    !statusActing &&
+    !saving &&
+    !quoteSending &&
+    !quoteSaving &&
+    isApprovedStage;
+
   if (loading) {
     return (
       <div className="bg-[#D9D9D9] p-3 sm:p-5 lg:m-[30px] lg:p-[20px] rounded-md">
@@ -878,13 +947,6 @@ const Shipment = () => {
       </div>
     );
   }
-
-  const currentModeOptions = MODE_OPTIONS[form.serviceType] || [];
-  const quoteCurrency = quoteForm.currency || "GBP";
-  const sentAt = shipment?.quote?.sentAt
-    ? new Date(shipment.quote.sentAt).toLocaleString("en-GB")
-    : "";
-  const quoteVersion = shipment?.quote?.version || 0;
 
   return (
     <div className="bg-[#D9D9D9] rounded-md p-3 sm:p-5 lg:m-[30px] lg:p-[20px] space-y-4 font-montserrat">
@@ -1378,6 +1440,13 @@ const Shipment = () => {
                 </p>
               ) : null}
 
+              {isRequestPipeline ? (
+                <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700">
+                  <span className="font-semibold">Next steps:</span> Email quote
+                  → mark approval → confirm booking.
+                </div>
+              ) : null}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Currency">
                   <Select
@@ -1553,7 +1622,7 @@ const Shipment = () => {
                   <button
                     type="button"
                     onClick={handleSaveQuoteDraft}
-                    disabled={quoteSaving || quoteSending}
+                    disabled={quoteSaving || quoteSending || statusActing}
                     className="inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {quoteSaving
@@ -1566,10 +1635,59 @@ const Shipment = () => {
                   <button
                     type="button"
                     onClick={handleSendQuoteEmail}
-                    disabled={quoteSaving || quoteSending}
+                    disabled={quoteSaving || quoteSending || statusActing}
                     className="inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-md bg-[#FFA500] text-black hover:bg-[#e69300] transition disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {quoteSending ? "Sending..." : "Email quote to customer"}
+                  </button>
+                </div>
+
+                {/* Option B status actions */}
+                <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ok = window.confirm(
+                        "Mark this quote as customer approved?"
+                      );
+                      if (!ok) return;
+                      quickSetStatus("customer_approved", {
+                        successMsg:
+                          "Customer approval recorded. You can now confirm booking.",
+                      });
+                    }}
+                    disabled={!canMarkApproved}
+                    className="inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={
+                      canMarkApproved
+                        ? "Record approval and move to booking step"
+                        : "Available when status is Quoted / Requested changes"
+                    }
+                  >
+                    {statusActing ? "Updating..." : "Mark customer approved"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ok = window.confirm(
+                        "Confirm booking now? This will move the shipment to BOOKED."
+                      );
+                      if (!ok) return;
+                      quickSetStatus("booked", {
+                        successMsg:
+                          "Booking confirmed. Shipment moved to BOOKED.",
+                      });
+                    }}
+                    disabled={!canConfirmBooking}
+                    className="inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={
+                      canConfirmBooking
+                        ? "Confirm booking and move to operational pipeline"
+                        : "Available after customer approval"
+                    }
+                  >
+                    {statusActing ? "Updating..." : "Confirm booking"}
                   </button>
                 </div>
 
@@ -1577,6 +1695,13 @@ const Shipment = () => {
                   Recipient:{" "}
                   <span className="font-mono">{form.shipperEmail || "—"}</span>
                 </p>
+
+                {isBookedStage ? (
+                  <p className="text-[10px] text-slate-600 mt-1">
+                    Status is <span className="font-semibold">BOOKED</span>.
+                    Continue operational updates as shipment progresses.
+                  </p>
+                ) : null}
               </div>
             </Section>
           </div>
@@ -1609,6 +1734,13 @@ const Shipment = () => {
                 <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-md">
                   {quoteMsg}
                 </p>
+              ) : null}
+
+              {isRequestPipeline ? (
+                <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700">
+                  <span className="font-semibold">Next steps:</span> Email quote
+                  → mark approval → confirm booking.
+                </div>
               ) : null}
 
               <div className="grid grid-cols-2 gap-4">
@@ -1796,7 +1928,7 @@ const Shipment = () => {
                     <button
                       type="button"
                       onClick={handleSaveQuoteDraft}
-                      disabled={quoteSaving || quoteSending}
+                      disabled={quoteSaving || quoteSending || statusActing}
                       className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {quoteSaving
@@ -1809,13 +1941,69 @@ const Shipment = () => {
                     <button
                       type="button"
                       onClick={handleSendQuoteEmail}
-                      disabled={quoteSaving || quoteSending}
+                      disabled={quoteSaving || quoteSending || statusActing}
                       className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-md bg-[#FFA500] text-black hover:bg-[#e69300] transition disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {quoteSending ? "Sending..." : "Email quote to customer"}
                     </button>
                   </div>
                 </div>
+
+                {/* Option B status actions */}
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ok = window.confirm(
+                        "Mark this quote as customer approved?"
+                      );
+                      if (!ok) return;
+                      quickSetStatus("customer_approved", {
+                        successMsg:
+                          "Customer approval recorded. You can now confirm booking.",
+                      });
+                    }}
+                    disabled={!canMarkApproved}
+                    className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={
+                      canMarkApproved
+                        ? "Record approval and move to booking step"
+                        : "Available when status is Quoted / Requested changes"
+                    }
+                  >
+                    {statusActing ? "Updating..." : "Mark customer approved"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ok = window.confirm(
+                        "Confirm booking now? This will move the shipment to BOOKED."
+                      );
+                      if (!ok) return;
+                      quickSetStatus("booked", {
+                        successMsg:
+                          "Booking confirmed. Shipment moved to BOOKED.",
+                      });
+                    }}
+                    disabled={!canConfirmBooking}
+                    className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={
+                      canConfirmBooking
+                        ? "Confirm booking and move to operational pipeline"
+                        : "Available after customer approval"
+                    }
+                  >
+                    {statusActing ? "Updating..." : "Confirm booking"}
+                  </button>
+                </div>
+
+                {isBookedStage ? (
+                  <p className="text-[10px] text-slate-600 mt-2">
+                    Status is <span className="font-semibold">BOOKED</span>.
+                    Continue operational updates as shipment progresses.
+                  </p>
+                ) : null}
               </div>
             </Card>
           </div>
