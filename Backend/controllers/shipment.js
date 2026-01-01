@@ -1404,6 +1404,120 @@ async function sendQuoteEmail(req, res) {
 }
 
 /**
+ * ✅ CUSTOMER: approve quote (status=customer_approved)
+ * POST /api/v1/shipments/:id/quote/approve
+ */
+async function approveQuoteAsCustomer(req, res) {
+  try {
+    const { id } = req.params;
+    const userId = requireUserId(req);
+
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid shipment id" });
+    }
+
+    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
+    if (!shipment)
+      return res.status(404).json({ message: "Shipment not found" });
+
+    // Must be owned by the logged-in customer
+    if (!shipment.customer || String(shipment.customer) !== String(userId)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    // Must have a quote to approve
+    if (
+      !shipment.quote ||
+      !Array.isArray(shipment.quote.lineItems) ||
+      shipment.quote.lineItems.length === 0
+    ) {
+      return res
+        .status(400)
+        .json({ message: "No quote found on this shipment." });
+    }
+
+    shipment.status = "customer_approved";
+    shipment.quote.acceptedAt = new Date();
+
+    shipment.trackingEvents.push({
+      status: "customer_approved",
+      event: "Customer approved quote",
+      location: "",
+      date: new Date(),
+      meta: {
+        source: "customer_portal_quote_approve",
+        customerId: userId,
+        customerEmail: shipment?.shipper?.email || null,
+        quoteVersion: shipment?.quote?.version || null,
+      },
+    });
+
+    await shipment.save();
+
+    return res.status(200).json({ message: "Quote approved.", shipment });
+  } catch (err) {
+    console.error("approveQuoteAsCustomer error:", err);
+    return res
+      .status(500)
+      .json({ message: "Failed to approve quote", error: err.message });
+  }
+}
+
+/**
+ * ✅ CUSTOMER: request quote changes (status=customer_requested_changes)
+ * POST /api/v1/shipments/:id/quote/request-changes
+ * Body: { message?: string }
+ */
+async function requestQuoteChangesAsCustomer(req, res) {
+  try {
+    const { id } = req.params;
+    const userId = requireUserId(req);
+
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid shipment id" });
+    }
+
+    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
+    if (!shipment)
+      return res.status(404).json({ message: "Shipment not found" });
+
+    if (!shipment.customer || String(shipment.customer) !== String(userId)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    shipment.status = "customer_requested_changes";
+
+    const msg = String(req.body?.message || "").trim();
+
+    shipment.trackingEvents.push({
+      status: "customer_requested_changes",
+      event: msg
+        ? `Customer requested changes: ${msg}`
+        : "Customer requested quote changes",
+      location: "",
+      date: new Date(),
+      meta: {
+        source: "customer_portal_quote_request_changes",
+        customerId: userId,
+        customerEmail: shipment?.shipper?.email || null,
+        quoteVersion: shipment?.quote?.version || null,
+      },
+    });
+
+    await shipment.save();
+
+    return res.status(200).json({ message: "Change request sent.", shipment });
+  } catch (err) {
+    console.error("requestQuoteChangesAsCustomer error:", err);
+    return res
+      .status(500)
+      .json({ message: "Failed to request changes", error: err.message });
+  }
+}
+
+/**
  * ✅ ADMIN: Send Booking Confirmation email + mark BOOKED (schema-safe)
  * --------------------------------------------------
  * @route   POST /api/v1/shipments/:id/booking/confirm
@@ -1714,6 +1828,10 @@ module.exports = {
   // ✅ Quote
   saveQuote,
   sendQuoteEmail,
+
+  // ✅ CUSTOMER quote actions
+  approveQuoteAsCustomer,
+  requestQuoteChangesAsCustomer,
 
   // ✅ Booking confirmation
   sendBookingConfirmationEmail,

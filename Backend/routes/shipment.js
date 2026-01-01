@@ -15,15 +15,19 @@ const {
   updateStatus,
   getDashboardStats,
 
-  // ✅ NEW quote handlers
+  // ✅ quote handlers
   saveQuote,
   sendQuoteEmail,
 
-  // ✅ NEW charges handler
+  // ✅ charges handler
   updateCharges,
 
   // ✅ Booking confirmation
   sendBookingConfirmationEmail,
+
+  // ✅ NEW: customer quote decisions
+  approveQuoteAsCustomer,
+  requestQuoteChangesAsCustomer,
 } = require("../controllers/shipment");
 
 const { requireAuth, requireRole } = require("../middleware/auth");
@@ -49,7 +53,6 @@ function escapeRegExp(str) {
  *
  * Notes:
  * - Creates shipment with status=request_received
- * - Sets requestor snapshot (name/email/phone)
  * - Does NOT assign customer/createdBy
  */
 router.post(
@@ -212,9 +215,38 @@ router.post(
 );
 
 /**
+ * ✅ NEW (CUSTOMER)
+ * @route   POST /shipments/:id/quote/approve
+ * @desc    Customer approves the quote (sets status=customer_approved)
+ * @access  Auth (customer)
+ */
+router.post(
+  "/:id/quote/approve",
+  requireAuth,
+  validateObjectIdParam("id"),
+  handleValidation,
+  approveQuoteAsCustomer
+);
+
+/**
+ * ✅ NEW (CUSTOMER)
+ * @route   POST /shipments/:id/quote/request-changes
+ * @desc    Customer requests quote changes (sets status=customer_requested_changes)
+ * @access  Auth (customer)
+ * Body: { message?: string }
+ */
+router.post(
+  "/:id/quote/request-changes",
+  requireAuth,
+  validateObjectIdParam("id"),
+  handleValidation,
+  requestQuoteChangesAsCustomer
+);
+
+/**
  * ✅ NEW
  * @route   POST /shipments/:id/booking/confirm
- * @desc    Email booking confirmation and mark booking_confirmed (admin only)
+ * @desc    Email booking confirmation and mark status = booked (admin only)
  * @access  Admin
  */
 router.post(
