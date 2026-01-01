@@ -1410,13 +1410,13 @@ async function sendQuoteEmail(req, res) {
 }
 
 /**
- * ✅ ADMIN: Send Booking Confirmation email + mark booking_confirmed (truth rules)
+ * ✅ ADMIN: Send Booking Confirmation email + mark BOOKED (schema-safe)
  * --------------------------------------------------
  * @route   POST /api/v1/shipments/:id/booking/confirm
  * Optional body: { toEmail } // defaults to shipment.shipper.email
  *
  * LOCKED RULE:
- * - Only mark booking_confirmed after SMTP confirms send (messageId present).
+ * - Only mark booked after SMTP confirms send (messageId present).
  * - If MAIL_TRANSPORT=console, simulate but DO NOT change status.
  */
 async function sendBookingConfirmationEmail(req, res) {
@@ -1446,11 +1446,12 @@ async function sendBookingConfirmationEmail(req, res) {
       });
     }
 
-    // Soft guard on lifecycle (do not hard-refactor status system here)
-    const allowedPrior = new Set(["quoted", "quote_accepted"]);
+    // ✅ Match your real pipeline statuses
+    // Expect customer_approved (best) OR quoted (fallback for manual ops)
+    const allowedPrior = new Set(["customer_approved", "quoted"]);
     if (shipment.status && !allowedPrior.has(String(shipment.status))) {
       return res.status(400).json({
-        message: `Cannot confirm booking from current status "${shipment.status}". Expected quoted or quote_accepted.`,
+        message: `Cannot confirm booking from current status "${shipment.status}". Expected customer_approved or quoted.`,
       });
     }
 
@@ -1494,7 +1495,7 @@ async function sendBookingConfirmationEmail(req, res) {
 
       return res.status(200).json({
         message:
-          "MAIL_TRANSPORT=console: email simulated (not delivered). Booking not marked as confirmed.",
+          "MAIL_TRANSPORT=console: email simulated (not delivered). Shipment not marked as booked.",
         mail,
         shipment,
       });
@@ -1505,13 +1506,13 @@ async function sendBookingConfirmationEmail(req, res) {
     if (!msgId) {
       return res.status(500).json({
         message:
-          "SMTP send did not return a messageId. Booking not marked as confirmed.",
+          "SMTP send did not return a messageId. Shipment not marked as booked.",
         mail,
       });
     }
 
-    // ✅ Now (and only now) mark booking confirmed
-    shipment.status = "booking_confirmed";
+    // ✅ Now (and only now) mark schema-safe operational status
+    shipment.status = "booked";
 
     shipment.trackingEvents.push({
       status: "update",
