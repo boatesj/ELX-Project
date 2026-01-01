@@ -1,55 +1,178 @@
 // Backend/utils/dispatchMail.js
 const nodemailer = require("nodemailer");
 
-const SMTP_HOST = process.env.SMTP_HOST;
-const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
-const SMTP_USER = process.env.SMTP_USER;
-const SMTP_PASS = process.env.SMTP_PASS;
+function pickFromAddress(env) {
+  return (
+    env.EMAIL_FROM ||
+    env.SMTP_FROM ||
+    env.MAIL_FROM ||
+    env.SMTP_USER || // sensible fallback
+    ""
+  );
+}
 
-const EMAIL_FROM =
-  process.env.EMAIL_FROM || process.env.SMTP_FROM || "no-reply@ellcworth.com";
+function requireEnv(env, keys) {
+  const missing = keys.filter((k) => !String(env[k] || "").trim());
+  if (missing.length) {
+    const present = keys.filter((k) => String(env[k] || "").trim());
+    const from = pickFromAddress(env);
 
-function buildTransport() {
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-    throw new Error(
-      "SMTP not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (and optionally EMAIL_FROM)."
+    const detail = [
+      `Missing: ${missing.join(", ")}`,
+      present.length ? `Present: ${present.join(", ")}` : `Present: (none)`,
+      from ? `From resolved as: ${from}` : `From resolved as: (empty)`,
+      `Tip: if using .env, restart the backend after edits.`,
+    ].join(" | ");
+
+    const err = new Error(
+      `SMTP not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (and optionally EMAIL_FROM). ${detail}`
     );
+    err.code = "SMTP_NOT_CONFIGURED";
+    throw err;
   }
+}
 
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_PORT === 465, // true for 465, false for 587/25
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
+function logSendResult(info) {
+  // ✅ "truth" log: what nodemailer says happened (or console transport equivalent)
+  console.log("📨 sendMail result:", {
+    messageId: info?.messageId,
+    accepted: info?.accepted,
+    rejected: info?.rejected,
+    pending: info?.pending,
+    response: info?.response,
+    envelope: info?.envelope,
+    // These may exist depending on transport / provider:
+    // messageSize: info?.messageSize,
+    // previewUrl: info?.previewUrl,
   });
 }
 
+function buildTransport() {
+  const env = process.env;
+  const transportMode = String(env.MAIL_TRANSPORT || "").toLowerCase();
+
+  // ✅ DEV escape hatch: log emails instead of sending
+  if (transportMode === "console") {
+    return {
+      mode: "console",
+      async sendMail(msg) {
+        // Don't dump huge HTML into terminal; show the useful bits.
+        console.log("📧 [MAIL_TRANSPORT=console] Email would send:", {
+          to: msg.to,
+          from: msg.from,
+          subject: msg.subject,
+          textPreview: (msg.text || "").slice(0, 500),
+        });
+
+        // Return a nodemailer-like shape so downstream logging is consistent.
+        return {
+          messageId: "console-transport",
+          accepted: Array.isArray(msg.to) ? msg.to : [msg.to].filter(Boolean),
+          rejected: [],
+          response: "MAIL_TRANSPORT=console",
+          envelope: {
+            from: msg.from,
+            to: Array.isArray(msg.to) ? msg.to : [msg.to].filter(Boolean),
+          },
+        };
+      },
+    };
+  }
+
+  // Default: SMTP
+  requireEnv(env, ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS"]);
+
+  const port = Number(env.SMTP_PORT);
+  const secure =
+    String(env.SMTP_SECURE || "").toLowerCase() === "true" || port === 465;
+
+  const transporter = nodemailer.createTransport({
+    host: env.SMTP_HOST,
+    port: Number.isFinite(port) ? port : 587,
+    secure,
+    auth: {
+      user: env.SMTP_USER,
+      pass: env.SMTP_PASS,
+    },
+  });
+
+  return {
+    mode: "smtp",
+    async sendMail(msg) {
+      const info = await transporter.sendMail(msg);
+      return info;
+    },
+  };
+}
+
 /**
- * dispatchMail({ to, subject, html, text, cc, bcc, replyTo, attachments })
+ * dispatchMail returns a normalized payload:
+ * {
+ *   ok: true,
+ *   mode: "smtp" | "console",
+ *   messageId: string | null,
+ *   accepted?: string[],
+ *   response?: string
+ * }
  */
-async function dispatchMail(opts = {}) {
-  const { to, subject, html, text, cc, bcc, replyTo, attachments } = opts;
+async function dispatchMail({ to, subject, html, text, from }) {
+  const env = process.env;
 
-  if (!to) throw new Error("dispatchMail: 'to' is required");
-  if (!subject) throw new Error("dispatchMail: 'subject' is required");
-  if (!html && !text)
-    throw new Error("dispatchMail: 'html' or 'text' is required");
+  const resolvedFrom = String(from || pickFromAddress(env) || "").trim();
+  if (!resolvedFrom) {
+    throw new Error(
+      "Email FROM address missing. Set EMAIL_FROM (or SMTP_FROM) in Backend/.env."
+    );
+  }
 
-  const transporter = buildTransport();
-
-  const info = await transporter.sendMail({
-    from: EMAIL_FROM,
+  const transport = buildTransport();
+  const msg = {
     to,
-    cc,
-    bcc,
-    replyTo,
+    from: resolvedFrom,
     subject,
     text,
     html,
-    attachments,
+  };
+
+  // 🔎 Minimal runtime trace (keep)
+  console.log("📬 dispatchMail attempt:", {
+    mode: transport.mode,
+    to,
+    from: resolvedFrom,
+    subject,
   });
 
-  return info;
+  const info = await transport.sendMail(msg);
+
+  // ✅ prove delivery-attempt truth (what the SMTP server said)
+  logSendResult(info);
+
+  // ✅ if the server rejected the recipient, treat as failure
+  if (Array.isArray(info?.rejected) && info.rejected.length > 0) {
+    const err = new Error(
+      `SMTP rejected recipient(s): ${info.rejected.join(", ")}`
+    );
+    err.code = "SMTP_RECIPIENT_REJECTED";
+    err.details = {
+      rejected: info.rejected,
+      accepted: info.accepted,
+      response: info.response,
+      envelope: info.envelope,
+      messageId: info.messageId,
+    };
+    throw err;
+  }
+
+  const messageId =
+    info && typeof info.messageId === "string" ? info.messageId : null;
+
+  return {
+    ok: true,
+    mode: transport.mode,
+    messageId,
+    accepted: info?.accepted,
+    response: info?.response,
+  };
 }
 
 module.exports = { dispatchMail };

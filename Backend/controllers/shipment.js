@@ -6,6 +6,110 @@ const Shipment = require("../models/Shipment");
 // Controllers should not depend on BackgroundServices folder structure.
 const { dispatchMail } = require("../utils/dispatchMail");
 
+// ---------------- BRAND + COPY (Corporate Standards) ----------------
+//
+// Keep these values consistent across all outbound customer emails.
+// If brand colours change, update here only.
+//
+const BRAND = {
+  name: "Ellcworth Express",
+  tagline: "UK → Africa Logistics",
+  colours: {
+    navy: "#1A2930",
+    accent: "#FFA500",
+    bg: "#f8fafc",
+    cardBorder: "#e5e7eb",
+    text: "#0f172a",
+    muted: "#64748b",
+  },
+};
+
+// ---------------- QUOTE HELPERS (Option A sync + totals) ----------------
+// (Added near top as requested)
+
+function toNumber(val, fallback = 0) {
+  const n = Number(val);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function round2(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return 0;
+  return Math.round(x * 100) / 100;
+}
+
+/**
+ * Line-items totals helper (NEW)
+ * Input: lineItems[]
+ * Output: { clean, subtotal, taxTotal, total }
+ */
+function computeQuoteTotals(lineItems = []) {
+  const items = Array.isArray(lineItems) ? lineItems : [];
+
+  const clean = items.map((li) => {
+    const qty = toNumber(li.qty, 1);
+    const unitPrice = toNumber(li.unitPrice, 0);
+
+    // amount can be explicitly set, otherwise derived
+    const amountRaw =
+      li.amount !== undefined && li.amount !== null && li.amount !== ""
+        ? toNumber(li.amount, qty * unitPrice)
+        : qty * unitPrice;
+
+    const taxRate = toNumber(li.taxRate, 0);
+    const tax = (amountRaw * taxRate) / 100;
+
+    return {
+      ...li,
+      qty,
+      unitPrice: round2(unitPrice),
+      amount: round2(amountRaw),
+      taxRate,
+      _tax: round2(tax),
+    };
+  });
+
+  const subtotal = round2(clean.reduce((s, x) => s + toNumber(x.amount, 0), 0));
+  const taxTotal = round2(clean.reduce((s, x) => s + toNumber(x._tax, 0), 0));
+  const total = round2(subtotal + taxTotal);
+
+  return { clean, subtotal, taxTotal, total };
+}
+
+/**
+ * Convert quote lineItems to charges[] (NEW)
+ * NOTE: charges schema may vary; we include currency/category for safety.
+ */
+function quoteLineItemsToCharges(lineItems = [], currency = "GBP") {
+  const items = Array.isArray(lineItems) ? lineItems : [];
+  return items
+    .filter((li) => String(li?.label || "").trim())
+    .map((li) => {
+      const qty = toNumber(li.qty, 1);
+      const unitPrice = toNumber(li.unitPrice, 0);
+
+      const amount =
+        li.amount !== undefined && li.amount !== null && li.amount !== ""
+          ? toNumber(li.amount, qty * unitPrice)
+          : qty * unitPrice;
+
+      const taxRate = toNumber(li.taxRate, 0);
+
+      return {
+        code: String(li.code || "").trim(),
+        label: String(li.label || "").trim(),
+        qty,
+        unitPrice: round2(unitPrice),
+        amount: round2(amount),
+        taxRate,
+        currency: String(currency || "GBP").trim() || "GBP",
+        category: "quote",
+      };
+    });
+}
+
+// ---------------- ROLE HELPERS ----------------
+
 /**
  * Role helpers (requireAuth normalizes role to lower-case)
  * Admin in token may be "admin"; in DB enum you also have "Admin".
@@ -19,6 +123,8 @@ function requireUserId(req) {
   const id = req?.user?.id;
   return id ? String(id) : null;
 }
+
+// ---------------- QUERY HELPERS ----------------
 
 /**
  * Helper: normalise filters from query string (ADMIN USE)
@@ -128,7 +234,7 @@ function sanitizeUpdatesForRole(req, updates) {
   return clean;
 }
 
-// ---------------- QUOTE HELPERS ----------------
+// ---------------- QUOTE HELPERS (email formatting, etc.) ----------------
 
 function toMoney(n) {
   const x = Number(n);
@@ -136,7 +242,11 @@ function toMoney(n) {
   return Math.round(x * 100) / 100;
 }
 
-function computeQuoteTotals(rawQuote = {}) {
+/**
+ * Existing quote-object normalizer (kept for email builder / sendQuoteEmail)
+ * (Renamed to avoid clashing with new computeQuoteTotals(lineItems))
+ */
+function computeQuoteObjectTotals(rawQuote = {}) {
   const currency = String(rawQuote.currency || "GBP").trim() || "GBP";
   const lineItems = Array.isArray(rawQuote.lineItems) ? rawQuote.lineItems : [];
 
@@ -215,16 +325,54 @@ function escapeHtml(str) {
     .replaceAll("'", "&#039;");
 }
 
-function buildQuoteEmailHtml({ shipment, quote }) {
-  const ref = escapeHtml(shipment.referenceNo || "");
+function formatUkDateMaybe(dateLike) {
+  if (!dateLike) return "";
+  try {
+    const d = new Date(dateLike);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("en-GB");
+  } catch {
+    return "";
+  }
+}
+
+function brandHeaderHtml({ title, reference }) {
+  const ref = escapeHtml(reference || "");
+  return `
+    <div style="padding:18px 22px;background:${BRAND.colours.navy};color:#fff;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div>
+          <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;opacity:.92;">${escapeHtml(
+            BRAND.name
+          )}</div>
+          <div style="margin-top:6px;font-size:18px;font-weight:800;">${escapeHtml(
+            title
+          )}</div>
+          <div style="margin-top:6px;font-size:12px;opacity:.92;">
+            Reference: <span style="font-family:monospace;">${ref}</span>
+          </div>
+        </div>
+        <div style="width:10px;min-height:54px;background:${
+          BRAND.colours.accent
+        };border-radius:999px;"></div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * ✅ CORPORATE Quote Email HTML
+ */
+function buildQuoteEmailHtml({ shipment, quote, approveInstruction }) {
+  const refRaw = shipment.referenceNo || "";
   const shipperName = escapeHtml(shipment.shipper?.name || "Customer");
   const origin = escapeHtml(shipment.ports?.originPort || "");
   const dest = escapeHtml(shipment.ports?.destinationPort || "");
   const serviceType = escapeHtml(shipment.serviceType || "");
   const mode = escapeHtml(shipment.mode || "");
-  const validUntil = quote.validUntil
-    ? new Date(quote.validUntil).toLocaleDateString("en-GB")
-    : null;
+  const validUntil = quote?.validUntil
+    ? formatUkDateMaybe(quote.validUntil)
+    : "";
 
   const rows = (quote.lineItems || [])
     .map((li) => {
@@ -239,7 +387,7 @@ function buildQuoteEmailHtml({ shipment, quote }) {
           <td style="padding:10px 8px;border-bottom:1px solid #eee;text-align:right;">${escapeHtml(
             unit
           )}</td>
-          <td style="padding:10px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:600;">${escapeHtml(
+          <td style="padding:10px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">${escapeHtml(
             amt
           )}</td>
         </tr>
@@ -248,36 +396,75 @@ function buildQuoteEmailHtml({ shipment, quote }) {
     .join("");
 
   const notes = quote.notesToCustomer
-    ? `<div style="margin-top:12px;color:#334155;font-size:14px;line-height:1.4;">
+    ? `<div style="margin-top:12px;color:#334155;font-size:14px;line-height:1.6;">
          <strong>Notes:</strong><br/>${escapeHtml(
            quote.notesToCustomer
          ).replaceAll("\n", "<br/>")}
        </div>`
     : "";
 
+  const approveText =
+    approveInstruction || `I approve the quote – Reference ${refRaw}.`;
+
+  const requestChangesText = `Request changes – Reference ${refRaw}.`;
+
   return `
-  <div style="font-family:Arial,Helvetica,sans-serif;background:#f8fafc;padding:24px;">
-    <div style="max-width:720px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-      <div style="padding:18px 22px;background:#1A2930;color:#fff;">
-        <div style="font-size:14px;letter-spacing:0.06em;text-transform:uppercase;opacity:.9;">Ellcworth Express</div>
-        <div style="margin-top:6px;font-size:18px;font-weight:700;">Freight Quote</div>
-        <div style="margin-top:6px;font-size:12px;opacity:.9;">Reference: <span style="font-family:monospace;">${ref}</span></div>
-      </div>
+  <div style="font-family:Arial,Helvetica,sans-serif;background:${
+    BRAND.colours.bg
+  };padding:24px;">
+    <div style="max-width:720px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid ${
+      BRAND.colours.cardBorder
+    };">
+      ${brandHeaderHtml({ title: "Freight Quote", reference: refRaw })}
 
       <div style="padding:18px 22px;">
-        <p style="margin:0 0 10px 0;font-size:14px;color:#0f172a;">Dear ${shipperName},</p>
-        <p style="margin:0 0 14px 0;font-size:14px;color:#334155;line-height:1.4;">
-          Thank you for your request. Please find our quote below for <strong>${origin} → ${dest}</strong>
-          (${serviceType}${mode ? ` · ${mode}` : ""}).
+        <p style="margin:0 0 10px 0;font-size:14px;color:${
+          BRAND.colours.text
+        };">Dear ${shipperName},</p>
+
+        <p style="margin:0 0 14px 0;font-size:14px;color:#334155;line-height:1.7;">
+          Thank you for requesting a quote from <strong>${escapeHtml(
+            BRAND.name
+          )}</strong>.
+          Please find below our quotation for the shipment detailed in your request.
         </p>
 
-        <table style="width:100%;border-collapse:collapse;font-size:14px;color:#0f172a;">
+        <div style="margin:0 0 14px 0;font-size:13px;color:${
+          BRAND.colours.text
+        };line-height:1.7;">
+          <div><strong>Route:</strong> ${origin} → ${dest}</div>
+          ${mode ? `<div><strong>Mode:</strong> ${mode}</div>` : ""}
+          ${
+            serviceType
+              ? `<div><strong>Service:</strong> ${serviceType}</div>`
+              : ""
+          }
+          ${
+            validUntil
+              ? `<div><strong>Quote valid until:</strong> ${escapeHtml(
+                  validUntil
+                )}</div>`
+              : ""
+          }
+        </div>
+
+        <table style="width:100%;border-collapse:collapse;font-size:14px;color:${
+          BRAND.colours.text
+        };">
           <thead>
             <tr>
-              <th style="text-align:left;padding:10px 8px;border-bottom:2px solid #e5e7eb;">Charge</th>
-              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid #e5e7eb;">Qty</th>
-              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid #e5e7eb;">Unit</th>
-              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid #e5e7eb;">Amount</th>
+              <th style="text-align:left;padding:10px 8px;border-bottom:2px solid ${
+                BRAND.colours.cardBorder
+              };">Charge</th>
+              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid ${
+                BRAND.colours.cardBorder
+              };">Qty</th>
+              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid ${
+                BRAND.colours.cardBorder
+              };">Unit</th>
+              <th style="text-align:right;padding:10px 8px;border-bottom:2px solid ${
+                BRAND.colours.cardBorder
+              };">Amount</th>
             </tr>
           </thead>
           <tbody>
@@ -285,52 +472,192 @@ function buildQuoteEmailHtml({ shipment, quote }) {
           </tbody>
         </table>
 
-        <div style="margin-top:14px;border-top:1px solid #e5e7eb;padding-top:12px;">
-          <div style="display:flex;justify-content:flex-end;gap:24px;font-size:14px;color:#0f172a;">
+        <div style="margin-top:14px;border-top:1px solid ${
+          BRAND.colours.cardBorder
+        };padding-top:12px;">
+          <div style="display:flex;justify-content:flex-end;gap:24px;font-size:14px;color:${
+            BRAND.colours.text
+          };">
             <div style="text-align:right;">
-              <div style="color:#64748b;">Subtotal</div>
-              <div style="font-weight:700;">${escapeHtml(
+              <div style="color:${BRAND.colours.muted};">Subtotal</div>
+              <div style="font-weight:800;">${escapeHtml(
                 formatCurrency(quote.subtotal, quote.currency)
               )}</div>
             </div>
             <div style="text-align:right;">
-              <div style="color:#64748b;">Tax</div>
-              <div style="font-weight:700;">${escapeHtml(
+              <div style="color:${BRAND.colours.muted};">Tax</div>
+              <div style="font-weight:800;">${escapeHtml(
                 formatCurrency(quote.taxTotal, quote.currency)
               )}</div>
             </div>
             <div style="text-align:right;">
-              <div style="color:#64748b;">Total</div>
-              <div style="font-weight:800;font-size:16px;">${escapeHtml(
+              <div style="color:${BRAND.colours.muted};">Total</div>
+              <div style="font-weight:900;font-size:16px;">${escapeHtml(
                 formatCurrency(quote.total, quote.currency)
               )}</div>
             </div>
           </div>
         </div>
 
-        ${
-          validUntil
-            ? `<div style="margin-top:10px;color:#64748b;font-size:12px;">Quote valid until: <strong>${escapeHtml(
-                validUntil
-              )}</strong></div>`
-            : ""
-        }
-
         ${notes}
 
-        <div style="margin-top:16px;color:#334155;font-size:14px;line-height:1.4;">
-          If you would like to proceed, please reply to this email quoting your reference number above.
-          (Customer portal acceptance will be added next.)
+        <div style="margin-top:18px;padding:14px;border:1px solid ${
+          BRAND.colours.cardBorder
+        };border-radius:10px;background:#f9fafb;">
+          <div style="font-size:13px;color:${
+            BRAND.colours.text
+          };font-weight:800;margin-bottom:6px;">
+            Next step — approve your quote
+          </div>
+          <div style="font-size:13px;color:#334155;line-height:1.7;">
+            To proceed, reply to this email confirming your approval. For clarity, you may copy/paste:
+            <div style="margin:10px 0;padding:10px 12px;background:#fff;border:1px solid ${
+              BRAND.colours.cardBorder
+            };border-radius:8px;font-family:monospace;">
+              ${escapeHtml(approveText)}
+            </div>
+
+            If you need adjustments before approving, reply with:
+            <div style="margin:10px 0 0 0;padding:10px 12px;background:#fff;border:1px solid ${
+              BRAND.colours.cardBorder
+            };border-radius:8px;font-family:monospace;">
+              ${escapeHtml(requestChangesText)}
+            </div>
+          </div>
         </div>
 
-        <div style="margin-top:18px;color:#64748b;font-size:12px;">
+        <div style="margin-top:14px;color:#334155;font-size:14px;line-height:1.7;">
+          Once approved, our operations team will confirm collection/drop-off arrangements and issue a formal
+          <strong>Booking Confirmation</strong> with timelines and required documents.
+        </div>
+
+        <div style="margin-top:10px;color:${
+          BRAND.colours.muted
+        };font-size:12px;line-height:1.6;">
+          No payment or documentation is required at this stage. Please wait for our Booking Confirmation.
+        </div>
+
+        <div style="margin-top:18px;color:${
+          BRAND.colours.muted
+        };font-size:12px;line-height:1.6;">
           Kind regards,<br/>
-          Ellcworth Express Operations
+          <strong>${escapeHtml(BRAND.name)} Operations</strong><br/>
+          ${escapeHtml(BRAND.tagline)}
         </div>
       </div>
     </div>
   </div>
   `;
+}
+
+/**
+ * ✅ Booking Confirmation Email builders
+ */
+function buildBookingConfirmationEmailHtml({ shipment }) {
+  const refRaw = shipment.referenceNo || "";
+  const shipperName = escapeHtml(shipment.shipper?.name || "Customer");
+  const origin = escapeHtml(shipment.ports?.originPort || "");
+  const dest = escapeHtml(shipment.ports?.destinationPort || "");
+  const serviceType = escapeHtml(shipment.serviceType || "");
+  const mode = escapeHtml(shipment.mode || "");
+
+  return `
+  <div style="font-family:Arial,Helvetica,sans-serif;background:${
+    BRAND.colours.bg
+  };padding:24px;">
+    <div style="max-width:720px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid ${
+      BRAND.colours.cardBorder
+    };">
+      ${brandHeaderHtml({ title: "Booking Confirmed", reference: refRaw })}
+
+      <div style="padding:18px 22px;">
+        <p style="margin:0 0 10px 0;font-size:14px;color:${
+          BRAND.colours.text
+        };">Dear ${shipperName},</p>
+
+        <p style="margin:0 0 14px 0;font-size:14px;color:#334155;line-height:1.7;">
+          Thank you for approving our quotation. We are pleased to confirm that your shipment has now been
+          <strong>formally booked</strong> with ${escapeHtml(BRAND.name)}.
+        </p>
+
+        <div style="margin:0 0 14px 0;font-size:13px;color:${
+          BRAND.colours.text
+        };line-height:1.7;">
+          <div><strong>Booking Reference:</strong> ${escapeHtml(refRaw)}</div>
+          <div><strong>Route:</strong> ${origin} → ${dest}</div>
+          ${mode ? `<div><strong>Mode:</strong> ${mode}</div>` : ""}
+          ${
+            serviceType
+              ? `<div><strong>Service:</strong> ${serviceType}</div>`
+              : ""
+          }
+        </div>
+
+        <div style="margin-top:14px;padding:14px;border:1px solid ${
+          BRAND.colours.cardBorder
+        };border-radius:10px;background:#f9fafb;">
+          <div style="font-size:13px;color:${
+            BRAND.colours.text
+          };font-weight:800;margin-bottom:6px;">What happens next</div>
+          <div style="font-size:13px;color:#334155;line-height:1.7;">
+            Our operations team will now coordinate the next stages of your shipment. We will contact you regarding:
+            <ul style="margin:10px 0 0 18px;color:#334155;">
+              <li>Collection or drop-off arrangements</li>
+              <li>Required shipping documents</li>
+              <li>Estimated timelines and key dates</li>
+              <li>Payment instructions (where applicable)</li>
+            </ul>
+            Please do not send documents or payment until requested by our team.
+          </div>
+        </div>
+
+        <div style="margin-top:16px;color:#334155;font-size:14px;line-height:1.7;">
+          If you have any immediate questions, reply to this email and quote your reference above.
+        </div>
+
+        <div style="margin-top:18px;color:${
+          BRAND.colours.muted
+        };font-size:12px;line-height:1.6;">
+          Kind regards,<br/>
+          <strong>${escapeHtml(BRAND.name)} Operations</strong><br/>
+          ${escapeHtml(BRAND.tagline)}
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+}
+
+function buildBookingConfirmationText({ shipment }) {
+  const ref = shipment.referenceNo || "";
+  const origin = shipment?.ports?.originPort || "";
+  const destination = shipment?.ports?.destinationPort || "";
+  const mode = shipment?.mode || "";
+  const serviceType = shipment?.serviceType || "";
+
+  return [
+    `${BRAND.name} — Booking Confirmed`,
+    `Reference: ${ref}`,
+    "",
+    `Route: ${origin} -> ${destination}`,
+    mode ? `Mode: ${mode}` : "",
+    serviceType ? `Service: ${serviceType}` : "",
+    "",
+    "Thank you for approving our quotation.",
+    `Your shipment has now been formally booked with ${BRAND.name}.`,
+    "",
+    "What happens next:",
+    "- Collection or drop-off arrangements",
+    "- Required shipping documents",
+    "- Estimated timelines and key dates",
+    "- Payment instructions (where applicable)",
+    "",
+    "Please do not send documents or payment until requested by our team.",
+    "",
+    `${BRAND.tagline}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 // ---------------- CHARGES HELPERS ----------------
@@ -361,18 +688,10 @@ function sumCharges(charges) {
 
 // ---------------- CONTROLLERS ----------------
 
-/**
- * CREATE SHIPMENT
- * --------------------------------------------------
- * @route   POST /shipments
- * @access  Authenticated (admin / portal user)
- * Body is validated by validateShipmentCreate + handleValidation.
- */
 async function createShipment(req, res) {
   try {
     const payload = { ...req.body };
 
-    // Never allow client to force isDeleted/referenceNo unless migration flag is explicitly set
     payload.isDeleted = false;
 
     if (!req.query.keepRef) {
@@ -382,19 +701,15 @@ async function createShipment(req, res) {
     const userId = requireUserId(req);
     const admin = isAdmin(req);
 
-    // Ownership rules:
-    // - Customer: customer MUST be req.user.id (ignore any supplied customer)
-    // - Admin: can create for a specified customer; if not provided, default to admin user id
     if (!admin) {
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       payload.customer = userId;
     } else {
-      if (!payload.customer) payload.customer = userId; // admin creating for self by default
+      if (!payload.customer) payload.customer = userId;
     }
 
-    // createdBy should always be the authenticated actor if present
     if (userId) payload.createdBy = userId;
 
     const shipment = await Shipment.create(payload);
@@ -412,20 +727,8 @@ async function createShipment(req, res) {
   }
 }
 
-/**
- * GET ALL SHIPMENTS (with optional filters)
- * --------------------------------------------------
- * @route   GET /shipments
- * @desc    Admin-only list (route is gated). Defensive here too.
- * @access  Authenticated
- *
- * NOTE:
- *  - Returns a plain ARRAY for backwards compatibility.
- *  - Supports optional ?page=&limit=
- */
 async function getAllShipments(req, res) {
   try {
-    // Defensive: should already be admin-gated in routes
     if (!isAdmin(req)) {
       return res.status(403).json({ message: "Forbidden" });
     }
@@ -456,12 +759,6 @@ async function getAllShipments(req, res) {
   }
 }
 
-/**
- * GET ONE SHIPMENT BY ID
- * --------------------------------------------------
- * @route   GET /shipments/:id
- * @access  Authenticated (admin or owner)
- */
 async function getOneShipment(req, res) {
   try {
     const { id } = req.params;
@@ -488,13 +785,6 @@ async function getOneShipment(req, res) {
   }
 }
 
-/**
- * GET LOGGED-IN USER'S SHIPMENTS
- * --------------------------------------------------
- * @route   GET /shipments/me/list
- * @desc    Customer portal "My Shipments"
- * @access  Authenticated
- */
 async function getUserShipment(req, res) {
   try {
     const userId = requireUserId(req);
@@ -524,17 +814,10 @@ async function getUserShipment(req, res) {
   }
 }
 
-/**
- * UPDATE SHIPMENT
- * --------------------------------------------------
- * @route   PUT /shipments/:id
- * @access  Authenticated (admin or owner) — with role-based field restrictions
- */
 async function updateShipment(req, res) {
   try {
     const { id } = req.params;
 
-    // Ensure shipment exists + caller is allowed to touch it
     const { shipment, error } = await findAccessibleShipmentById(req, id, {
       lean: false,
       populateCustomer: false,
@@ -548,14 +831,12 @@ async function updateShipment(req, res) {
       return res.status(404).json({ message: error });
 
     const updates = sanitizeUpdatesForRole(req, req.body || {});
-
-    // Apply updates safely
     Object.assign(shipment, updates);
 
     await shipment.save();
 
     return res.status(200).json({
-      message: "Shipment updated successfully",
+      message: "Shipment updated successfully.",
       shipment,
     });
   } catch (err) {
@@ -567,12 +848,6 @@ async function updateShipment(req, res) {
   }
 }
 
-/**
- * ✅ UPDATE CHARGES (admin only — route enforces)
- * --------------------------------------------------
- * @route   PATCH /api/v1/shipments/:id/charges
- * Body: { charges: [{label, amount, currency, category}, ...] } OR just an array
- */
 async function updateCharges(req, res) {
   try {
     if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
@@ -595,7 +870,6 @@ async function updateCharges(req, res) {
 
     const charges = normalizeCharges(incoming);
 
-    // Allow saving empty array (clearing charges) — intentional
     shipment.charges = charges;
 
     shipment.trackingEvents.push({
@@ -617,7 +891,7 @@ async function updateCharges(req, res) {
     await shipment.save();
 
     return res.status(200).json({
-      message: "Charges updated",
+      message: "Charges updated successfully.",
       shipment,
     });
   } catch (err) {
@@ -629,13 +903,6 @@ async function updateCharges(req, res) {
   }
 }
 
-/**
- * SOFT DELETE SHIPMENT
- * --------------------------------------------------
- * @route   DELETE /shipments/:id
- * @desc    Soft-delete (isDeleted=true)
- * @access  Authenticated (admin or owner)
- */
 async function deleteShipment(req, res) {
   try {
     const { id } = req.params;
@@ -656,7 +923,7 @@ async function deleteShipment(req, res) {
     await shipment.save();
 
     return res.status(200).json({
-      message: "Shipment deleted (soft delete) successfully",
+      message: "Shipment deleted successfully (soft delete).",
     });
   } catch (err) {
     console.error("Error deleting shipment:", err);
@@ -667,9 +934,6 @@ async function deleteShipment(req, res) {
   }
 }
 
-/**
- * ADD TRACKING EVENT (admin only — route enforces)
- */
 async function addTrackingEvent(req, res) {
   try {
     const { id } = req.params;
@@ -713,7 +977,7 @@ async function addTrackingEvent(req, res) {
     await shipment.save();
 
     return res.status(200).json({
-      message: "Tracking event added successfully",
+      message: "Tracking event added successfully.",
       shipment,
     });
   } catch (err) {
@@ -725,10 +989,6 @@ async function addTrackingEvent(req, res) {
   }
 }
 
-/**
- * ADD DOCUMENT (admin only — route enforces)
- * IMPORTANT: Admin UI expects an array at res.data.data (documents array).
- */
 async function addDocument(req, res) {
   try {
     const { id } = req.params;
@@ -754,9 +1014,8 @@ async function addDocument(req, res) {
     shipment.documents.push(docEntry);
     await shipment.save();
 
-    // ✅ Return documents array in `data` for Shipment.jsx
     return res.status(200).json({
-      message: "Document added to shipment",
+      message: "Document added to shipment successfully.",
       data: shipment.documents,
     });
   } catch (err) {
@@ -768,9 +1027,6 @@ async function addDocument(req, res) {
   }
 }
 
-/**
- * UPDATE STATUS (admin only — route enforces)
- */
 async function updateStatus(req, res) {
   try {
     const { id } = req.params;
@@ -820,7 +1076,7 @@ async function updateStatus(req, res) {
     await shipment.save();
 
     return res.status(200).json({
-      message: "Shipment status updated",
+      message: "Shipment status updated successfully.",
       shipment,
     });
   } catch (err) {
@@ -833,87 +1089,114 @@ async function updateStatus(req, res) {
 }
 
 /**
- * ✅ SAVE QUOTE (admin only — route enforces)
- * --------------------------------------------------
- * @route   PATCH /api/v1/shipments/:id/quote
- * Body: { quote: { currency, validUntil, notesToCustomer, internalNotes, lineItems[] } }
+ * ✅ Admin: Save/update quote draft on shipment
+ * Route: PATCH /shipments/:id/quote
+ *
+ * ALSO syncs: shipment.charges[] derived from quote.lineItems
  */
 async function saveQuote(req, res) {
   try {
-    if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
-
     const { id } = req.params;
 
+    // Admin only (route already enforces), but keep defensive:
+    const role = String(req?.user?.role || "").toLowerCase();
+    if (role !== "admin") {
+      return res.status(403).json({ ok: false, message: "Forbidden" });
+    }
+
     if (!mongoose.isValidObjectId(id)) {
-      return res.status(400).json({ message: "Invalid shipment id" });
+      return res
+        .status(400)
+        .json({ ok: false, message: "Invalid shipment id" });
     }
 
     const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
-    if (!shipment)
-      return res.status(404).json({ message: "Shipment not found" });
+    if (!shipment) {
+      return res.status(404).json({ ok: false, message: "Shipment not found" });
+    }
 
-    const incoming = req.body?.quote || req.body || {};
-    const computed = computeQuoteTotals(incoming);
+    const incoming = req.body?.quote || {};
+    const currency =
+      String(incoming.currency || shipment?.quote?.currency || "GBP").trim() ||
+      "GBP";
 
-    if (!computed.lineItems || computed.lineItems.length === 0) {
+    const incomingLineItems = Array.isArray(incoming.lineItems)
+      ? incoming.lineItems
+      : [];
+
+    // Must have at least one labelled line
+    const hasAnyLabel = incomingLineItems.some((li) =>
+      String(li?.label || "").trim()
+    );
+    if (!hasAnyLabel) {
       return res.status(400).json({
-        message: "Quote must contain at least one line item with a label.",
+        ok: false,
+        message: "Quote must contain at least one line item label.",
       });
     }
 
-    // Versioning: bump if quote exists
-    const prevVersion = shipment.quote?.version || 0;
-    const nextVersion = prevVersion ? prevVersion + 1 : 1;
+    // Totals + cleaned items
+    const { clean, subtotal, taxTotal, total } =
+      computeQuoteTotals(incomingLineItems);
 
+    // Update quote object
+    const prevVersion = toNumber(shipment?.quote?.version, 0);
     shipment.quote = {
-      ...(shipment.quote ? shipment.quote.toObject?.() : {}),
-      ...computed,
-      version: nextVersion,
-      sentAt: shipment.quote?.sentAt, // keep if already sent (we only set on send endpoint)
-      acceptedAt: shipment.quote?.acceptedAt,
-      acceptedByEmail: shipment.quote?.acceptedByEmail,
+      ...(shipment.quote || {}),
+      currency,
+      validUntil: incoming.validUntil
+        ? new Date(incoming.validUntil)
+        : shipment?.quote?.validUntil,
+      notesToCustomer: String(incoming.notesToCustomer || ""),
+      internalNotes: String(incoming.internalNotes || ""),
+      lineItems: clean.map((li) => ({
+        code: String(li.code || "").trim(),
+        label: String(li.label || "").trim(),
+        qty: toNumber(li.qty, 1),
+        unitPrice: toNumber(li.unitPrice, 0),
+        amount: toNumber(
+          li.amount,
+          toNumber(li.qty, 1) * toNumber(li.unitPrice, 0)
+        ),
+        taxRate: toNumber(li.taxRate, 0),
+      })),
+      subtotal,
+      // keep both names for compatibility with existing email template (taxTotal) and any older fields (tax)
+      taxTotal,
+      tax: taxTotal,
+      total,
+      version: prevVersion + 1,
+      // Do NOT set sentAt here; send endpoint handles sentAt
     };
 
-    // Optional: if in request_received, move to under_review when quote draft saved
+    // ✅ Sync charges[] from quote lineItems (Option A)
+    shipment.charges = quoteLineItemsToCharges(
+      shipment.quote.lineItems,
+      currency
+    );
+
+    // Optional: bump status from request_received -> under_review on first draft save
     if (shipment.status === "request_received") {
       shipment.status = "under_review";
     }
 
-    shipment.trackingEvents.push({
-      status: "update",
-      event: `Quote draft saved (v${nextVersion})`,
-      location: "",
-      date: new Date(),
-      meta: {
-        updatedBy: req?.user?.id || null,
-        source: "admin_quote_save",
-        quoteVersion: nextVersion,
-        total: shipment.quote.total,
-        currency: shipment.quote.currency,
-      },
-    });
-
     await shipment.save();
 
     return res.status(200).json({
-      message: "Quote saved",
+      ok: true,
+      data: shipment,
       shipment,
     });
   } catch (err) {
-    console.error("Error saving quote:", err);
+    console.error("❌ saveQuote error:", err);
     return res.status(500).json({
-      message: "Failed to save quote",
+      ok: false,
+      message: "Failed to save quote draft",
       error: err.message,
     });
   }
 }
 
-/**
- * ✅ SEND QUOTE EMAIL (admin only — route enforces)
- * --------------------------------------------------
- * @route   POST /api/v1/shipments/:id/quote/send
- * Optional body: { toEmail }  // defaults to shipment.shipper.email
- */
 async function sendQuoteEmail(req, res) {
   try {
     if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
@@ -938,10 +1221,11 @@ async function sendQuoteEmail(req, res) {
         .json({ message: "No saved quote found. Save the quote first." });
     }
 
-    // Recompute totals defensively (in case something changed)
-    const computed = computeQuoteTotals(shipment.quote);
+    // Recompute totals for safety (using quote-object helper)
+    const computed = computeQuoteObjectTotals(shipment.quote);
     shipment.quote.subtotal = computed.subtotal;
     shipment.quote.taxTotal = computed.taxTotal;
+    shipment.quote.tax = computed.taxTotal;
     shipment.quote.total = computed.total;
 
     const customerEmail = String(
@@ -954,37 +1238,88 @@ async function sendQuoteEmail(req, res) {
       });
     }
 
-    // Build bodies
-    const htmlBody = buildQuoteEmailHtml({ shipment, quote: shipment.quote });
-
-    // Optional but recommended: plain-text fallback
     const origin = shipment?.ports?.originPort || "";
     const destination = shipment?.ports?.destinationPort || "";
     const validUntil = shipment.quote?.validUntil
       ? new Date(shipment.quote.validUntil).toLocaleDateString("en-GB")
       : "";
 
+    const approveText = `I approve the quote – Reference ${
+      shipment.referenceNo || ""
+    }.`;
+    const requestChangesText = `Request changes – Reference ${
+      shipment.referenceNo || ""
+    }.`;
+
+    const htmlBody = buildQuoteEmailHtml({
+      shipment,
+      quote: shipment.quote,
+      approveInstruction: approveText,
+    });
+
     const textBody = [
-      "Ellcworth Express — Freight Quote",
+      `${BRAND.name} — Freight Quote`,
       `Reference: ${shipment.referenceNo || ""}`,
       "",
       `Route: ${origin} -> ${destination}`,
       `Total: ${shipment.quote?.currency || "GBP"} ${toMoney(
         shipment.quote?.total || 0
       ).toFixed(2)}`,
-      validUntil ? `Valid until: ${validUntil}` : "",
+      validUntil ? `Quote valid until: ${validUntil}` : "",
       "",
-      "To proceed, reply to this email quoting your reference number.",
+      "NEXT STEP — approve your quote:",
+      `Reply confirming approval. You may copy/paste: "${approveText}"`,
+      `If you need changes first, reply with: "${requestChangesText}"`,
+      "",
+      "No payment or documentation is required at this stage. Please wait for our Booking Confirmation.",
+      BRAND.tagline,
     ]
       .filter(Boolean)
       .join("\n");
 
-    await dispatchMail({
+    const mail = await dispatchMail({
       to: customerEmail,
-      subject: `Your Ellcworth Quote — ${shipment.referenceNo}`,
+      subject: `${BRAND.name} — Freight Quote | Ref: ${shipment.referenceNo}`,
       html: htmlBody,
-      text: textBody, // optional but recommended
+      text: textBody,
     });
+
+    if (mail && String(mail.mode).toLowerCase() === "console") {
+      shipment.trackingEvents.push({
+        status: "update",
+        event: `Quote email simulated (MAIL_TRANSPORT=console) to (${customerEmail})`,
+        location: "",
+        date: new Date(),
+        meta: {
+          updatedBy: req?.user?.id || null,
+          source: "admin_quote_send",
+          toEmail: customerEmail,
+          quoteVersion: shipment.quote.version || 1,
+          total: shipment.quote.total,
+          currency: shipment.quote.currency,
+          mailMode: "console",
+          messageId: mail.messageId || null,
+        },
+      });
+
+      await shipment.save();
+
+      return res.status(200).json({
+        message:
+          "MAIL_TRANSPORT=console: email simulated (not delivered). Quote not marked as sent.",
+        mail,
+        shipment,
+      });
+    }
+
+    const msgId = mail?.messageId;
+    if (!msgId) {
+      return res.status(500).json({
+        message:
+          "SMTP send did not return a messageId. Quote not marked as sent.",
+        mail,
+      });
+    }
 
     shipment.quote.sentAt = new Date();
     shipment.status = "quoted";
@@ -1001,13 +1336,17 @@ async function sendQuoteEmail(req, res) {
         quoteVersion: shipment.quote.version || 1,
         total: shipment.quote.total,
         currency: shipment.quote.currency,
+        mailMode: "smtp",
+        messageId: msgId,
+        accepted: mail?.accepted,
       },
     });
 
     await shipment.save();
 
     return res.status(200).json({
-      message: "Quote emailed successfully",
+      message: "Quote emailed successfully.",
+      mail,
       shipment,
     });
   } catch (err) {
@@ -1020,9 +1359,140 @@ async function sendQuoteEmail(req, res) {
 }
 
 /**
- * DASHBOARD STATS (admin only — route enforces)
- * Shape aligned with Home.jsx expectations.
+ * ✅ ADMIN: Send Booking Confirmation email + mark booking_confirmed (truth rules)
+ * --------------------------------------------------
+ * @route   POST /api/v1/shipments/:id/booking/confirm
+ * Optional body: { toEmail } // defaults to shipment.shipper.email
+ *
+ * LOCKED RULE:
+ * - Only mark booking_confirmed after SMTP confirms send (messageId present).
+ * - If MAIL_TRANSPORT=console, simulate but DO NOT change status.
  */
+async function sendBookingConfirmationEmail(req, res) {
+  try {
+    if (!isAdmin(req)) return res.status(403).json({ message: "Forbidden" });
+
+    const { id } = req.params;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid shipment id" });
+    }
+
+    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
+    if (!shipment) {
+      return res.status(404).json({ message: "Shipment not found" });
+    }
+
+    // Require that a quote exists (booking confirmation assumes quote stage happened)
+    if (
+      !shipment.quote ||
+      !Array.isArray(shipment.quote.lineItems) ||
+      shipment.quote.lineItems.length === 0
+    ) {
+      return res.status(400).json({
+        message:
+          "Cannot confirm booking: no saved quote found on this shipment.",
+      });
+    }
+
+    // Soft guard on lifecycle (do not hard-refactor status system here)
+    const allowedPrior = new Set(["quoted", "quote_accepted"]);
+    if (shipment.status && !allowedPrior.has(String(shipment.status))) {
+      return res.status(400).json({
+        message: `Cannot confirm booking from current status "${shipment.status}". Expected quoted or quote_accepted.`,
+      });
+    }
+
+    const customerEmail = String(
+      req.body?.toEmail || shipment.shipper?.email || ""
+    ).trim();
+
+    if (!customerEmail) {
+      return res.status(400).json({
+        message: "No recipient email found (shipper.email is missing).",
+      });
+    }
+
+    const htmlBody = buildBookingConfirmationEmailHtml({ shipment });
+    const textBody = buildBookingConfirmationText({ shipment });
+
+    const mail = await dispatchMail({
+      to: customerEmail,
+      subject: `${BRAND.name} — Booking Confirmed | Ref: ${shipment.referenceNo}`,
+      html: htmlBody,
+      text: textBody,
+    });
+
+    // Console mode: simulate only
+    if (mail && String(mail.mode).toLowerCase() === "console") {
+      shipment.trackingEvents.push({
+        status: "update",
+        event: `Booking confirmation simulated (MAIL_TRANSPORT=console) to (${customerEmail})`,
+        location: "",
+        date: new Date(),
+        meta: {
+          updatedBy: req?.user?.id || null,
+          source: "admin_booking_confirm_send",
+          toEmail: customerEmail,
+          mailMode: "console",
+          messageId: mail.messageId || null,
+        },
+      });
+
+      await shipment.save();
+
+      return res.status(200).json({
+        message:
+          "MAIL_TRANSPORT=console: email simulated (not delivered). Booking not marked as confirmed.",
+        mail,
+        shipment,
+      });
+    }
+
+    // SMTP mode: require messageId
+    const msgId = mail?.messageId;
+    if (!msgId) {
+      return res.status(500).json({
+        message:
+          "SMTP send did not return a messageId. Booking not marked as confirmed.",
+        mail,
+      });
+    }
+
+    // ✅ Now (and only now) mark booking confirmed
+    shipment.status = "booking_confirmed";
+
+    shipment.trackingEvents.push({
+      status: "update",
+      event: `Booking confirmed and emailed to customer (${customerEmail})`,
+      location: "",
+      date: new Date(),
+      meta: {
+        updatedBy: req?.user?.id || null,
+        source: "admin_booking_confirm_send",
+        toEmail: customerEmail,
+        mailMode: "smtp",
+        messageId: msgId,
+        accepted: mail?.accepted,
+      },
+    });
+
+    await shipment.save();
+
+    return res.status(200).json({
+      message: "Booking confirmation emailed successfully.",
+      mail,
+      shipment,
+    });
+  } catch (err) {
+    console.error("Error sending booking confirmation email:", err);
+    return res.status(500).json({
+      message: "Failed to send booking confirmation email",
+      error: err.message,
+    });
+  }
+}
+
 async function getDashboardStats(req, res) {
   try {
     const baseFilter = { isDeleted: false };
@@ -1198,7 +1668,10 @@ module.exports = {
   updateStatus,
   getDashboardStats,
 
-  // ✅ NEW exports
+  // ✅ Quote
   saveQuote,
   sendQuoteEmail,
+
+  // ✅ Booking confirmation
+  sendBookingConfirmationEmail,
 };
