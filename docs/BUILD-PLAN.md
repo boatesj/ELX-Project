@@ -109,7 +109,10 @@ Frontend `/login` is customer login. Admin `/login` is admin login. Separate app
 - Frontend production build succeeds.
 - Pages render correctly with deployed base URLs.
 
-**PHASE 4 DONE = Public is frozen.** No redesigns afterwards unless blocking conversion.
+### Phase 4 Status
+
+- **DONE (frozen)** ✅  
+  Public/Marketing UI is considered frozen. No redesigns afterwards unless blocking conversion defect.
 
 ---
 
@@ -133,6 +136,24 @@ Frontend `/login` is customer login. Admin `/login` is admin login. Separate app
 - Fresh machine can start all services using documented env vars.
 - No hardcoded localhost URLs in production paths.
 
+**Status / Progress**
+
+- ✅ **Admin production build passes** (`Admin/npm run build`).
+- ✅ **Frontend production build passes** (`Frontend/npm run build`).
+- ⚠️ Admin build reports **chunk > 500kB warning** (non-blocking).  
+  This is a Phase 8.3 performance consideration unless it becomes a deployment blocker.
+- ⏳ `.env.example` files not yet locked and committed (still pending as part of Phase 5.1).
+
+**Micro-steps (each = 1 commit):**
+
+- 5.1.1 Create/verify `.env.example` for Frontend
+- 5.1.2 Create/verify `.env.example` for Admin
+- 5.1.3 Create/verify `.env.example` for Backend
+- 5.1.4 Create/verify `.env.example` for BackgroundServices
+- 5.1.5 Fresh-start smoke: boot all services using docs-only env values
+
+---
+
 ### 5.2 API Base + CORS Contract Freeze
 
 **Work:**
@@ -147,6 +168,37 @@ Frontend `/login` is customer login. Admin `/login` is admin login. Separate app
 
 - Admin & Frontend talk only to `/api/v1/*`.
 - CORS is correct for dev and prod.
+
+**Status / Progress**
+
+- ✅ Admin quote builder work is wired against `/api/v1` endpoints:
+  - `PATCH /api/v1/shipments/:id/quote`
+  - `POST /api/v1/shipments/:id/quote/send`
+- ⏳ CORS allowlist still needs explicit dev/prod freeze + documentation + commit.
+
+**Micro-steps (each = 1 commit):**
+
+- 5.2.1 Audit Admin + Frontend requests to confirm `/api/v1/*` only
+- 5.2.2 Lock Backend CORS for dev ports
+- 5.2.3 Lock Backend CORS for prod domains (Frontend + Admin)
+- 5.2.4 Document CORS + API base in README / env contract
+
+---
+
+### Phase 5 Blocking Defects Log (Live)
+
+Blocking defects are fixed immediately; once fixed, we move forward.
+
+- ✅ **Admin build failure (Shipment.jsx JSX parse error) — FIXED**
+  - Symptom: `Expected "}" but found ")"` in Admin `src/pages/Shipment.jsx` (Quote builder “Line tax” render).
+  - Resolution: corrected JSX expression/parentheses in the “Line tax” line.
+  - Verification: `npm run build` passes in Admin; Frontend build also passes.
+
+**Pending Git hygiene (must be done as micro-step):**
+
+- ⏳ Stage + commit the fix:
+  - `Admin/src/pages/Shipment.jsx` modified and not staged.
+  - Branch: `Integration`.
 
 ---
 
@@ -269,6 +321,7 @@ Frontend `/login` is customer login. Admin `/login` is admin login. Separate app
 
 - Production builds for Frontend + Admin.
 - Bundle sanity checks; remove dead code if clearly safe.
+- Optional code-splitting if bundle size becomes a deployment or UX blocker.
 
 **Exit criteria:**
 
@@ -360,9 +413,29 @@ Examples:
 
 ## 10) Immediate Next Execution Step
 
-From the current state:
+**We are in Phase 5.1 → 5.2 now (forward-only).**
 
-- Finish Phase 4.1 compliance against `docs/navigation_contract.md` and `docs/route-map.md`.
-- Then freeze Phase 4 and move to Phase 5.
+### Next micro-step (must commit)
+
+**5.1.x / Blocking defect closure commit:**
+
+- Stage and commit the Admin fix that made builds pass:
+  - `Admin/src/pages/Shipment.jsx`
+
+Suggested commit message:
+
+- `Phase 5: fix admin quote builder JSX build error`
+
+Then proceed immediately to:
+
+### Phase 5.1 completion
+
+- Create `.env.example` per app folder and document required vars.
+
+### Phase 5.2 freeze
+
+- Audit all requests to ensure `/api/v1/*` only.
+- Lock Backend CORS for dev + prod domains.
+- Document API/CORS contract.
 
 (Do not start Phase 6 until Phase 5 environment/API contract is locked.)

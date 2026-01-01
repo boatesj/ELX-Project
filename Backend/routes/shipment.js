@@ -4,6 +4,7 @@ const router = express.Router();
 
 const {
   createShipment,
+  createPublicLeadShipment, // ✅ NEW
   getAllShipments,
   updateShipment,
   getOneShipment,
@@ -20,6 +21,9 @@ const {
 
   // ✅ NEW charges handler
   updateCharges,
+
+  // ✅ Booking confirmation
+  sendBookingConfirmationEmail,
 } = require("../controllers/shipment");
 
 const { requireAuth, requireRole } = require("../middleware/auth");
@@ -36,6 +40,24 @@ const Shipment = require("../models/Shipment");
 function escapeRegExp(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+/**
+ * ✅ NEW (PUBLIC)
+ * @route   POST /shipments/public-request
+ * @desc    Create a lead shipment from the landing page (no login)
+ * @access  Public
+ *
+ * Notes:
+ * - Creates shipment with status=request_received
+ * - Sets requestor snapshot (name/email/phone)
+ * - Does NOT assign customer/createdBy
+ */
+router.post(
+  "/public-request",
+  validateShipmentCreate,
+  handleValidation,
+  createPublicLeadShipment
+);
 
 /**
  * @route   POST /shipments
@@ -187,6 +209,21 @@ router.post(
   validateObjectIdParam("id"),
   handleValidation,
   sendQuoteEmail
+);
+
+/**
+ * ✅ NEW
+ * @route   POST /shipments/:id/booking/confirm
+ * @desc    Email booking confirmation and mark booking_confirmed (admin only)
+ * @access  Admin
+ */
+router.post(
+  "/:id/booking/confirm",
+  requireAuth,
+  requireRole("admin"),
+  validateObjectIdParam("id"),
+  handleValidation,
+  sendBookingConfirmationEmail
 );
 
 /**

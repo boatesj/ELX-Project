@@ -252,7 +252,7 @@ const Shipments = () => {
           return;
         }
 
-        const res = await authRequest.get("/api/v1/shipments");
+        const res = await authRequest.get("/shipments");
 
         let shipmentsArray = [];
         if (Array.isArray(res.data)) shipmentsArray = res.data;

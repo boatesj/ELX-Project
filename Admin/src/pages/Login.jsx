@@ -1,9 +1,24 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FaShip, FaTruck, FaUserShield } from "react-icons/fa";
+import { rootRequest } from "../requestMethods";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+// ✅ Admin-only storage keys (avoid collisions with Customer Portal)
+const ADMIN_TOKEN_KEY = "elx_admin_token";
+const ADMIN_USER_KEY = "elx_admin_user";
+
+// Legacy keys (keep for backwards compatibility with existing authRequest usage)
+const LEGACY_TOKEN_KEY = "token";
+const LEGACY_USER_KEY = "user";
+
+// Prevent open-redirects (only allow internal paths)
+function safeRedirect(value, fallback = "/shipments") {
+  const v = String(value || "").trim();
+  if (!v) return fallback;
+  if (!v.startsWith("/")) return fallback;
+  if (v.startsWith("//")) return fallback;
+  return v;
+}
 
 const Login = () => {
   const navigate = useNavigate();
@@ -15,9 +30,8 @@ const Login = () => {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Read ?redirect=/users if present, else default to /shipments
   const searchParams = new URLSearchParams(location.search);
-  const redirectTo = searchParams.get("redirect") || "/shipments";
+  const redirectTo = safeRedirect(searchParams.get("redirect"), "/shipments");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,41 +39,53 @@ const Login = () => {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
+      const { data } = await rootRequest.post("/auth/login", {
+        email,
+        password,
       });
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Login failed");
+      const token = data?.accessToken || data?.token || "";
+      const u = data?.user || data || {};
+
+      if (!token) {
+        setError("Login failed: access token missing from server response.");
+        return;
       }
 
-      const data = await res.json();
-      console.log("🔐 Login response:", data);
-
-      if (data.accessToken) {
-        localStorage.setItem("token", data.accessToken);
-      }
-
+      // ✅ Store admin-scoped keys
+      localStorage.setItem(ADMIN_TOKEN_KEY, token);
       localStorage.setItem(
-        "user",
+        ADMIN_USER_KEY,
         JSON.stringify({
-          id: data._id,
-          fullname: data.fullname,
-          email: data.email,
-          role: data.role,
-          status: data.status,
+          id: u?._id || u?.id,
+          fullname: u?.fullname,
+          email: u?.email,
+          role: u?.role,
+          status: u?.status,
+        })
+      );
+
+      // ✅ Also store legacy keys so existing authRequest keeps working today
+      localStorage.setItem(LEGACY_TOKEN_KEY, token);
+      localStorage.setItem(
+        LEGACY_USER_KEY,
+        JSON.stringify({
+          id: u?._id || u?.id,
+          fullname: u?.fullname,
+          email: u?.email,
+          role: u?.role,
+          status: u?.status,
         })
       );
 
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Something went wrong logging in.");
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Something went wrong logging in.";
+      console.error("Admin login error:", err);
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
