@@ -24,8 +24,28 @@ const BRAND = {
   },
 };
 
+// ---------------- STATUS (MUST MATCH Shipment.js ENUM) ----------------
+const ALLOWED_STATUSES = [
+  // Request → Quote workflow
+  "request_received",
+  "under_review",
+  "quoted",
+  "customer_requested_changes",
+  "customer_approved",
+
+  // Operational
+  "pending",
+  "booked",
+  "at_origin_yard",
+  "loaded",
+  "sailed",
+  "arrived",
+  "cleared",
+  "delivered",
+  "cancelled",
+];
+
 // ---------------- QUOTE HELPERS (Option A sync + totals) ----------------
-// (Added near top as requested)
 
 function toNumber(val, fallback = 0) {
   const n = Number(val);
@@ -39,7 +59,7 @@ function round2(n) {
 }
 
 /**
- * Line-items totals helper (NEW)
+ * Line-items totals helper
  * Input: lineItems[]
  * Output: { clean, subtotal, taxTotal, total }
  */
@@ -77,11 +97,15 @@ function computeQuoteTotals(lineItems = []) {
 }
 
 /**
- * Convert quote lineItems to charges[] (NEW)
- * NOTE: charges schema may vary; we include currency/category for safety.
+ * Convert quote lineItems to charges[] (SCHEMA-SAFE)
+ * Shipment.js ChargeSchema: { label, amount, currency, category }
+ *
+ * We store a single amount per line item (li.amount) and keep it simple.
  */
 function quoteLineItemsToCharges(lineItems = [], currency = "GBP") {
   const items = Array.isArray(lineItems) ? lineItems : [];
+  const cur = String(currency || "GBP").trim() || "GBP";
+
   return items
     .filter((li) => String(li?.label || "").trim())
     .map((li) => {
@@ -93,16 +117,10 @@ function quoteLineItemsToCharges(lineItems = [], currency = "GBP") {
           ? toNumber(li.amount, qty * unitPrice)
           : qty * unitPrice;
 
-      const taxRate = toNumber(li.taxRate, 0);
-
       return {
-        code: String(li.code || "").trim(),
         label: String(li.label || "").trim(),
-        qty,
-        unitPrice: round2(unitPrice),
         amount: round2(amount),
-        taxRate,
-        currency: String(currency || "GBP").trim() || "GBP",
+        currency: cur,
         category: "quote",
       };
     });
@@ -215,7 +233,7 @@ function sanitizeUpdatesForRole(req, updates) {
   // These should never be client-controlled:
   delete clean.createdBy;
 
-  // 🚫 Ownership reassignment via update route is risky; keep createShipment as the place to set customer.
+  // 🚫 Ownership reassignment via update route is risky
   delete clean.customer;
 
   if (!isAdmin(req)) {
@@ -244,7 +262,6 @@ function toMoney(n) {
 
 /**
  * Existing quote-object normalizer (kept for email builder / sendQuoteEmail)
- * (Renamed to avoid clashing with new computeQuoteTotals(lineItems))
  */
 function computeQuoteObjectTotals(rawQuote = {}) {
   const currency = String(rawQuote.currency || "GBP").trim() || "GBP";
@@ -288,7 +305,6 @@ function computeQuoteObjectTotals(rawQuote = {}) {
 
   const total = toMoney(subtotal + taxTotal);
 
-  // Strip internal field
   const finalItems = normalizedItems.map(({ _tax, ...rest }) => rest);
 
   return {
@@ -706,23 +722,25 @@ async function createPublicLeadShipment(req, res) {
     delete payload.customer;
     delete payload.createdBy;
 
-    // Ensure requestor snapshot exists (fallback from shipper)
+    // Ensure "requestor snapshot" exists (MODEL DOES NOT HAVE requestor)
+    // Store snapshot in meta.requestor so it persists.
     const shipperName = String(payload?.shipper?.name || "").trim();
     const shipperEmail = String(payload?.shipper?.email || "").trim();
     const shipperPhone = String(payload?.shipper?.phone || "").trim();
 
-    if (!payload.requestor) payload.requestor = {};
-    if (!payload.requestor.name && shipperName)
-      payload.requestor.name = shipperName;
-    if (!payload.requestor.email && shipperEmail)
-      payload.requestor.email = shipperEmail;
-    if (!payload.requestor.phone && shipperPhone)
-      payload.requestor.phone = shipperPhone;
-
-    // Defensive: mark meta lead stage
     payload.meta = payload.meta || {};
     payload.meta.leadStage = true;
     payload.meta.source = payload.meta.source || "web_quote";
+    payload.meta.requestor = {
+      name: shipperName || "",
+      email: shipperEmail || "",
+      phone: shipperPhone || "",
+    };
+
+    // Validate status against schema enum to avoid save errors
+    if (!ALLOWED_STATUSES.includes(payload.status)) {
+      payload.status = "request_received";
+    }
 
     const shipment = await Shipment.create(payload);
 
@@ -742,7 +760,6 @@ async function createPublicLeadShipment(req, res) {
 async function createShipment(req, res) {
   try {
     const payload = { ...req.body };
-
     payload.isDeleted = false;
 
     if (!req.query.keepRef) {
@@ -1010,18 +1027,8 @@ async function addTrackingEvent(req, res) {
 
     shipment.trackingEvents.push(trackingEvent);
 
-    const allowedStatuses = [
-      "pending",
-      "booked",
-      "at_origin_yard",
-      "loaded",
-      "sailed",
-      "arrived",
-      "cleared",
-      "delivered",
-      "cancelled",
-    ];
-    if (status && allowedStatuses.includes(status)) {
+    // ✅ Keep shipment.status in sync only for allowed enum statuses
+    if (status && ALLOWED_STATUSES.includes(status)) {
       shipment.status = status;
     }
 
@@ -1087,19 +1094,7 @@ async function updateStatus(req, res) {
       return res.status(400).json({ message: "Invalid shipment id" });
     }
 
-    const allowedStatuses = [
-      "pending",
-      "booked",
-      "at_origin_yard",
-      "loaded",
-      "sailed",
-      "arrived",
-      "cleared",
-      "delivered",
-      "cancelled",
-    ];
-
-    if (!status || !allowedStatuses.includes(status)) {
+    if (!status || !ALLOWED_STATUSES.includes(status)) {
       return res.status(400).json({ message: "Invalid or missing status" });
     }
 
@@ -1143,7 +1138,7 @@ async function updateStatus(req, res) {
  * ✅ Admin: Save/update quote draft on shipment
  * Route: PATCH /shipments/:id/quote
  *
- * ALSO syncs: shipment.charges[] derived from quote.lineItems
+ * ALSO syncs: shipment.charges[] derived from quote.lineItems (schema-safe)
  */
 async function saveQuote(req, res) {
   try {
@@ -1190,8 +1185,8 @@ async function saveQuote(req, res) {
     const { clean, subtotal, taxTotal, total } =
       computeQuoteTotals(incomingLineItems);
 
-    // Update quote object
-    const prevVersion = toNumber(shipment?.quote?.version, 0);
+    // Update quote object (schema fields only)
+    const prevVersion = toNumber(shipment?.quote?.version, 1);
     shipment.quote = {
       ...(shipment.quote || {}),
       currency,
@@ -1212,15 +1207,13 @@ async function saveQuote(req, res) {
         taxRate: toNumber(li.taxRate, 0),
       })),
       subtotal,
-      // keep both names for compatibility with existing email template (taxTotal) and any older fields (tax)
       taxTotal,
-      tax: taxTotal,
       total,
       version: prevVersion + 1,
-      // Do NOT set sentAt here; send endpoint handles sentAt
+      // sentAt/acceptedAt handled elsewhere
     };
 
-    // ✅ Sync charges[] from quote lineItems (Option A)
+    // ✅ Sync charges[] from quote lineItems (schema-safe)
     shipment.charges = quoteLineItemsToCharges(
       shipment.quote.lineItems,
       currency
@@ -1276,7 +1269,6 @@ async function sendQuoteEmail(req, res) {
     const computed = computeQuoteObjectTotals(shipment.quote);
     shipment.quote.subtotal = computed.subtotal;
     shipment.quote.taxTotal = computed.taxTotal;
-    shipment.quote.tax = computed.taxTotal;
     shipment.quote.total = computed.total;
 
     const customerEmail = String(
@@ -1335,6 +1327,7 @@ async function sendQuoteEmail(req, res) {
       text: textBody,
     });
 
+    // Console mode: simulate only
     if (mail && String(mail.mode).toLowerCase() === "console") {
       shipment.trackingEvents.push({
         status: "update",
@@ -1363,6 +1356,7 @@ async function sendQuoteEmail(req, res) {
       });
     }
 
+    // SMTP mode: require messageId
     const msgId = mail?.messageId;
     if (!msgId) {
       return res.status(500).json({
@@ -1434,7 +1428,6 @@ async function sendBookingConfirmationEmail(req, res) {
       return res.status(404).json({ message: "Shipment not found" });
     }
 
-    // Require that a quote exists (booking confirmation assumes quote stage happened)
     if (
       !shipment.quote ||
       !Array.isArray(shipment.quote.lineItems) ||
@@ -1446,8 +1439,7 @@ async function sendBookingConfirmationEmail(req, res) {
       });
     }
 
-    // ✅ Match your real pipeline statuses
-    // Expect customer_approved (best) OR quoted (fallback for manual ops)
+    // ✅ Match your schema workflow statuses
     const allowedPrior = new Set(["customer_approved", "quoted"]);
     if (shipment.status && !allowedPrior.has(String(shipment.status))) {
       return res.status(400).json({
@@ -1511,7 +1503,6 @@ async function sendBookingConfirmationEmail(req, res) {
       });
     }
 
-    // ✅ Now (and only now) mark schema-safe operational status
     shipment.status = "booked";
 
     shipment.trackingEvents.push({
