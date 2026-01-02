@@ -1,151 +1,29 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { authRequest } from "../requestMethods";
 
-const STATUS_OPTIONS = [
-  "request_received",
-  "under_review",
-  "quoted",
-  "customer_requested_changes",
-  "customer_approved",
-  "pending",
-  "booked",
-  "at_origin_yard",
-  "loaded",
-  "sailed",
-  "arrived",
-  "cleared",
-  "delivered",
-  "cancelled",
-];
+import {
+  STATUS_OPTIONS,
+  CARGO_TYPE_OPTIONS,
+  SERVICE_TYPE_OPTIONS,
+  PAYMENT_STATUS_OPTIONS,
+  MODE_OPTIONS,
+  backendModeToUiMode,
+  uiModeToBackendMode,
+  formatStatusLabel,
+  getStatusClasses,
+  formatServiceLabelShort,
+  formatModeBadge,
+  REQUEST_STATUSES,
+} from "./shipment/shipmentConstants";
 
-const CARGO_TYPE_OPTIONS = ["vehicle", "container", "lcl"];
+import {
+  toMoney,
+  formatMoney,
+  computeUiTotals,
+} from "./shipment/shipmentMoney";
 
-const SERVICE_TYPE_OPTIONS = [
-  { value: "sea_freight", label: "Sea freight" },
-  { value: "air_freight", label: "Air freight" },
-];
-
-// payment status options
-const PAYMENT_STATUS_OPTIONS = [
-  { value: "unpaid", label: "Unpaid" },
-  { value: "part_paid", label: "Part paid" },
-  { value: "paid", label: "Paid" },
-  { value: "on_account", label: "On account" },
-];
-
-const MODE_OPTIONS = {
-  sea_freight: [
-    { value: "roro", label: "RoRo – vehicle shipment" },
-    { value: "fcl", label: "FCL – full container" },
-    { value: "lcl", label: "LCL – shared container" },
-  ],
-  air_freight: [
-    { value: "air_general", label: "Air freight – general cargo" },
-    { value: "air_docs", label: "Air freight – secure documents" },
-  ],
-};
-
-// ---------- MODE MAPPERS (backend <-> UI) ----------
-const backendModeToUiMode = (serviceType, backendMode) => {
-  const mode = (backendMode || "").toLowerCase();
-
-  if (serviceType === "air_freight") {
-    return mode.includes("doc") ? "air_docs" : "air_general";
-  }
-
-  if (mode === "roro") return "roro";
-  if (mode === "container") return "fcl";
-  if (mode === "lcl") return "lcl";
-  return "roro";
-};
-
-const uiModeToBackendMode = (serviceType, uiMode) => {
-  if (serviceType === "sea_freight") {
-    if (uiMode === "roro") return "RoRo";
-    if (uiMode === "lcl") return "LCL";
-    return "Container";
-  }
-
-  if (serviceType === "air_freight") {
-    if (uiMode === "air_docs") return "Documents";
-    return "Air";
-  }
-
-  return "Container";
-};
-
-const formatStatusLabel = (status) => {
-  if (!status) return "";
-  return status
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-};
-
-const getStatusClasses = (status) => {
-  switch (status) {
-    // Request / Quote pipeline
-    case "request_received":
-      return "bg-[#1A2930]/10 text-[#1A2930] border border-[#1A2930]/25";
-    case "under_review":
-      return "bg-blue-100 text-blue-800 border border-blue-200";
-    case "quoted":
-      return "bg-indigo-100 text-indigo-800 border border-indigo-200";
-    case "customer_requested_changes":
-      return "bg-amber-100 text-amber-800 border border-amber-200";
-    case "customer_approved":
-      return "bg-emerald-100 text-emerald-800 border border-emerald-200";
-
-    // Operational
-    case "pending":
-      return "bg-gray-100 text-gray-700 border border-gray-300";
-    case "booked":
-      return "bg-[#FFA500]/10 text-[#FFA500] border border-[#FFA500]/40";
-    case "at_origin_yard":
-      return "bg-blue-100 text-blue-700 border border-blue-300";
-    case "loaded":
-    case "sailed":
-      return "bg-indigo-100 text-indigo-700 border border-indigo-300";
-    case "arrived":
-    case "cleared":
-      return "bg-emerald-100 text-emerald-700 border border-emerald-300";
-    case "delivered":
-      return "bg-green-100 text-green-700 border border-green-300";
-    case "cancelled":
-      return "bg-red-100 text-red-700 border border-red-300";
-    default:
-      return "bg-gray-100 text-gray-700 border border-gray-300";
-  }
-};
-
-const formatServiceLabelShort = (serviceType) => {
-  switch (serviceType) {
-    case "sea_freight":
-      return "Sea Freight";
-    case "air_freight":
-      return "Air Freight";
-    default:
-      return "";
-  }
-};
-
-const formatModeBadge = (mode) => {
-  switch (mode) {
-    case "roro":
-      return "RoRo · Vehicles";
-    case "fcl":
-      return "FCL · Full container";
-    case "lcl":
-      return "LCL · Shared container";
-    case "air_general":
-      return "Air · General cargo";
-    case "air_docs":
-      return "Air · Secure documents";
-    default:
-      return "";
-  }
-};
+import DocumentsPanel from "./shipment/DocumentsPanel";
 
 // ---------- Small UI helpers (mobile-first) ----------
 const Card = ({ title, children, right }) => (
@@ -219,68 +97,15 @@ const Textarea = (props) => (
   />
 );
 
-// ---------- Quote helpers (Admin UI side) ----------
-const toMoney = (n) => {
-  const x = Number(n);
-  if (!Number.isFinite(x)) return 0;
-  return Math.round(x * 100) / 100;
+// ✅ normalize docs returned by backend safely
+const extractDocumentsFromResponse = (res) => {
+  const d1 = res?.data?.data;
+  const d2 = res?.data?.documents;
+  const d3 = res?.data?.shipment?.documents;
+  const d4 = res?.data?.shipment?.data?.documents;
+  const docs = d3 || d4 || d2 || d1;
+  return Array.isArray(docs) ? docs : [];
 };
-
-const formatMoney = (amount, currency = "GBP") => {
-  const n = Number(amount || 0);
-  try {
-    return new Intl.NumberFormat("en-GB", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-    }).format(n);
-  } catch {
-    return `${currency} ${toMoney(n).toFixed(2)}`;
-  }
-};
-
-const computeUiTotals = (lineItems = []) => {
-  const items = Array.isArray(lineItems) ? lineItems : [];
-  const clean = items.map((li) => {
-    const qty = Number(li.qty ?? 1);
-    const unitPrice = Number(li.unitPrice ?? 0);
-    const amount =
-      li.amount !== undefined && li.amount !== null && li.amount !== ""
-        ? Number(li.amount)
-        : qty * unitPrice;
-    const taxRate = Number(li.taxRate ?? 0);
-
-    const safeQty = Number.isFinite(qty) ? qty : 1;
-    const safeUnit = Number.isFinite(unitPrice) ? unitPrice : 0;
-    const safeAmount = Number.isFinite(amount) ? amount : safeQty * safeUnit;
-    const safeTaxRate = Number.isFinite(taxRate) ? taxRate : 0;
-
-    const tax = (safeAmount * safeTaxRate) / 100;
-
-    return {
-      ...li,
-      qty: safeQty,
-      unitPrice: toMoney(safeUnit),
-      amount: toMoney(safeAmount),
-      taxRate: safeTaxRate,
-      _tax: toMoney(tax),
-    };
-  });
-
-  const subtotal = toMoney(clean.reduce((s, x) => s + (x.amount || 0), 0));
-  const taxTotal = toMoney(clean.reduce((s, x) => s + (x._tax || 0), 0));
-  const total = toMoney(subtotal + taxTotal);
-
-  return { subtotal, taxTotal, total };
-};
-
-const REQUEST_STATUSES = new Set([
-  "request_received",
-  "under_review",
-  "quoted",
-  "customer_requested_changes",
-  "customer_approved",
-]);
 
 const Shipment = () => {
   const { shipmentId } = useParams();
@@ -294,9 +119,15 @@ const Shipment = () => {
 
   // Document section state
   const [newDocName, setNewDocName] = useState("");
-  const [newDocUrl, setNewDocUrl] = useState("");
-  const [docSaving, setDocSaving] = useState(false);
   const [docError, setDocError] = useState("");
+
+  // Document upload state
+  const [newDocFile, setNewDocFile] = useState(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  // ✅ NEW: lets us clear the actual browser file input value
+  const fileInputRef = useRef(null);
 
   // Quote section state
   const [quoteSaving, setQuoteSaving] = useState(false);
@@ -695,37 +526,65 @@ const Shipment = () => {
     }
   };
 
-  // ---------------- DOCUMENTS: ADD / MANAGE ----------------
-  const handleAddDocument = async () => {
+  // ---------------- DOCUMENTS: UPLOAD FILE ----------------
+  const handleUploadDocument = async () => {
     if (!shipmentId) return;
 
-    if (!newDocName.trim() || !newDocUrl.trim()) {
-      setDocError("Please provide both a document name and a file URL.");
+    if (!newDocName.trim()) {
+      setDocError("Please provide a document name before uploading.");
+      return;
+    }
+
+    if (!newDocFile) {
+      setDocError("Please choose a file to upload.");
       return;
     }
 
     try {
-      setDocSaving(true);
+      setUploadingDoc(true);
+      setUploadProgress(0);
       setDocError("");
 
-      const res = await authRequest.post(`/shipments/${shipmentId}/documents`, {
-        name: newDocName.trim(),
-        fileUrl: newDocUrl.trim(),
-      });
+      const formData = new FormData();
+      formData.append("name", newDocName.trim());
+      formData.append("file", newDocFile);
 
-      const docs = res.data?.data || [];
+      const res = await authRequest.post(
+        `/shipments/${shipmentId}/documents/upload`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (evt) => {
+            const total = evt.total || 0;
+            if (!total) return;
+            const pct = Math.round((evt.loaded * 100) / total);
+            setUploadProgress(pct);
+          },
+        }
+      );
 
-      setShipment((prev) => ({ ...(prev || {}), documents: docs }));
+      const docs = extractDocumentsFromResponse(res);
+      if (Array.isArray(docs)) {
+        setShipment((prev) => ({ ...(prev || {}), documents: docs }));
+      }
+
+      // Reset upload UI (including browser input value)
+      setNewDocFile(null);
+      setUploadProgress(0);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+
+      // Clear name after success (keeps flow clean)
       setNewDocName("");
-      setNewDocUrl("");
     } catch (error) {
-      console.error("❌ Error adding document:", error.response?.data || error);
+      console.error(
+        "❌ Error uploading document:",
+        error.response?.data || error
+      );
       setDocError(
-        error.response?.data?.message ||
-          "Failed to add document to this shipment."
+        error.response?.data?.message || "Failed to upload document."
       );
     } finally {
-      setDocSaving(false);
+      setUploadingDoc(false);
     }
   };
 
@@ -2410,77 +2269,21 @@ const Shipment = () => {
             >
               <div id="documents-anchor" />
 
-              {docError ? (
-                <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md">
-                  {docError}
-                </p>
-              ) : null}
-
-              <div className="space-y-2">
-                {(shipment.documents || []).length === 0 ? (
-                  <p className="text-xs text-gray-500">
-                    No documents uploaded yet for this shipment.
-                  </p>
-                ) : (
-                  <ul className="space-y-1 text-xs">
-                    {(shipment.documents || []).map((doc, idx) => (
-                      <li
-                        key={doc.fileUrl || idx}
-                        className="flex items-center justify-between border border-gray-100 rounded-md px-3 py-2"
-                      >
-                        <div className="flex flex-col">
-                          <a
-                            href={doc.fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[13px] font-medium text-[#1A2930] hover:text-[#FFA500]"
-                          >
-                            {doc.name}
-                          </a>
-                          <span className="text-[10px] text-gray-500">
-                            Uploaded{" "}
-                            {doc.uploadedAt
-                              ? new Date(doc.uploadedAt).toLocaleDateString(
-                                  "en-GB"
-                                )
-                              : ""}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="mt-3 border-t border-gray-100 pt-3 space-y-2">
-                <p className="text-[11px] font-semibold text-gray-700">
-                  Attach new document
-                </p>
-                <Input
-                  type="text"
-                  value={newDocName}
-                  onChange={(e) => setNewDocName(e.target.value)}
-                  className="text-xs py-1.5"
-                  placeholder="Document name (e.g. Invoice, Draft BL, Packing list)"
-                />
-                <Input
-                  type="url"
-                  value={newDocUrl}
-                  onChange={(e) => setNewDocUrl(e.target.value)}
-                  className="text-xs py-1.5"
-                  placeholder="Public file URL (e.g. S3, Cloudinary, SharePoint link)"
-                />
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleAddDocument}
-                    disabled={docSaving}
-                    className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#FFA500] hover:text-black transition disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {docSaving ? "Saving…" : "Add document"}
-                  </button>
-                </div>
-              </div>
+              <DocumentsPanel
+                documents={shipment.documents || []}
+                docError={docError}
+                newDocName={newDocName}
+                setNewDocName={setNewDocName}
+                newDocFile={newDocFile}
+                setNewDocFile={(f) => {
+                  setNewDocFile(f);
+                  setUploadProgress(0);
+                }}
+                uploadingDoc={uploadingDoc}
+                uploadProgress={uploadProgress}
+                onUpload={handleUploadDocument}
+                fileInputRef={fileInputRef}
+              />
             </Section>
           </div>
 
@@ -2489,77 +2292,21 @@ const Shipment = () => {
             <Card title="Documents">
               <div id="documents-anchor" />
 
-              {docError ? (
-                <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md">
-                  {docError}
-                </p>
-              ) : null}
-
-              <div className="space-y-2">
-                {(shipment.documents || []).length === 0 ? (
-                  <p className="text-xs text-gray-500">
-                    No documents uploaded yet for this shipment.
-                  </p>
-                ) : (
-                  <ul className="space-y-1 text-xs">
-                    {(shipment.documents || []).map((doc, idx) => (
-                      <li
-                        key={doc.fileUrl || idx}
-                        className="flex items-center justify-between border border-gray-100 rounded-md px-3 py-2"
-                      >
-                        <div className="flex flex-col">
-                          <a
-                            href={doc.fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-[13px] font-medium text-[#1A2930] hover:text-[#FFA500]"
-                          >
-                            {doc.name}
-                          </a>
-                          <span className="text-[10px] text-gray-500">
-                            Uploaded{" "}
-                            {doc.uploadedAt
-                              ? new Date(doc.uploadedAt).toLocaleDateString(
-                                  "en-GB"
-                                )
-                              : ""}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="mt-3 border-t border-gray-100 pt-3 space-y-2">
-                <p className="text-[11px] font-semibold text-gray-700">
-                  Attach new document
-                </p>
-                <Input
-                  type="text"
-                  value={newDocName}
-                  onChange={(e) => setNewDocName(e.target.value)}
-                  className="text-xs py-1.5"
-                  placeholder="Document name (e.g. Invoice, Draft BL, Packing list)"
-                />
-                <Input
-                  type="url"
-                  value={newDocUrl}
-                  onChange={(e) => setNewDocUrl(e.target.value)}
-                  className="text-xs py-1.5"
-                  placeholder="Public file URL (e.g. S3, Cloudinary, SharePoint link)"
-                />
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleAddDocument}
-                    disabled={docSaving}
-                    className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#FFA500] hover:text-black transition disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {docSaving ? "Saving…" : "Add document"}
-                  </button>
-                </div>
-              </div>
+              <DocumentsPanel
+                documents={shipment.documents || []}
+                docError={docError}
+                newDocName={newDocName}
+                setNewDocName={setNewDocName}
+                newDocFile={newDocFile}
+                setNewDocFile={(f) => {
+                  setNewDocFile(f);
+                  setUploadProgress(0);
+                }}
+                uploadingDoc={uploadingDoc}
+                uploadProgress={uploadProgress}
+                onUpload={handleUploadDocument}
+                fileInputRef={fileInputRef}
+              />
             </Card>
           </div>
 
