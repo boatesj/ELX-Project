@@ -35,15 +35,10 @@ import {
 
 import { buildUpdatePayload } from "./shipment/shipmentPayload";
 
-// ✅ normalize docs returned by backend safely
-const extractDocumentsFromResponse = (res) => {
-  const d1 = res?.data?.data;
-  const d2 = res?.data?.documents;
-  const d3 = res?.data?.shipment?.documents;
-  const d4 = res?.data?.shipment?.data?.documents;
-  const docs = d3 || d4 || d2 || d1;
-  return Array.isArray(docs) ? docs : [];
-};
+import {
+  extractShipmentFromResponse,
+  extractDocumentsFromResponse,
+} from "./shipment/shipmentApiHelpers";
 
 const Shipment = () => {
   const { shipmentId } = useParams();
@@ -200,7 +195,7 @@ const Shipment = () => {
         setErrorMsg("");
 
         const res = await authRequest.get(`/shipments/${shipmentId}`);
-        const s = res.data?.shipment || res.data?.data || res.data;
+        const s = extractShipmentFromResponse(res);
 
         if (!s) {
           setShipment(null);
@@ -332,7 +327,7 @@ const Shipment = () => {
       const payload = buildUpdatePayload({ form, shipment });
 
       const res = await authRequest.put(`/shipments/${shipmentId}`, payload);
-      const updated = res.data?.shipment || res.data?.data || res.data;
+      const updated = extractShipmentFromResponse(res);
 
       setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
 
@@ -370,7 +365,7 @@ const Shipment = () => {
       });
 
       const res = await authRequest.put(`/shipments/${shipmentId}`, payload);
-      const updated = res.data?.shipment || res.data?.data || res.data;
+      const updated = extractShipmentFromResponse(res);
 
       if (updated) {
         setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
@@ -548,7 +543,7 @@ const Shipment = () => {
         `/shipments/${shipmentId}/quote`,
         payload
       );
-      const updated = res.data?.shipment || res.data?.data || res.data;
+      const updated = extractShipmentFromResponse(res);
 
       if (updated)
         setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
@@ -597,7 +592,7 @@ const Shipment = () => {
         }
       );
 
-      const updated = res.data?.shipment || res.data?.data || res.data;
+      const updated = extractShipmentFromResponse(res);
       if (updated)
         setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
 
