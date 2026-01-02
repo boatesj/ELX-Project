@@ -1,10 +1,14 @@
-// Backend/routes/shipments.js
+// Backend/routes/shipment.js
 const express = require("express");
 const router = express.Router();
 
+const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
+
 const {
   createShipment,
-  createPublicLeadShipment, // ✅ NEW
+  createPublicLeadShipment,
   getAllShipments,
   updateShipment,
   getOneShipment,
@@ -12,6 +16,7 @@ const {
   deleteShipment,
   addTrackingEvent,
   addDocument,
+  uploadDocument, // ✅ NEW
   updateStatus,
   getDashboardStats,
 
@@ -45,15 +50,165 @@ function escapeRegExp(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// --------------------
+// MULTER (documents upload)
+// --------------------
+function safeFilename(originalName = "") {
+  const base = path.basename(String(originalName));
+  const cleaned = base.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9._-]/g, "");
+  return cleaned || `file_${Date.now()}`;
+}
+
+// ✅ Allowed mimetypes (basic hardening)
+const ALLOWED_MIME = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+
+  // Word
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+
+  // Excel
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+  // CSV / text
+  "text/csv",
+  "text/plain",
+]);
+
+const storage = multer.diskStorage({
+  destination(req, file, cb) {
+    const shipmentId = String(req.params.id || "unknown");
+    const dest = path.join(
+      __dirname,
+      "..",
+      "uploads",
+      "documents",
+      "shipments",
+      shipmentId
+    );
+    fs.mkdirSync(dest, { recursive: true });
+    cb(null, dest);
+  },
+  filename(req, file, cb) {
+    const ts = Date.now();
+    const cleaned = safeFilename(file.originalname);
+    cb(null, `${ts}_${cleaned}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+    files: 1, // ✅ request-level limit (we also enforce below)
+  },
+  fileFilter(req, file, cb) {
+    // If mimetype missing, be conservative
+    const type = String(file.mimetype || "");
+    if (!type || !ALLOWED_MIME.has(type)) {
+      return cb(
+        new multer.MulterError("LIMIT_UNEXPECTED_FILE", "Unsupported file type")
+      );
+    }
+    return cb(null, true);
+  },
+});
+
+// ✅ Accept multiple possible file keys and normalize to req.file
+const DOC_FILE_KEYS = ["file", "document", "attachment", "pdf", "upload"];
+
+function multerDocUpload() {
+  const fields = DOC_FILE_KEYS.map((k) => ({ name: k, maxCount: 1 }));
+  const middleware = upload.fields(fields);
+
+  return function (req, res, next) {
+    middleware(req, res, function (err) {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          if (err.code === "LIMIT_FILE_SIZE") {
+            return res.status(400).json({
+              ok: false,
+              message: "File too large. Max size is 10MB.",
+            });
+          }
+
+          // We reuse LIMIT_UNEXPECTED_FILE for both wrong key + bad type
+          if (err.code === "LIMIT_UNEXPECTED_FILE") {
+            // If multer called it "Unsupported file type", show clearer message
+            const msg =
+              err.field === "Unsupported file type"
+                ? "Unsupported file type. Allowed: PDF, PNG, JPG, DOC/DOCX, XLS/XLSX, CSV, TXT."
+                : `Unexpected field. File key must be one of: ${DOC_FILE_KEYS.join(
+                    ", "
+                  )}. (Preferred: "file")`;
+
+            return res.status(400).json({
+              ok: false,
+              message: msg,
+            });
+          }
+
+          return res.status(400).json({
+            ok: false,
+            message: err.message || "Upload failed",
+          });
+        }
+
+        return res.status(400).json({
+          ok: false,
+          message: err.message || "Upload failed",
+        });
+      }
+
+      // Normalize to req.file for controller compatibility
+      const files = req.files || {};
+      const available = DOC_FILE_KEYS.filter(
+        (k) => Array.isArray(files[k]) && files[k][0]
+      );
+
+      // ✅ Enforce exactly one uploaded file even if client sends multiple keys
+      if (available.length > 1) {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "Please upload only one file. Use the 'file' field (preferred).",
+        });
+      }
+
+      if (available.length === 1) {
+        req.file = files[available[0]][0];
+      }
+
+      return next();
+    });
+  };
+}
+
+// ✅ Ensure required fields exist for upload route
+function requireDocUploadFields(req, res, next) {
+  const name = String(req.body?.name || "").trim();
+  if (!name) {
+    return res.status(400).json({
+      ok: false,
+      message: "Document name is required.",
+    });
+  }
+  if (!req.file) {
+    return res.status(400).json({
+      ok: false,
+      message: "Document file is required. Use form-data key 'file'.",
+    });
+  }
+  return next();
+}
+
 /**
  * ✅ NEW (PUBLIC)
  * @route   POST /shipments/public-request
- * @desc    Create a lead shipment from the landing page (no login)
- * @access  Public
- *
- * Notes:
- * - Creates shipment with status=request_received
- * - Does NOT assign customer/createdBy
  */
 router.post(
   "/public-request",
@@ -64,8 +219,7 @@ router.post(
 
 /**
  * @route   POST /shipments
- * @desc    Create a new shipment
- * @access  Auth (customer or admin). Controller enforces ownership rules.
+ * @access  Auth
  */
 router.post(
   "/",
@@ -77,19 +231,13 @@ router.post(
 
 /**
  * @route   GET /shipments/dashboard
- * @desc    Admin dashboard analytics
  * @access  Admin
  */
 router.get("/dashboard", requireAuth, requireRole("admin"), getDashboardStats);
 
 /**
  * @route   GET /shipments/track/:ref
- * @desc    Track a shipment by reference number
  * @access  Public
- *
- * SECURITY:
- * - Do NOT return customer PII or shipper/consignee contact details publicly.
- * - Exact match, case-insensitive, with regex escaping.
  */
 router.get("/track/:ref", async (req, res) => {
   try {
@@ -144,22 +292,19 @@ router.get("/track/:ref", async (req, res) => {
 
 /**
  * @route   GET /shipments/me/list
- * @desc    Get logged-in user's shipments
  * @access  Auth
  */
 router.get("/me/list", requireAuth, getUserShipment);
 
 /**
  * @route   GET /shipments
- * @desc    Get all shipments (admin) (optionally filter by ?customer=<userId>)
  * @access  Admin
  */
 router.get("/", requireAuth, requireRole("admin"), getAllShipments);
 
 /**
  * @route   GET /shipments/:id
- * @desc    Get shipment by ID
- * @access  Auth (controller enforces access; route validates id)
+ * @access  Auth
  */
 router.get(
   "/:id",
@@ -170,9 +315,7 @@ router.get(
 );
 
 /**
- * ✅ NEW
  * @route   PATCH /shipments/:id/charges
- * @desc    Overwrite shipment charges[] (admin only)
  * @access  Admin
  */
 router.patch(
@@ -185,9 +328,7 @@ router.patch(
 );
 
 /**
- * ✅ NEW
  * @route   PATCH /shipments/:id/quote
- * @desc    Save/update quote draft on a shipment (admin only)
  * @access  Admin
  */
 router.patch(
@@ -200,9 +341,7 @@ router.patch(
 );
 
 /**
- * ✅ NEW
  * @route   POST /shipments/:id/quote/send
- * @desc    Email the quote to the shipper email and set status = quoted (admin only)
  * @access  Admin
  */
 router.post(
@@ -215,38 +354,33 @@ router.post(
 );
 
 /**
- * ✅ NEW (CUSTOMER)
  * @route   POST /shipments/:id/quote/approve
- * @desc    Customer approves the quote (sets status=customer_approved)
- * @access  Auth (customer)
+ * @access  Customer
  */
 router.post(
   "/:id/quote/approve",
   requireAuth,
+  requireRole("customer"),
   validateObjectIdParam("id"),
   handleValidation,
   approveQuoteAsCustomer
 );
 
 /**
- * ✅ NEW (CUSTOMER)
  * @route   POST /shipments/:id/quote/request-changes
- * @desc    Customer requests quote changes (sets status=customer_requested_changes)
- * @access  Auth (customer)
- * Body: { message?: string }
+ * @access  Customer
  */
 router.post(
   "/:id/quote/request-changes",
   requireAuth,
+  requireRole("customer"),
   validateObjectIdParam("id"),
   handleValidation,
   requestQuoteChangesAsCustomer
 );
 
 /**
- * ✅ NEW
  * @route   POST /shipments/:id/booking/confirm
- * @desc    Email booking confirmation and mark status = booked (admin only)
  * @access  Admin
  */
 router.post(
@@ -260,8 +394,7 @@ router.post(
 
 /**
  * @route   PUT /shipments/:id
- * @desc    Update shipment
- * @access  Auth (controller enforces access; route validates id)
+ * @access  Auth
  */
 router.put(
   "/:id",
@@ -273,8 +406,7 @@ router.put(
 
 /**
  * @route   DELETE /shipments/:id
- * @desc    Soft-delete shipment
- * @access  Auth (controller enforces access; route validates id)
+ * @access  Auth
  */
 router.delete(
   "/:id",
@@ -286,7 +418,6 @@ router.delete(
 
 /**
  * @route   POST /shipments/:id/tracking
- * @desc    Add tracking event
  * @access  Admin only
  */
 router.post(
@@ -301,8 +432,9 @@ router.post(
 
 /**
  * @route   POST /shipments/:id/documents
- * @desc    Add document to shipment
+ * @desc    Add document to shipment (URL-only)
  * @access  Admin only
+ * JSON: { name, fileUrl }
  */
 router.post(
   "/:id/documents",
@@ -315,8 +447,30 @@ router.post(
 );
 
 /**
+ * ✅ NEW
+ * @route   POST /shipments/:id/documents/upload
+ * @desc    Upload a document file and attach it to shipment.documents
+ * @access  Admin only
+ *
+ * Form-data:
+ * - name: text (required)
+ * - file: file (preferred)
+ *
+ * Also accepted file keys: document, attachment, pdf, upload
+ */
+router.post(
+  "/:id/documents/upload",
+  requireAuth,
+  requireRole("admin"),
+  validateObjectIdParam("id"),
+  handleValidation,
+  multerDocUpload(),
+  requireDocUploadFields,
+  uploadDocument
+);
+
+/**
  * @route   PATCH /shipments/:id/status
- * @desc    Update shipment status
  * @access  Admin only
  */
 router.patch(

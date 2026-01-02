@@ -1050,14 +1050,22 @@ async function addTrackingEvent(req, res) {
 async function addDocument(req, res) {
   try {
     const { id } = req.params;
-    const { name, fileUrl } = req.body;
+    const name = String(req.body?.name || "").trim();
+    const fileUrl = String(req.body?.fileUrl || "").trim();
 
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid shipment id" });
     }
 
-    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
+    if (!name) {
+      return res.status(400).json({ message: "Document name is required" });
+    }
 
+    if (!fileUrl) {
+      return res.status(400).json({ message: "Document fileUrl is required" });
+    }
+
+    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
     if (!shipment) {
       return res.status(404).json({ message: "Shipment not found" });
     }
@@ -1075,11 +1083,87 @@ async function addDocument(req, res) {
     return res.status(200).json({
       message: "Document added to shipment successfully.",
       data: shipment.documents,
+      document: docEntry,
     });
   } catch (err) {
     console.error("Error adding document to shipment:", err);
     return res.status(500).json({
       message: "Failed to add document",
+      error: err.message,
+    });
+  }
+}
+
+async function uploadDocument(req, res) {
+  try {
+    const { id } = req.params;
+
+    // multer puts the uploaded file on req.file
+    const file = req.file;
+    const name = String(req.body?.name || "").trim();
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid shipment id" });
+    }
+
+    if (!name) {
+      return res
+        .status(400)
+        .json({ message: "Please provide a document name." });
+    }
+
+    if (!file) {
+      return res.status(400).json({ message: "Please attach a file." });
+    }
+
+    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
+    if (!shipment) {
+      return res.status(404).json({ message: "Shipment not found" });
+    }
+
+    /**
+     * ✅ Build URL safely (recommended: store a relative URL)
+     * Your multer destination is:
+     *   Backend/uploads/documents/shipments/:id/<filename>
+     * We expose it publicly via:
+     *   /uploads/documents/shipments/:id/<filename>
+     */
+    const filename = file.filename; // set by multer storage.filename
+    const relativeUrl = `/uploads/documents/shipments/${id}/${filename}`;
+
+    // If you really want absolute (optional), uncomment:
+    // const baseUrl = `${req.protocol}://${req.get("host")}`;
+    // const fileUrl = `${baseUrl}${relativeUrl}`;
+
+    const fileUrl = relativeUrl;
+
+    const docEntry = {
+      name,
+      fileUrl,
+      uploadedAt: new Date(),
+      uploadedBy: req?.user?.id || undefined,
+
+      // ✅ optional metadata (safe to store; helps Admin UI)
+      meta: {
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+      },
+    };
+
+    shipment.documents.push(docEntry);
+    await shipment.save();
+
+    return res.status(200).json({
+      message: "Document uploaded successfully.",
+      data: shipment.documents,
+      fileUrl,
+      document: docEntry,
+    });
+  } catch (err) {
+    console.error("Error uploading document:", err);
+    return res.status(500).json({
+      message: "Failed to upload document",
       error: err.message,
     });
   }
@@ -1186,7 +1270,7 @@ async function saveQuote(req, res) {
       computeQuoteTotals(incomingLineItems);
 
     // Update quote object (schema fields only)
-    const prevVersion = toNumber(shipment?.quote?.version, 1);
+    const prevVersion = toNumber(shipment?.quote?.version, 0);
     shipment.quote = {
       ...(shipment.quote || {}),
       currency,
@@ -1822,6 +1906,7 @@ module.exports = {
   deleteShipment,
   addTrackingEvent,
   addDocument,
+  uploadDocument,
   updateStatus,
   getDashboardStats,
 

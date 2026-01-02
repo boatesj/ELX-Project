@@ -1,5 +1,8 @@
+// Backend/index.js
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, ".env") });
+
 const express = require("express");
-const dotenv = require("dotenv");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const helmet = require("helmet");
@@ -27,7 +30,6 @@ const analyticsRoute = require("./routes/analytics");
 const logsRoute = require("./routes/logs");
 const calendarRoute = require("./routes/calendar");
 
-dotenv.config();
 const app = express();
 
 // If deployed behind a proxy (Render/Heroku/Nginx), this helps rate-limit + IP correctness
@@ -68,8 +70,10 @@ const envAllow = [
 const devAllow = [
   "http://localhost:3000",
   "http://localhost:5173",
+  "http://localhost:5174",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
 ];
 
 const allowlist = new Set(
@@ -82,13 +86,12 @@ const allowlist = new Set(
 app.use(
   cors({
     origin(origin, cb) {
-      // Allow same-origin / curl / server-to-server (no Origin header)
       if (!origin) return cb(null, true);
 
       if (allowlist.size === 0) {
-        // If nothing configured, fail-open in dev, fail-closed in prod
-        if (process.env.NODE_ENV === "production")
+        if (process.env.NODE_ENV === "production") {
           return cb(new Error("CORS blocked"));
+        }
         return cb(null, true);
       }
 
@@ -106,7 +109,16 @@ app.use(express.json({ limit: "1mb" }));
 app.use(helmet());
 app.use(apiLimiter);
 
-if (process.env.NODE_ENV === "development" && morgan) app.use(morgan("dev"));
+if (process.env.NODE_ENV === "development" && morgan) {
+  app.use(morgan("dev"));
+}
+
+// --------------------
+// STATIC: UPLOADS
+// --------------------
+// Files saved by multer will be served from /uploads/*
+// Example: http://localhost:8000/uploads/documents/shipments/<id>/<filename>
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // --------------------
 // HEALTH CHECK
@@ -158,43 +170,8 @@ const swaggerSpec = swaggerJsdoc({
       securitySchemes: {
         bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
       },
-      schemas: {
-        RegisterRequest: {
-          type: "object",
-          required: ["fullname", "email", "password", "country", "address"],
-          properties: {
-            fullname: { type: "string", example: "Test User" },
-            email: { type: "string", example: "test@example.com" },
-            password: { type: "string", example: "Passw0rd!" },
-            country: { type: "string", example: "UK" },
-            address: { type: "string", example: "1 Demo Street" },
-            age: { type: "integer", example: 33 },
-          },
-        },
-        LoginRequest: {
-          type: "object",
-          required: ["email", "password"],
-          properties: {
-            email: { type: "string", example: "test@example.com" },
-            password: { type: "string", example: "Passw0rd!" },
-          },
-        },
-        AuthResponse: {
-          type: "object",
-          properties: {
-            _id: { type: "string" },
-            fullname: { type: "string" },
-            email: { type: "string" },
-            role: { type: "string", example: "user" },
-            status: { type: "string", example: "pending" },
-            accessToken: { type: "string" },
-          },
-        },
-      },
     },
-    paths: {
-      // ... unchanged swagger paths ...
-    },
+    paths: {},
   },
   apis: [],
 });
@@ -209,34 +186,15 @@ app.use(
 // ROUTES
 // --------------------
 app.use("/auth", authLimiter, authRoute);
-
-// Canonical (v1) — plural URLs, singular filenames
 app.use("/api/v1/users", userRoute);
 app.use("/api/v1/shipments", shipmentRoute);
 
 // Legacy aliases (temporary) + logging
-app.use(
-  "/users",
-  (req, _res, next) => {
-    console.warn("LEGACY HIT:", req.method, req.originalUrl);
-    next();
-  },
-  userRoute
-);
+app.use("/users", userRoute);
+app.use("/shipments", shipmentRoute);
 
-app.use(
-  "/shipments",
-  (req, _res, next) => {
-    console.warn("LEGACY HIT:", req.method, req.originalUrl);
-    next();
-  },
-  shipmentRoute
-);
-
-// Config (ports, service types, cargo categories)
+// Config + Admin
 app.use("/config", configRoute);
-
-// Admin system routes
 app.use("/admin/settings", settingsRoute);
 app.use("/admin/backups", backupsRoute);
 app.use("/admin/analytics", analyticsRoute);
@@ -244,7 +202,7 @@ app.use("/admin/logs", logsRoute);
 app.use("/admin/calendar", calendarRoute);
 
 // --------------------
-// 404 (in JSON)
+// 404
 // --------------------
 app.use((req, res) => {
   res.status(404).json({
@@ -255,7 +213,7 @@ app.use((req, res) => {
 });
 
 // --------------------
-// ERROR HANDLER (hardened)
+// ERROR HANDLER
 // --------------------
 app.use((err, req, res, next) => {
   const status = Number(err.statusCode || err.status || 500);
@@ -277,7 +235,7 @@ app.use((err, req, res, next) => {
     message: err.message,
   });
 
-  return res.status(status).json(payload);
+  res.status(status).json(payload);
 });
 
 // --------------------
