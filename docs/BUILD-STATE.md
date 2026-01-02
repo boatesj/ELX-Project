@@ -6,12 +6,19 @@ Ellcworth Express (ELX-Project)
 
 ## Locked Plan
 
-Strict phased build plan is locked and must be adhered to.
+Strict phased build plan is locked and must be adhered to.  
 No scope drift or re-ordering allowed.
+
+---
 
 ## Current Phase
 
-Phase 3A — Admin Wiring (IN PROGRESS)
+**Phase 5 — System Integration Readiness (IN PROGRESS)**
+
+> Phase 3A is now considered **complete** and closed.
+> Focus has moved forward to Phase 5 integration and environment stability.
+
+---
 
 ## Phase 1
 
@@ -22,6 +29,8 @@ Phase 3A — Admin Wiring (IN PROGRESS)
 - Routes tested and verified
 - Navigation contract agreed
 
+---
+
 ## Phase 2
 
 ✔ COMPLETE
@@ -30,44 +39,103 @@ Phase 3A — Admin Wiring (IN PROGRESS)
 - No marketing content dependency for route-map
 - Hash-based public navigation rules locked
 
-## Phase 3A — Status
+---
 
-✔ Admin dashboard (Home.jsx) UPDATED
-✔ Shipments list page UPDATED
-✔ API standardised to `/api/v1/*`
-✔ Pagination fixed (controlled paginationModel)
-✔ 401 handling standardised
-✔ Mobile + desktop behaviour aligned
+## Phase 3A — Admin Wiring
 
-⏳ REMAINING IN PHASE 3A
+✔ COMPLETE (CLOSED)
 
-- Verify Admin router configuration
-- Confirm Admin route definitions for:
+### Verified Outcomes
+
+- Admin dashboard (Home.jsx) operational
+- Shipments list page operational
+- Shipment detail view operational
+- API standardised to `/api/v1/*`
+- Pagination fixed (controlled paginationModel)
+- 401 handling standardised
+- Mobile + desktop behaviour aligned
+- Admin build passes (`npm run build`)
+- Admin routes verified:
   - `/users`
   - `/users/:id`
+  - `/shipments`
   - `/shipments/:shipmentId`
-- Wire Users pages (Users.jsx, UserDetails.jsx, EditUser.jsx)
-- Confirm backend endpoints exist for `/api/v1/users`
 
-## Files Last Modified
+### Closure Note
 
-- Admin/src/pages/Home.jsx
-- Admin/src/pages/Shipments.jsx
+All Admin routing and wiring objectives for Phase 3A have been met.  
+No further work permitted in Phase 3A unless a blocking defect is identified.
 
-## Files NOT yet reviewed in Phase 3A
+---
 
-- Admin routing file (App.jsx or main.jsx)
-- Admin/src/pages/Users.jsx
-- Admin/src/pages/UserDetails.jsx
-- Admin/src/pages/EditUser.jsx
+## Phase 4 — Public / Marketing UI
 
-## Rules Going Forward
+✔ COMPLETE (FROZEN)
 
-- Ask for FULL FILES only
-- Return FULL FILES only
-- Mandatory git commit at end of each sub-phase
-- No customer marketing content work until Phase 4
+- Public lead capture form operational
+- Public → Backend integration verified
+- No conversion-blocking UI defects
+- Frontend build passes (`npm run build`)
 
-## Next Action Required
+Public UI is now **frozen** per plan.
 
-Review Admin routing file to complete Phase 3A.
+---
+
+## Phase 5 — System Integration Readiness
+
+### Phase 5.1 — Environment Contract
+
+✔ IN PROGRESS
+
+#### Verified
+
+- Frontend + Admin + Backend can run concurrently
+- CORS issues resolved for local dev (5173 / 5174)
+- Canonical API base confirmed: `/api/v1`
+- Public lead submission verified end-to-end
+- Admin dashboard + shipment endpoints verified:
+  - `GET /api/v1/shipments`
+  - `GET /api/v1/shipments/:id`
+  - `GET /api/v1/shipments/dashboard`
+
+#### Remaining
+
+- Lock `.env.example` files for:
+  - Frontend
+  - Admin
+  - Backend
+  - BackgroundServices
+- Fresh-machine startup verification using docs-only envs
+
+---
+
+## Files Last Modified (Recent)
+
+- Frontend/src/components/QuoteSection.jsx
+- Frontend/src/requestMethods.js
+- Backend/index.js
+- Backend/controllers/shipment.js
+- Admin/src/pages/Shipment.jsx
+
+---
+
+## Rules Going Forward (Reaffirmed)
+
+- Ask for **FULL FILES only**
+- Return **FULL FILES only**
+- Mandatory Git commit at end of each micro-step
+- No revisiting closed phases unless blocking defect
+- Forward-only execution
+
+---
+
+## Immediate Next Action (Required)
+
+**Phase 5.1.x**
+
+- Stage + commit Admin build fix:
+  - `Admin/src/pages/Shipment.jsx`
+
+Suggested commit message:
+
+Then proceed to lock `.env.example` files to complete Phase 5.1.

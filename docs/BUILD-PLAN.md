@@ -1,8 +1,11 @@
 # ELX Progressive Build Plan (Phase 4 → Deployment)
 
-**Project:** Ellcworth Express (ELX-Project) — MERN (Admin + Frontend + Backend + BackgroundServices)  
-**Goal:** Production deployment without merry-go-round rework.  
-**Principle:** Forward-only delivery. Each micro-step produces a testable increment and a Git commit.
+**Project:** Ellcworth Express (ELX-Project)  
+**Architecture:** MERN (Admin + Frontend + Backend + BackgroundServices)  
+**Objective:** Reach production deployment without rework, churn, or scope drift.
+
+**Execution Principle:**  
+Forward-only delivery. Each micro-step produces a testable increment and a Git commit.
 
 ---
 
@@ -10,432 +13,298 @@
 
 ### Forward-only rule
 
-We do not revisit completed pages or refactor “for neatness” once a phase item is marked DONE, **unless it is a blocking defect**, defined as:
+Once a phase or micro-step is marked **DONE**, it is closed permanently unless a **blocking defect** exists.
 
-- Build fails / app won’t run
-- Route is broken or unreachable (per route-map.md)
-- Critical conversion path broken (e.g. booking CTA doesn’t land)
+A blocking defect is defined as:
+
+- Build fails / app will not run
+- Route is broken or unreachable (per route-map)
+- Critical conversion path broken (e.g. booking CTA, quote flow)
 - Security flaw or data corruption risk
-- Production deployment fails
+- Production deployment failure
+
+No refactors “for neatness”. No revisits for preference.
+
+---
 
 ### Workflow rule
 
 - **Ask for FULL FILES only**
 - **Return FULL FILES only**
 - **Mandatory Git commit after each micro-step**
-- No reordering of phases.
+- No reordering of phases
+
+---
 
 ### Contract files (source of truth)
 
-- `docs/route-map.md` (routing truth)
-- `docs/navigation_contract.md` (nav truth)
-- This file (execution truth)
+- `docs/route-map.md` — routing truth
+- `docs/navigation_contract.md` — navigation truth
+- This file — execution truth
 
-Any change to routing/nav requires updating the contract files + commit.
-
----
-
-## 1) Current Contracts Summary (V1)
-
-### Public App (Frontend)
-
-Wired:
-
-- `/` Home (hash sections)
-- `/services`
-- `/services/:id`
-- `/login`
-- `*` NotFound
-
-Hash navigation allowed ONLY on `/` and must work via `/#hash` deep-linking.
-
-### Admin App
-
-Protected routes under `/` + public `/login`.  
-Operational routes are wired (shipments/users/elements/settings/backups/logs/calendar/charts).
-
-### Key constraint
-
-Frontend `/login` is customer login. Admin `/login` is admin login. Separate apps, OK.
+Any routing or navigation change **must** update the relevant contract file and be committed.
 
 ---
 
-## 2) Phase 4 — Public / Marketing UI (Finish → Freeze)
+## 1) Phase Status Overview (Current Truth)
 
-**Outcome:** Public site is consistent, conversion-ready, and contract-compliant.
-
-### 4.1 Navigation + Hash Contract Compliance (Public)
-
-**Work:**
-
-- Ensure homepage section IDs match `navigation_contract.md`:
-  - `#Header`, `#services`, `#whyus`, `#repackaging`, `#booking`, `#testimonials`
-- Ensure all public CTAs that should land on booking navigate to `/#booking` then scroll.
-- Ensure hash links are never used for non-home navigation.
-
-**Exit criteria:**
-
-- Clicking nav items from non-home routes correctly navigates to `/#hash` and scrolls.
-- Booking CTA from `/services` and `/services/:id` lands reliably on `#booking`.
-- No double-navbar padding artifacts.
-
-**Micro-steps (each = 1 commit):**
-
-- 4.1.1 Validate/standardize homepage anchor IDs
-- 4.1.2 Validate navbar public hash behavior off-home (navigate + scroll)
-- 4.1.3 Smoke pass public routes: `/`, `/services`, `/services/:id`, `/login`, `*`
-
-### 4.2 Content Completeness Freeze (Public)
-
-**Work:**
-
-- Remove “coming soon” from public where it damages trust (unless intentional).
-- Ensure footer & prefooter CTAs are correct and consistent.
-
-**Exit criteria:**
-
-- Public pages contain no credibility-breaking placeholders.
-- Footer contact details correct and consistent.
-
-### 4.3 Public Production Readiness (Frontend only)
-
-**Work:**
-
-- Add/verify SEO basics: titles/descriptions per route, OG tags.
-- Ensure assets paths resolve under production build.
-
-**Exit criteria:**
-
-- Frontend production build succeeds.
-- Pages render correctly with deployed base URLs.
-
-### Phase 4 Status
-
-- **DONE (frozen)** ✅  
-  Public/Marketing UI is considered frozen. No redesigns afterwards unless blocking conversion defect.
+| Phase                                      | Status               |
+| ------------------------------------------ | -------------------- |
+| Phase 1 — Navigation Foundation            | ✅ COMPLETE          |
+| Phase 2 — Navigation Contracts             | ✅ COMPLETE          |
+| Phase 3A — Admin Wiring                    | ✅ COMPLETE (CLOSED) |
+| Phase 4 — Public / Marketing UI            | ✅ COMPLETE (FROZEN) |
+| **Phase 5 — System Integration Readiness** | 🔄 **IN PROGRESS**   |
+| Phase 6 — Customer Booking MVP             | ⏳ NOT STARTED       |
+| Phase 7 — Admin Operational MVP            | ⏳ NOT STARTED       |
+| Phase 8 — Production Hardening             | ⏳ NOT STARTED       |
+| Phase 9 — Deployment                       | ⏳ NOT STARTED       |
 
 ---
 
-## 3) Phase 5 — System Integration Readiness (All Apps)
+## 2) Phase 4 — Public / Marketing UI (DONE → FROZEN)
 
-**Outcome:** All services run together with stable environment contracts.
+**Outcome:**  
+Public site is consistent, conversion-ready, and contract-compliant.
+
+### What is locked
+
+- Public routes:
+  - `/`
+  - `/services`
+  - `/services/:id`
+  - `/login`
+  - `*` (NotFound)
+- Hash navigation allowed **only** on `/`
+- Booking CTA scrolls reliably from all public pages
+- Public lead capture form works end-to-end
+- Frontend production build passes
+
+**Status:**  
+✅ DONE — Public UI is frozen.  
+No redesigns or content churn allowed unless conversion is broken.
+
+---
+
+## 3) Phase 5 — System Integration Readiness (CURRENT PHASE)
+
+**Outcome:**  
+All apps run together cleanly with stable environment and API contracts.
+
+---
 
 ### 5.1 Environment Contract (Dev + Prod)
 
-**Work:**
+**Goal:**  
+A fresh machine can run all services using documented environment variables only.
 
-- Define env var requirements per app:
-  - Frontend env (VITE_API_BASE_URL etc.)
-  - Admin env
-  - Backend env (Mongo URI, JWT secret, CORS allowlist)
-  - BackgroundServices env (SMTP/API keys, backend base, queue settings)
-- Create `.env.example` for each project folder.
+#### Verified (DONE)
 
-**Exit criteria:**
+- Frontend, Admin, and Backend run concurrently
+- Canonical API base confirmed: `/api/v1`
+- CORS issues resolved in dev
+- Public lead submission works end-to-end
+- Admin dashboard + shipment APIs verified:
+  - `GET /api/v1/shipments`
+  - `GET /api/v1/shipments/:id`
+  - `GET /api/v1/shipments/dashboard`
+- Frontend build passes
+- Admin build passes
 
-- Fresh machine can start all services using documented env vars.
-- No hardcoded localhost URLs in production paths.
+#### Remaining (TODO)
 
-**Status / Progress**
+- Create and lock `.env.example` files for:
+  - Frontend
+  - Admin
+  - Backend
+  - BackgroundServices
+- Perform fresh-start smoke test using docs-only env values
 
-- ✅ **Admin production build passes** (`Admin/npm run build`).
-- ✅ **Frontend production build passes** (`Frontend/npm run build`).
-- ⚠️ Admin build reports **chunk > 500kB warning** (non-blocking).  
-  This is a Phase 8.3 performance consideration unless it becomes a deployment blocker.
-- ⏳ `.env.example` files not yet locked and committed (still pending as part of Phase 5.1).
+#### Micro-steps (each = 1 commit)
 
-**Micro-steps (each = 1 commit):**
-
-- 5.1.1 Create/verify `.env.example` for Frontend
-- 5.1.2 Create/verify `.env.example` for Admin
-- 5.1.3 Create/verify `.env.example` for Backend
-- 5.1.4 Create/verify `.env.example` for BackgroundServices
-- 5.1.5 Fresh-start smoke: boot all services using docs-only env values
+- 5.1.1 Create `.env.example` — Frontend
+- 5.1.2 Create `.env.example` — Admin
+- 5.1.3 Create `.env.example` — Backend
+- 5.1.4 Create `.env.example` — BackgroundServices
+- 5.1.5 Fresh-start smoke test (all services)
 
 ---
 
 ### 5.2 API Base + CORS Contract Freeze
 
-**Work:**
+**Goal:**  
+API usage and CORS behaviour are locked for dev and prod.
 
-- Confirm canonical API base: `/api/v1`
-- Remove legacy route hits where possible or hard-deprecate them.
-- Lock CORS:
-  - Dev allows localhost ports needed
-  - Prod allows only deployed domains (public + admin)
+#### Completed
 
-**Exit criteria:**
-
-- Admin & Frontend talk only to `/api/v1/*`.
-- CORS is correct for dev and prod.
-
-**Status / Progress**
-
-- ✅ Admin quote builder work is wired against `/api/v1` endpoints:
+- Canonical API base locked to `/api/v1`
+- Admin quote builder wired to:
   - `PATCH /api/v1/shipments/:id/quote`
   - `POST /api/v1/shipments/:id/quote/send`
-- ⏳ CORS allowlist still needs explicit dev/prod freeze + documentation + commit.
+- Legacy route usage eliminated from active flows
 
-**Micro-steps (each = 1 commit):**
+#### Remaining
 
-- 5.2.1 Audit Admin + Frontend requests to confirm `/api/v1/*` only
+- Explicitly lock dev CORS allowlist
+- Lock prod CORS domains (Frontend + Admin)
+- Document API base + CORS rules in README / env docs
+
+#### Micro-steps (each = 1 commit)
+
+- 5.2.1 Audit all Admin + Frontend requests for `/api/v1/*` only
 - 5.2.2 Lock Backend CORS for dev ports
-- 5.2.3 Lock Backend CORS for prod domains (Frontend + Admin)
-- 5.2.4 Document CORS + API base in README / env contract
+- 5.2.3 Lock Backend CORS for prod domains
+- 5.2.4 Document API + CORS contract
 
 ---
 
-### Phase 5 Blocking Defects Log (Live)
+### Phase 5 Blocking Defects Log
 
-Blocking defects are fixed immediately; once fixed, we move forward.
+Blocking defects are fixed immediately and logged here.
 
-- ✅ **Admin build failure (Shipment.jsx JSX parse error) — FIXED**
-  - Symptom: `Expected "}" but found ")"` in Admin `src/pages/Shipment.jsx` (Quote builder “Line tax” render).
-  - Resolution: corrected JSX expression/parentheses in the “Line tax” line.
-  - Verification: `npm run build` passes in Admin; Frontend build also passes.
-
-**Pending Git hygiene (must be done as micro-step):**
-
-- ⏳ Stage + commit the fix:
-  - `Admin/src/pages/Shipment.jsx` modified and not staged.
-  - Branch: `Integration`.
+- ✅ Admin build failure — FIXED
+  - File: `Admin/src/pages/Shipment.jsx`
+  - Issue: JSX parse error in quote builder
+  - Status: Build passes
+  - **Pending:** mandatory commit
 
 ---
 
-## 4) Phase 6 — Customer Booking MVP (End-to-End)
+## 4) Phase 6 — Customer Booking MVP (END-TO-END)
 
-**Outcome:** A real customer can create a booking, backend stores it, notifications fire.
+**Outcome:**  
+A real customer can submit a booking and receive confirmation.
 
 ### 6.1 Frontend Booking Submission
 
-**Work:**
+- Booking form submits successfully
+- Clear success / failure UI
+- Minimal client validation
 
-- Booking form (on `#booking`) submits to backend endpoint.
-- Clear success/failure UI.
-- Client-side validation (minimal).
+### 6.2 Backend Booking Endpoint
 
-**Exit criteria:**
+- Booking endpoint implemented and validated
+- Booking stored in Mongo
+- Response includes booking / shipment reference
 
-- A customer can submit a booking from the public site.
+### 6.3 BackgroundServices Notifications
 
-### 6.2 Backend Booking Endpoint + Validation
+- Email internal ops
+- Email customer confirmation
+- Retry + logging (minimum viable)
 
-**Work:**
-
-- Implement/confirm booking endpoint:
-  - `POST /api/v1/bookings` (or `/shipments/public` — choose and lock)
-- Validate payload; store to Mongo.
-- Return consistent response shape.
-
-**Exit criteria:**
-
-- Booking stored in DB; response includes booking/shipment id reference.
-
-### 6.3 BackgroundServices Notification MVP
-
-**Work:**
-
-- On booking creation:
-  - email internal ops
-  - email customer confirmation
-- Add retry + logging (minimum viable).
-
-**Exit criteria:**
-
-- Booking triggers emails reliably (success + error logged).
+**Phase exit:**  
+Booking submission works end-to-end.
 
 ---
 
-## 5) Phase 7 — Admin Operational Completion (MVP to Operate)
+## 5) Phase 7 — Admin Operational MVP
 
-**Outcome:** Admin can process what customers submit.
+**Outcome:**  
+Admin can process customer submissions without manual DB work.
 
-### 7.1 Admin Intake Queue / View
+### 7.1 Admin Intake View
 
-**Work:**
+- Admin can see new bookings/shipments
+- Detail view accessible
 
-- Admin list shows new bookings/shipments requiring action.
-- Admin can open a booking/shipment detail.
+### 7.2 Workflow & Status Model
 
-**Exit criteria:**
-
-- Admin can see new items without manual DB inspection.
-
-### 7.2 Admin Workflow: Convert Booking → Shipment
-
-**Work:**
-
-- Define minimal status model (e.g. NEW → QUOTED → BOOKED → IN_TRANSIT → DELIVERED).
-- Admin can update status and key fields.
-
-**Exit criteria:**
-
-- Admin can move booking through lifecycle to completion.
+- Minimal lifecycle:
+  - NEW → QUOTED → BOOKED → IN_TRANSIT → DELIVERED
+- Admin can update status and key fields
 
 ### 7.3 Audit Logging (Minimum)
 
-**Work:**
-
-- Log key admin actions (status changes, edits).
-- Simple log retention.
-
-**Exit criteria:**
-
-- Operational changes are traceable.
+- Key admin actions logged
+- Simple retention
 
 ---
 
-## 6) Phase 8 — Production Hardening (Release Candidate)
+## 6) Phase 8 — Production Hardening
 
-**Outcome:** Safe, stable, deployable.
+**Outcome:**  
+Safe, stable, deployable release candidate.
 
-### 8.1 Security Hardening
+### 8.1 Security
 
-**Work:**
+- Helmet, rate limiting, sanitization
+- JWT secret hygiene
+- Debug configs removed in prod
 
-- Helmet, rate limiting, input sanitization.
-- JWT secret rotation readiness (documented).
-- Remove debug configs in production.
-
-**Exit criteria:**
-
-- Security middleware active in production mode.
-- No secrets committed; env required.
-
-### 8.2 Observability + Healthchecks
-
-**Work:**
+### 8.2 Observability
 
 - Health endpoints:
-  - Backend: `/health`
-  - BackgroundServices: `/health` or heartbeat log
-- Structured logging.
+  - Backend `/health`
+  - BackgroundServices heartbeat
+- Structured logging
 
-**Exit criteria:**
+### 8.3 Build & Performance
 
-- Deployed services can be monitored simply.
-
-### 8.3 Build + Performance
-
-**Work:**
-
-- Production builds for Frontend + Admin.
-- Bundle sanity checks; remove dead code if clearly safe.
-- Optional code-splitting if bundle size becomes a deployment or UX blocker.
-
-**Exit criteria:**
-
-- “Release Candidate” build completes consistently.
+- Production builds verified
+- Bundle size reviewed
+- Optional code-splitting if needed
 
 ---
 
 ## 7) Phase 9 — Deployment (Go Live)
 
-**Outcome:** Public + Admin + Backend + BackgroundServices running on real infrastructure.
+**Outcome:**  
+Public + Admin + Backend + BackgroundServices live on real infrastructure.
 
-### Recommended deployment shape (split apps)
+### Recommended deployment shape
 
-- **Frontend:** Vercel (or Netlify)
-- **Admin:** Vercel (or Netlify) — separate deploy
-- **Backend:** Render / Fly.io / Railway (Node/Express)
-- **Mongo:** MongoDB Atlas
-- **BackgroundServices:** Render Worker / Railway Worker
+- Frontend → Vercel / Netlify
+- Admin → Vercel / Netlify (separate)
+- Backend → Render / Fly.io / Railway
+- Mongo → MongoDB Atlas
+- BackgroundServices → Render Worker / Railway Worker
 
-### 9.1 Deployment Configuration
+### Final smoke tests (must pass)
 
-**Work:**
-
-- Configure env vars in hosting dashboards.
-- Configure CORS allowlist to deployed domains.
-- Configure API base URLs in Frontend/Admin.
-
-**Exit criteria:**
-
-- All apps boot successfully in hosted environments.
-
-### 9.2 Domain + SSL + Email Deliverability
-
-**Work:**
-
-- Domains wired
-- SSL active
-- Email sender verified (SPF/DKIM/DMARC if used)
-
-**Exit criteria:**
-
-- Emails land reliably; no “blocked sender” problems.
-
-### 9.3 Final Smoke Tests (Go/No-Go)
-
-**Must pass:**
-
-- Public site routes render
-- Booking submission works end-to-end
+- Public routes render
+- Booking submission works
 - Admin login works
-- Admin can view and update booking/shipment
-- Notification emails fire
+- Admin can process booking
+- Emails fire
 - Healthchecks OK
-
-**Exit criteria:**
-
-- Go-live approved.
 
 ---
 
-## 8) How We Mark Work “DONE”
+## 8) Definition of DONE (Locked)
 
-A phase item becomes DONE only when:
+A phase or micro-step is DONE only when:
 
-- It meets its exit criteria
-- It has a Git commit
-- It is documented (if contract impacted)
+- Exit criteria are met
+- Git commit exists
+- Contracts are updated (if impacted)
 
 After DONE:
 
-- We move forward.
-- We do not revisit unless blocking defect.
+- Move forward
+- No revisits unless blocking
 
 ---
 
 ## 9) Commit Message Pattern (Locked)
 
-Use:
-
-- `Phase X: <micro-step summary>`
-
 Examples:
 
-- `Phase 4: public hash navigation contract compliance`
-- `Phase 6: booking endpoint + validation`
-- `Phase 9: deploy admin to vercel`
+- `Phase 5: lock frontend env contract`
+- `Phase 6: booking endpoint MVP`
+- `Phase 9: deploy backend to render`
 
 ---
 
 ## 10) Immediate Next Execution Step
 
-**We are in Phase 5.1 → 5.2 now (forward-only).**
+**We are in Phase 5.1 → Phase 5.2.**
 
-### Next micro-step (must commit)
+### Required next action (must commit):
 
-**5.1.x / Blocking defect closure commit:**
-
-- Stage and commit the Admin fix that made builds pass:
+- Stage + commit:
   - `Admin/src/pages/Shipment.jsx`
 
 Suggested commit message:
 
-- `Phase 5: fix admin quote builder JSX build error`
-
-Then proceed immediately to:
-
-### Phase 5.1 completion
-
-- Create `.env.example` per app folder and document required vars.
-
-### Phase 5.2 freeze
-
-- Audit all requests to ensure `/api/v1/*` only.
-- Lock Backend CORS for dev + prod domains.
-- Document API/CORS contract.
-
-(Do not start Phase 6 until Phase 5 environment/API contract is locked.)
+Then proceed immediately with **Phase 5.1.1** — Frontend `.env.example`.
