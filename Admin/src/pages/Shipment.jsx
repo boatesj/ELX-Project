@@ -40,6 +40,13 @@ import {
   extractDocumentsFromResponse,
 } from "./shipment/shipmentApiHelpers";
 
+import {
+  getCargoFlags,
+  getModeOptions,
+  getQuoteStageFlags,
+  getQuoteActionFlags,
+} from "./shipment/shipmentSelectors";
+
 const Shipment = () => {
   const { shipmentId } = useParams();
   const navigate = useNavigate();
@@ -611,37 +618,21 @@ const Shipment = () => {
     }
   };
 
-  const isSea = form.serviceType === "sea_freight";
-  const isDocs = form.mode === "air_docs";
-  const isRoRo = form.mode === "roro" || form.cargoType === "vehicle";
-  const isContainerMode =
-    form.mode === "fcl" ||
-    form.mode === "lcl" ||
-    form.cargoType === "container" ||
-    form.cargoType === "lcl";
+  const { isSea, isDocs, isRoRo, isContainerMode } = getCargoFlags(form);
 
-  const currentModeOptions = MODE_OPTIONS[form.serviceType] || [];
-  const quoteCurrency = quoteForm.currency || "GBP";
-  const sentAt = shipment?.quote?.sentAt
-    ? new Date(shipment.quote.sentAt).toLocaleString("en-GB")
-    : "";
-  const quoteVersion = shipment?.quote?.version || 0;
+  const currentModeOptions = getModeOptions(MODE_OPTIONS, form.serviceType);
 
-  // ----- Option B gating -----
-  const isRequestPipeline = REQUEST_STATUSES.has(form.status);
-  const isQuotedStage =
-    form.status === "quoted" || form.status === "customer_requested_changes";
-  const isApprovedStage = form.status === "customer_approved";
-  const isBookedStage = form.status === "booked";
+  const { isRequestPipeline, isQuotedStage, isApprovedStage, isBookedStage } =
+    getQuoteStageFlags(REQUEST_STATUSES, form.status);
 
-  const canMarkApproved =
-    !statusActing && !saving && !quoteSending && !quoteSaving && isQuotedStage;
-  const canConfirmBooking =
-    !statusActing &&
-    !saving &&
-    !quoteSending &&
-    !quoteSaving &&
-    isApprovedStage;
+  const { canMarkApproved, canConfirmBooking } = getQuoteActionFlags({
+    statusActing,
+    saving,
+    quoteSending,
+    quoteSaving,
+    isQuotedStage,
+    isApprovedStage,
+  });
 
   if (loading) {
     return (
