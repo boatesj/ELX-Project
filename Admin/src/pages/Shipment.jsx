@@ -33,6 +33,8 @@ import {
   Textarea,
 } from "./shipment/shipmentUI";
 
+import { buildUpdatePayload } from "./shipment/shipmentPayload";
+
 // ✅ normalize docs returned by backend safely
 const extractDocumentsFromResponse = (res) => {
   const d1 = res?.data?.data;
@@ -318,77 +320,6 @@ const Shipment = () => {
     if (shipmentId) fetchShipment();
   }, [shipmentId]);
 
-  // ---------------- PAYLOAD BUILDER (single source of truth) ----------------
-  const buildUpdatePayload = (override = {}) => {
-    const backendMode = uiModeToBackendMode(form.serviceType, form.mode);
-
-    const payload = {
-      referenceNo: form.referenceNo || shipment?.referenceNo,
-      serviceType: form.serviceType,
-      mode: backendMode,
-      status: form.status,
-      paymentStatus: form.paymentStatus || "unpaid",
-
-      ports: {
-        originPort: form.originPort,
-        destinationPort: form.destinationPort,
-      },
-
-      shipper: {
-        name: form.shipperName,
-        address: form.shipperAddress,
-        email: form.shipperEmail,
-        phone: form.shipperPhone,
-      },
-      consignee: {
-        name: form.consigneeName,
-        address: form.consigneeAddress,
-        email: form.consigneeEmail,
-        phone: form.consigneePhone,
-      },
-      notify: {
-        name: form.notifyName,
-        address: form.notifyAddress,
-        email: form.notifyEmail,
-        phone: form.notifyPhone,
-      },
-      vessel: {
-        name: form.vesselName,
-        voyage: form.vesselVoyage,
-      },
-      shippingDate: form.shippingDate
-        ? new Date(form.shippingDate)
-        : shipment?.shippingDate,
-      eta: form.eta ? new Date(form.eta) : shipment?.eta,
-
-      cargo: {
-        description: form.cargoDescription,
-        weight: form.cargoWeight,
-        vehicle: {
-          make: form.vehicleMake,
-          model: form.vehicleModel,
-          year: form.vehicleYear,
-          vin: form.vehicleVin,
-        },
-        container: {
-          containerNo: form.containerNo,
-          size: form.containerSize,
-          sealNo: form.containerSealNo,
-        },
-      },
-      services: {
-        repacking: {
-          required: form.repackingRequired,
-          notes: form.repackingNotes,
-        },
-      },
-      ...override,
-    };
-
-    if (form.cargoType) payload.cargoType = form.cargoType;
-    return payload;
-  };
-
   // ---------------- SAVE / UPDATE BOOKING ----------------
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -398,7 +329,7 @@ const Shipment = () => {
       setSaving(true);
       setErrorMsg("");
 
-      const payload = buildUpdatePayload();
+      const payload = buildUpdatePayload({ form, shipment });
 
       const res = await authRequest.put(`/shipments/${shipmentId}`, payload);
       const updated = res.data?.shipment || res.data?.data || res.data;
@@ -432,7 +363,11 @@ const Shipment = () => {
       // Keep form in sync immediately (UI feedback)
       setForm((p) => ({ ...p, status: nextStatus }));
 
-      const payload = buildUpdatePayload({ status: nextStatus });
+      const payload = buildUpdatePayload({
+        form,
+        shipment,
+        override: { status: nextStatus },
+      });
 
       const res = await authRequest.put(`/shipments/${shipmentId}`, payload);
       const updated = res.data?.shipment || res.data?.data || res.data;
