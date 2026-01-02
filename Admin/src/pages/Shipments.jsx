@@ -92,7 +92,7 @@ const Shipments = () => {
       if (!confirm) return;
 
       try {
-        await authRequest.delete(`/api/v1/shipments/${id}`);
+        await authRequest.delete(`/shipments/${id}`);
         setRows((prev) => prev.filter((row) => row._id !== id));
       } catch (error) {
         const status = error?.response?.status;

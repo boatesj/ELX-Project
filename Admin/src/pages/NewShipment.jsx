@@ -214,7 +214,7 @@ const NewShipment = () => {
         shippingDate: shippingDateValue, // "YYYY-MM-DD" from input is valid ISO8601
       };
 
-      const res = await authRequest.post("/api/v1/shipments", payload);
+      const res = await authRequest.post("/shipments", payload);
       const created = res.data?.data || res.data?.shipment || res.data;
 
       // To avoid "No routes matched /shipments/:id" until details route is ready

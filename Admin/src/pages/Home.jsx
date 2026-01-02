@@ -242,9 +242,9 @@ const Home = () => {
 
         // ✅ Standardise Admin API calls to /api/v1
         const [usersRes, dashboardRes, shipmentsRes] = await Promise.all([
-          authRequest.get("/api/v1/users"),
-          authRequest.get("/api/v1/shipments/dashboard"),
-          authRequest.get("/api/v1/shipments"),
+          authRequest.get("/users"),
+          authRequest.get("/shipments/dashboard"),
+          authRequest.get("/shipments"),
         ]);
 
         // ----- USERS -----
