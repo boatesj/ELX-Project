@@ -93,13 +93,6 @@ const QuoteSection = () => {
         phone: leadPhone || "",
       },
 
-      // ✅ NEW: requestor snapshot (unregistered lead)
-      requestor: {
-        name: leadName,
-        email: leadEmail,
-        phone: leadPhone || "",
-      },
-
       // Consignee info may be unknown at request stage
       consignee: {
         name: "To be confirmed",
@@ -133,6 +126,13 @@ const QuoteSection = () => {
         createdAtClient: nowIso,
         serviceTab: serviceId,
         leadStage: true,
+
+        // ✅ IMPORTANT: store lead snapshot here (backend expects meta.requestor)
+        requestor: {
+          name: leadName,
+          email: leadEmail,
+          phone: leadPhone || "",
+        },
       },
 
       // ✅ Always treat as web portal lead

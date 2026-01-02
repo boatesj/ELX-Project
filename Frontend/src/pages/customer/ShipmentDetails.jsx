@@ -16,7 +16,7 @@ import {
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { customerAuthRequest, CUSTOMER_TOKEN_KEY } from "@/requestMethods";
 
-const SHIPMENT_PATH = (id) => `/api/v1/shipments/${id}`;
+const SHIPMENT_PATH = (id) => `/shipments/${id}`;
 
 const getStatusClasses = (status) => {
   const s = String(status || "").toLowerCase();

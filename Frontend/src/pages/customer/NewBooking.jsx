@@ -3,7 +3,7 @@ import { FaArrowLeft, FaCheckCircle, FaShip, FaTruck } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { customerAuthRequest } from "@/requestMethods";
 
-const CREATE_SHIPMENT_PATH = "/api/v1/shipments";
+const CREATE_SHIPMENT_PATH = "/shipments";
 
 /**
  * Backend validator requires mode to be one of:

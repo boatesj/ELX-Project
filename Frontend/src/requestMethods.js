@@ -47,17 +47,26 @@ export const rootRequest = axios.create({
 });
 
 /**
- * ✅ Public axios client (no auth) — v1 canonical
- * Use for public v1 endpoints (lead capture, public shipment quote request endpoints, etc.)
+ * ✅ Public axios client (no auth) — ROOT
+ * IMPORTANT:
+ * - Keep this on ROOT so you can call public v1 endpoints as "/api/v1/..."
+ * - Prevents accidental double prefix: "/api/v1/api/v1/..."
+ *
+ * Example:
+ *   publicRequest.post("/api/v1/shipments/public-request", payload)
  */
 export const publicRequest = axios.create({
-  baseURL: API_V1_BASE_URL,
+  baseURL: API_ROOT_URL,
 });
 
 /**
- * Customer-protected axios client (customer portal) — v1 canonical
+ * ✅ Customer-protected axios client (customer portal) — v1 canonical
  * - Attaches Bearer token automatically
  * - Auto-logout on 401/403
+ *
+ * IMPORTANT:
+ * - With this client, DO NOT prefix paths with "/api/v1"
+ *   Use "/shipments/..." etc.
  */
 export const customerAuthRequest = axios.create({
   baseURL: API_V1_BASE_URL,

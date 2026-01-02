@@ -3,7 +3,7 @@ import { FaArrowLeft, FaSave } from "react-icons/fa";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { customerAuthRequest, CUSTOMER_TOKEN_KEY } from "@/requestMethods";
 
-const SHIPMENT_PATH = (id) => `/api/v1/shipments/${id}`;
+const SHIPMENT_PATH = (id) => `/shipments/${id}`;
 
 function pickShipment(payload) {
   if (payload && typeof payload === "object") {

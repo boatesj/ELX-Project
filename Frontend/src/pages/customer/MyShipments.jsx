@@ -7,7 +7,7 @@ const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
 const CUSTOMER_TOKEN_KEY = "elx_customer_token";
 const CUSTOMER_USER_KEY = "elx_customer_user";
 
-const MY_SHIPMENTS_PATH = `/api/v1/shipments/me/list`;
+const MY_SHIPMENTS_PATH = `/shipments/me/list`;
 
 function safeJsonParse(raw) {
   try {
