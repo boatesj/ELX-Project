@@ -351,20 +351,20 @@ const QuoteSection = () => {
         border-t border-gray-200
         scroll-mt-[120px] md:scroll-mt-[160px]
       "
-      aria-label="Get a shipping quote"
+      aria-label="Request a freight quote"
     >
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center px-4 md:px-6 lg:px-8">
         {/* Heading */}
         <div className="mb-10 text-center max-w-3xl">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.18em] uppercase mb-4">
-            Step 1 · Get a quote
+            Quote request
           </span>
           <h2 className="text-3xl md:text-4xl font-semibold text-[#111827] mb-3 uppercase">
-            Get a quick shipping quote
+            Request a shipping quote
           </h2>
           <p className="text-lg md:text-xl text-gray-700">
-            Choose your service, tell us a few details, and we’ll come back with
-            clear options and costs for your route.
+            Select a service and provide the basics. We’ll respond with clear
+            pricing and next steps for your route.
           </p>
         </div>
 
@@ -449,7 +449,7 @@ const QuoteSection = () => {
                 Thank you — we’ve received your request.
               </p>
               <p className="text-xs md:text-sm text-emerald-800 mt-1">
-                Our team will review and come back with a quote.{" "}
+                Our team will review and respond with a quote.{" "}
                 {createdRef ? (
                   <span className="font-mono font-semibold">
                     Ref: {createdRef}
@@ -532,15 +532,13 @@ const QuoteSection = () => {
                   disabled:opacity-60 disabled:cursor-not-allowed
                 "
               >
-                {submitting
-                  ? "Submitting..."
-                  : `Start your ${serviceLabel} quote`}
+                {submitting ? "Submitting..." : `Request ${serviceLabel} quote`}
               </button>
 
               <p className="text-xs md:text-sm text-gray-500 mt-3">
-                We usually respond within one business day. If your shipment is
-                urgent, mention your latest delivery date so we can prioritise
-                it.
+                Typical response time: one business day. If your shipment is
+                time-critical, include your latest delivery date so we can
+                prioritise.
               </p>
             </div>
           </form>
@@ -553,13 +551,13 @@ const QuoteSection = () => {
 const getServiceLabel = (id) => {
   switch (id) {
     case "container":
-      return "container";
+      return "a container";
     case "roro":
-      return "RoRo";
+      return "a RoRo";
     case "air":
-      return "air freight";
+      return "an air freight";
     default:
-      return "shipping";
+      return "a shipping";
   }
 };
 
