@@ -1,17 +1,17 @@
 {
-  "name": "backgroundservices",
+  "name": "ellcworth-backend",
   "version": "1.0.0",
-  "description": "Background email and notification service for ELXplorer",
+  "description": "Ellcworth Express API (Backend) - Auth, Users, Shipments",
   "main": "index.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node -c index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "archiver": "^7.0.1",
     "bcryptjs": "^3.0.2",
