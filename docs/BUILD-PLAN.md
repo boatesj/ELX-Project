@@ -155,6 +155,8 @@ API usage and CORS behaviour are locked for dev and prod.
 - 5.2.2 Lock Backend CORS for dev ports
 - 5.2.3 Lock Backend CORS for prod domains
 - 5.2.4 Document API + CORS contract
+- 5.2.1A Wire public CTAs + deep-link QuoteSection by service (?service=container|roro|air)
+- 5.2.1B Upgrade Customer NewBooking to quote-realistic fields + include Air freight mode
 
 ---
 

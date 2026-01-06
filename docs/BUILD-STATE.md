@@ -97,6 +97,9 @@ Public UI is now **frozen** per plan.
   - `GET /api/v1/shipments`
   - `GET /api/v1/shipments/:id`
   - `GET /api/v1/shipments/dashboard`
+- Public CTAs now route to the correct quote tab via `/#quote?service=container|roro|air`
+- PreFooterCTA contact actions are live (mailto + tel) and consistent across pages
+- Customer NewBooking captures quote-essential details and now supports Air freight mode
 
 #### Remaining
 
@@ -116,6 +119,8 @@ Public UI is now **frozen** per plan.
 - Backend/index.js
 - Backend/controllers/shipment.js
 - Admin/src/pages/Shipment.jsx
+- Frontend/src/components/BusinessAccountSection.jsx
+- Frontend/src/pages/customer/NewBooking.jsx
 
 ---
 
