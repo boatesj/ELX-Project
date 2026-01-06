@@ -634,6 +634,18 @@ const Shipment = () => {
     isApprovedStage,
   });
 
+  // ---------------- Derived quote display helpers ----------------
+  const quoteCurrency = String(
+    quoteForm?.currency || shipment?.quote?.currency || "GBP"
+  );
+
+  const quoteVersion =
+    shipment?.quote?.version ?? shipment?.quote?.revision ?? null;
+
+  const sentAt = shipment?.quote?.sentAt
+    ? new Date(shipment.quote.sentAt).toLocaleString("en-GB")
+    : "";
+
   if (loading) {
     return (
       <div className="bg-[#D9D9D9] p-3 sm:p-5 lg:m-[30px] lg:p-[20px] rounded-md">
