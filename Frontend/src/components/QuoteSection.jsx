@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { publicRequest } from "../requestMethods"; // ✅ force public for lead requests
 
 const SERVICE_TABS = [
@@ -7,14 +8,62 @@ const SERVICE_TABS = [
   { id: "air", label: "Air freight" },
 ];
 
+function mapServiceParamToTabId(raw) {
+  const v = String(raw || "")
+    .toLowerCase()
+    .trim();
+
+  // accept a few common variations
+  if (v === "container" || v === "sea" || v === "fcl" || v === "lcl")
+    return "container";
+  if (v === "roro" || v === "ro-ro" || v === "vehicle" || v === "cars")
+    return "roro";
+  if (
+    v === "air" ||
+    v === "airfreight" ||
+    v === "air-freight" ||
+    v === "air_freight"
+  )
+    return "air";
+
+  return null;
+}
+
+/**
+ * HashRouter example: "#quote?service=air"
+ * Returns "air" (string) or null
+ */
+function readServiceFromHash(hash = "") {
+  const raw = String(hash || "");
+  if (!raw.startsWith("#")) return null;
+
+  const withoutHash = raw.slice(1); // "quote?service=air"
+  const [anchor, qs] = withoutHash.split("?"); // ["quote", "service=air"]
+
+  const cleanAnchor = String(anchor || "")
+    .replace(/^\/+/, "")
+    .toLowerCase();
+
+  if (cleanAnchor !== "quote") return null;
+
+  const params = new URLSearchParams(qs || "");
+  return params.get("service");
+}
+
+/**
+ * BrowserRouter example: "/?service=air#quote"
+ * We only use location.search when hash is "#quote"
+ */
+function readServiceFromSearch(search = "") {
+  const params = new URLSearchParams(String(search || ""));
+  return params.get("service");
+}
+
 /**
  * Remove "bad optional" values that trigger express-validator:
  * - null
  * - undefined
  * - "" (empty string)
- *
- * Keeps objects/arrays if they contain meaningful values.
- * NOTE: We do NOT blank out required placeholders like "To be confirmed".
  */
 function deepPrune(value) {
   if (value === null || value === undefined) return undefined;
@@ -38,10 +87,6 @@ function deepPrune(value) {
 }
 
 function normaliseDateToIso(value) {
-  // Accept:
-  // - "YYYY-MM-DD" (from <input type="date">)
-  // - Date object
-  // - ISO string
   if (!value) return undefined;
 
   if (value instanceof Date) {
@@ -52,22 +97,55 @@ function normaliseDateToIso(value) {
   const s = String(value).trim();
   if (!s) return undefined;
 
-  // If it looks like YYYY-MM-DD, convert to ISO midnight UTC
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
     const d = new Date(`${s}T00:00:00.000Z`);
     return Number.isFinite(d.getTime()) ? d.toISOString() : undefined;
   }
 
-  // Otherwise let it pass as-is (backend isISO8601 will validate)
   return s;
 }
 
 const QuoteSection = () => {
+  const location = useLocation();
+  const sectionRef = useRef(null);
+
   const [activeService, setActiveService] = useState("container");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [createdRef, setCreatedRef] = useState("");
+
+  // ✅ Auto-select tab from service param when targeting #quote
+  useEffect(() => {
+    const hash = String(location.hash || "");
+    const hashLower = hash.toLowerCase();
+
+    // Only act when #quote is targeted
+    if (!hashLower.startsWith("#quote")) return;
+
+    // 1) HashRouter style: "#quote?service=air"
+    const serviceFromHash = readServiceFromHash(hash);
+
+    // 2) BrowserRouter style: "?service=air#quote"
+    const serviceFromSearch = readServiceFromSearch(location.search || "");
+
+    // Prefer hash param if present, else search param
+    const serviceRaw = serviceFromHash || serviceFromSearch;
+    const tab = mapServiceParamToTabId(serviceRaw);
+
+    if (tab && tab !== activeService) {
+      setActiveService(tab);
+      setSubmitted(false);
+      setSubmitError("");
+      setCreatedRef("");
+    }
+
+    // Ensure quote section is visible
+    if (sectionRef.current) {
+      sectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.hash, location.search]);
 
   const serviceLabel = useMemo(
     () => getServiceLabel(activeService),
@@ -343,6 +421,7 @@ const QuoteSection = () => {
 
   return (
     <section
+      ref={sectionRef}
       id="quote"
       className="
         w-full

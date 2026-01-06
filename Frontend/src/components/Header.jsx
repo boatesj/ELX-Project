@@ -12,7 +12,7 @@ const slides = [
     subtitle: "FCL and LCL moves with one operations team",
     body: "Share your cargo and destination. We coordinate carriers, documentation and schedules, then keep you updated through loading, sailing and arrival.",
     ctaLabel: "Get a container quote",
-    ctaHref: "#quote",
+    ctaHref: "/#quote?service=container",
   },
   {
     image: "/ellc_hero2.png",
@@ -25,7 +25,7 @@ const slides = [
     subtitle: "Priority options with milestone tracking",
     body: "We secure capacity on trusted airlines, confirm timelines, and support clearance at destination—so urgent cargo arrives when it needs to.",
     ctaLabel: "Get an air freight quote",
-    ctaHref: "#quote",
+    ctaHref: "/#quote?service=air",
   },
   {
     image: "/ellc_hero3.png",
@@ -38,7 +38,7 @@ const slides = [
     subtitle: "Cars, vans, 4×4s, trucks and machinery",
     body: "Deliver to port—or request collection. We manage export documentation, RoRo booking and shipment updates until safe discharge at destination.",
     ctaLabel: "Get a RoRo quote",
-    ctaHref: "#quote",
+    ctaHref: "/#quote?service=roro",
   },
   {
     image: "/ellc_hero4.png",
@@ -51,7 +51,7 @@ const slides = [
     subtitle: "For certificates, cheques and sensitive print",
     body: "We coordinate tamper-evident packaging and tracked, signed-for delivery, with controlled handover from print room to final office.",
     ctaLabel: "Speak to operations",
-    ctaHref: "#contact",
+    ctaHref: "/#contact",
   },
   {
     image: "/ellc_hero5.png",
@@ -64,7 +64,7 @@ const slides = [
     subtitle: "Reduce damage risk and avoid multiple shipments",
     body: "Send supplier deliveries to our warehouse. We check, photograph, repack and consolidate into one secure export—so you ship once, not many times.",
     ctaLabel: "Arrange warehouse support",
-    ctaHref: "#contact",
+    ctaHref: "/#contact",
   },
 ];
 

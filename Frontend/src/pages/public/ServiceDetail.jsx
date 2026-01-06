@@ -110,16 +110,16 @@ export default function ServiceDetail() {
               Next step
             </p>
             <p className="mt-2 text-gray-300 text-sm">
-              Start with a booking request, or log in to manage an existing
+              Start with a quote request, or log in to manage an existing
               shipment.
             </p>
 
             <div className="mt-4 flex flex-col sm:flex-row gap-3">
               <Link
-                to="/#booking"
+                to="/#quote"
                 className="inline-flex justify-center rounded-full bg-[#FFA500] text-[#1A2930] px-5 py-2.5 text-sm font-semibold shadow-md shadow-black/20 hover:opacity-95 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA500]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B1118]"
               >
-                Book a Shipment
+                Request a Quote
               </Link>
 
               <Link
@@ -131,8 +131,14 @@ export default function ServiceDetail() {
             </div>
 
             <div className="mt-4 text-xs text-gray-400">
-              Prefer a quick assist? Use the contact strip below and we’ll guide
-              you on routes, pricing and paperwork.
+              Prefer a quick assist?{" "}
+              <a
+                href="/#contact"
+                className="text-[#FFA500] font-semibold hover:opacity-90 transition"
+              >
+                Use the contact strip below
+              </a>{" "}
+              and we’ll guide you on routes, pricing and paperwork.
             </div>
           </div>
         </div>
