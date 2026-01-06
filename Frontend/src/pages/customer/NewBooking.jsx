@@ -1,5 +1,11 @@
 import { useMemo, useState } from "react";
-import { FaArrowLeft, FaCheckCircle, FaShip, FaTruck } from "react-icons/fa";
+import {
+  FaArrowLeft,
+  FaCheckCircle,
+  FaShip,
+  FaTruck,
+  FaPlaneDeparture,
+} from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { customerAuthRequest } from "@/requestMethods";
 
@@ -9,11 +15,12 @@ const CREATE_SHIPMENT_PATH = "/shipments";
  * Backend validator requires mode to be one of:
  * "RoRo", "Container", "Air", "LCL", "Documents", "Pallets", "Parcels"
  *
- * For Phase 5 we keep the UI minimal but contract-correct.
+ * We keep UI minimal but corporate-realistic.
  */
 const modes = [
   { value: "RoRo", label: "RoRo vehicle shipment", icon: <FaTruck /> },
   { value: "Container", label: "Containerised sea freight", icon: <FaShip /> },
+  { value: "Air", label: "Air freight shipment", icon: <FaPlaneDeparture /> },
   {
     value: "Documents",
     label: "Secure document shipment",
@@ -21,9 +28,21 @@ const modes = [
   },
 ];
 
+const containerTypes = [
+  { value: "", label: "Select (optional)" },
+  { value: "FCL 20ft", label: "FCL 20ft" },
+  { value: "FCL 40ft", label: "FCL 40ft" },
+  { value: "LCL", label: "LCL / loose cargo" },
+];
+
+const airTypes = [
+  { value: "", label: "Select (optional)" },
+  { value: "docs", label: "Documents" },
+  { value: "parcels", label: "Parcels / small packages" },
+  { value: "freight", label: "Larger freight" },
+];
+
 function pickCreatedShipment(body) {
-  // Accept common response shapes:
-  // { shipment:{...} } OR { ok:true, data:{...} } OR { ...shipment }
   if (body?.shipment && typeof body.shipment === "object") return body.shipment;
   if (body?.data && typeof body.data === "object") return body.data;
   if (body && typeof body === "object") return body;
@@ -33,13 +52,20 @@ function pickCreatedShipment(body) {
 function normalizeValidationErrors(err) {
   const data = err?.response?.data;
   const list = Array.isArray(data?.errors) ? data.errors : [];
-  // each: { field, message, value? }
   return list
     .map((e) => ({
       field: String(e?.field || "").trim(),
       message: String(e?.message || "").trim(),
     }))
     .filter((x) => x.field || x.message);
+}
+
+function toIsoDateOrEmpty(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+  // input type="date" gives YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T00:00:00.000Z`;
+  return s;
 }
 
 export default function NewBooking() {
@@ -57,6 +83,27 @@ export default function NewBooking() {
 
     originPort: "",
     destinationPort: "",
+
+    // ✅ Quote-critical (always)
+    cargoSummary: "",
+    cargoWeightKg: "",
+    readyDate: "",
+
+    // ✅ Mode-specific
+    // RoRo
+    roroVehicleMakeModel: "",
+    roroVehicleYear: "",
+    roroRunning: "runner", // runner | non_runner
+
+    // Container
+    containerType: "",
+
+    // Air
+    airType: "",
+    airDimensions: "",
+    airDeadline: "",
+
+    notes: "",
   });
 
   const [status, setStatus] = useState({
@@ -79,7 +126,8 @@ export default function NewBooking() {
         form.consigneeName.trim() &&
         form.consigneeAddress.trim() &&
         form.originPort.trim() &&
-        form.destinationPort.trim()
+        form.destinationPort.trim() &&
+        form.cargoSummary.trim()
     );
   }, [form]);
 
@@ -92,7 +140,22 @@ export default function NewBooking() {
   };
 
   const onPickMode = (value) => {
-    setForm((p) => ({ ...p, mode: value }));
+    setForm((p) => ({
+      ...p,
+      mode: value,
+
+      // reset mode-specific bits so the UI doesn't carry confusing data across modes
+      roroVehicleMakeModel: "",
+      roroVehicleYear: "",
+      roroRunning: "runner",
+
+      containerType: "",
+
+      airType: "",
+      airDimensions: "",
+      airDeadline: "",
+    }));
+
     if (status.error || (status.fieldErrors && status.fieldErrors.length)) {
       setStatus((s) => ({ ...s, error: "", fieldErrors: [] }));
     }
@@ -105,6 +168,51 @@ export default function NewBooking() {
     setStatus({ loading: true, error: "", success: "", fieldErrors: [] });
 
     try {
+      const readyIso = toIsoDateOrEmpty(form.readyDate);
+      const airDeadlineIso = toIsoDateOrEmpty(form.airDeadline);
+
+      const cargoWeight =
+        String(form.cargoWeightKg || "").trim() !== ""
+          ? `${String(form.cargoWeightKg).trim()} kg`
+          : "";
+
+      const cargoDescriptionParts = [
+        `Customer booking request · ${form.mode}`,
+        `Cargo: ${form.cargoSummary.trim()}`,
+        cargoWeight ? `Weight: ${cargoWeight}` : null,
+
+        // Container
+        form.mode === "Container" && form.containerType
+          ? `Container: ${form.containerType}`
+          : null,
+
+        // RoRo
+        form.mode === "RoRo" && form.roroVehicleMakeModel.trim()
+          ? `Vehicle: ${form.roroVehicleMakeModel.trim()}`
+          : null,
+        form.mode === "RoRo" && form.roroVehicleYear.trim()
+          ? `Year: ${form.roroVehicleYear.trim()}`
+          : null,
+        form.mode === "RoRo"
+          ? `Condition: ${
+              form.roroRunning === "runner" ? "Runs & drives" : "Non-runner"
+            }`
+          : null,
+
+        // Air
+        form.mode === "Air" && form.airType
+          ? `Air type: ${form.airType}`
+          : null,
+        form.mode === "Air" && form.airDimensions.trim()
+          ? `Dims: ${form.airDimensions.trim()}`
+          : null,
+        form.mode === "Air" && airDeadlineIso
+          ? `Latest delivery: ${String(form.airDeadline || "").trim()}`
+          : null,
+
+        form.notes.trim() ? `Notes: ${form.notes.trim()}` : null,
+      ].filter(Boolean);
+
       const payload = {
         mode: form.mode,
 
@@ -122,6 +230,71 @@ export default function NewBooking() {
         ports: {
           originPort: form.originPort.trim(),
           destinationPort: form.destinationPort.trim(),
+        },
+
+        cargo: {
+          description: cargoDescriptionParts.join(" | "),
+          weight: cargoWeight,
+
+          vehicle:
+            form.mode === "RoRo"
+              ? {
+                  make: form.roroVehicleMakeModel.trim(),
+                  model: "",
+                  year: form.roroVehicleYear.trim(),
+                  vin: "",
+                  registrationNo: "",
+                }
+              : {},
+
+          container:
+            form.mode === "Container"
+              ? {
+                  containerType: form.containerType || "",
+                }
+              : {},
+
+          documentsShipment:
+            form.mode === "Documents"
+              ? { count: 1, docTypes: ["Documents"], secure: true }
+              : {},
+        },
+
+        // Optional planning dates:
+        shippingDate: readyIso || undefined,
+
+        meta: {
+          source: "customer_portal",
+          createdAtClient: new Date().toISOString(),
+          intake: {
+            cargoSummary: form.cargoSummary.trim(),
+            cargoWeightKg: String(form.cargoWeightKg || "").trim() || null,
+            readyDate: form.readyDate || null,
+            notes: form.notes.trim() || "",
+
+            roro:
+              form.mode === "RoRo"
+                ? {
+                    makeModel: form.roroVehicleMakeModel.trim() || "",
+                    year: form.roroVehicleYear.trim() || "",
+                    running: form.roroRunning,
+                  }
+                : null,
+
+            container:
+              form.mode === "Container"
+                ? { containerType: form.containerType || "" }
+                : null,
+
+            air:
+              form.mode === "Air"
+                ? {
+                    airType: form.airType || "",
+                    dimensions: form.airDimensions.trim() || "",
+                    latestDeliveryDate: airDeadlineIso || null,
+                  }
+                : null,
+          },
         },
       };
 
@@ -158,6 +331,7 @@ export default function NewBooking() {
         fieldErrors,
       });
 
+      // eslint-disable-next-line no-console
       console.error("NewBooking create error:", err);
     }
   };
@@ -187,8 +361,8 @@ export default function NewBooking() {
               Start a new shipment request
             </h1>
             <p className="text-sm text-slate-600 mt-2">
-              This form captures the minimum required details to create a
-              shipment. Additional details can be added later by Operations.
+              This captures the essentials required for a realistic quote.
+              Operations can confirm details and finalise routing after intake.
             </p>
           </div>
 
@@ -223,7 +397,7 @@ export default function NewBooking() {
                 <label className="text-sm font-semibold block mb-2">
                   Shipping mode
                 </label>
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid gap-3 md:grid-cols-2">
                   {modes.map((m) => {
                     const active = form.mode === m.value;
                     return (
@@ -255,6 +429,225 @@ export default function NewBooking() {
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Quote essentials */}
+              <div className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-4">
+                <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-3">
+                  Shipment details (quote essentials)
+                </p>
+
+                <div>
+                  <label className="text-sm font-semibold block mb-2">
+                    What are you shipping?{" "}
+                    <span className="text-red-600">*</span>
+                  </label>
+                  <input
+                    value={form.cargoSummary}
+                    onChange={onChange("cargoSummary")}
+                    className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                    placeholder={
+                      form.mode === "RoRo"
+                        ? "e.g. Toyota RAV4 2018 (personal vehicle)"
+                        : form.mode === "Container"
+                        ? "e.g. household goods + commercial stock (mixed)"
+                        : form.mode === "Air"
+                        ? "e.g. 3 cartons of cosmetics / spare parts / samples"
+                        : "e.g. certificates / secure print documents"
+                    }
+                    required
+                  />
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    This is the key detail Operations needs to quote correctly.
+                  </p>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Approx. total weight (kg) (optional)
+                    </label>
+                    <input
+                      value={form.cargoWeightKg}
+                      onChange={onChange("cargoWeightKg")}
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      placeholder="e.g. 75"
+                      inputMode="numeric"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Ready date (optional)
+                    </label>
+                    <input
+                      value={form.readyDate}
+                      onChange={onChange("readyDate")}
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      type="date"
+                    />
+                  </div>
+                </div>
+
+                {/* Mode-specific: RoRo */}
+                {form.mode === "RoRo" ? (
+                  <div className="mt-4 rounded-lg border border-[#E5E7EB] bg-white p-4">
+                    <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-3">
+                      RoRo vehicle details (recommended)
+                    </p>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="text-sm font-semibold block mb-2">
+                          Make & model
+                        </label>
+                        <input
+                          value={form.roroVehicleMakeModel}
+                          onChange={onChange("roroVehicleMakeModel")}
+                          className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                          placeholder="e.g. Toyota RAV4"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-semibold block mb-2">
+                          Year (optional)
+                        </label>
+                        <input
+                          value={form.roroVehicleYear}
+                          onChange={onChange("roroVehicleYear")}
+                          className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                          placeholder="e.g. 2018"
+                          inputMode="numeric"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="text-sm font-semibold block mb-2">
+                        Running condition
+                      </label>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="roroRunning"
+                            value="runner"
+                            checked={form.roroRunning === "runner"}
+                            onChange={onChange("roroRunning")}
+                            className="h-4 w-4 accent-[#FFA500]"
+                          />
+                          Runs & drives
+                        </label>
+                        <label className="inline-flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="roroRunning"
+                            value="non_runner"
+                            checked={form.roroRunning === "non_runner"}
+                            onChange={onChange("roroRunning")}
+                            className="h-4 w-4 accent-[#FFA500]"
+                          />
+                          Non-runner
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Mode-specific: Container */}
+                {form.mode === "Container" ? (
+                  <div className="mt-4 rounded-lg border border-[#E5E7EB] bg-white p-4">
+                    <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-3">
+                      Container details (optional)
+                    </p>
+
+                    <div>
+                      <label className="text-sm font-semibold block mb-2">
+                        Container type
+                      </label>
+                      <select
+                        value={form.containerType}
+                        onChange={onChange("containerType")}
+                        className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500] bg-white"
+                      >
+                        {containerTypes.map((t) => (
+                          <option key={t.value} value={t.value}>
+                            {t.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-2 text-[11px] text-slate-500">
+                        If unsure, leave blank — Operations will confirm.
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Mode-specific: Air */}
+                {form.mode === "Air" ? (
+                  <div className="mt-4 rounded-lg border border-[#E5E7EB] bg-white p-4">
+                    <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-3">
+                      Air freight details (recommended)
+                    </p>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="text-sm font-semibold block mb-2">
+                          Shipment type
+                        </label>
+                        <select
+                          value={form.airType}
+                          onChange={onChange("airType")}
+                          className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500] bg-white"
+                        >
+                          {airTypes.map((t) => (
+                            <option key={t.value} value={t.value}>
+                              {t.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-semibold block mb-2">
+                          Dimensions (optional)
+                        </label>
+                        <input
+                          value={form.airDimensions}
+                          onChange={onChange("airDimensions")}
+                          className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                          placeholder="e.g. 80 × 60 × 40 cm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="text-sm font-semibold block mb-2">
+                        Latest delivery date (if time-critical)
+                      </label>
+                      <input
+                        value={form.airDeadline}
+                        onChange={onChange("airDeadline")}
+                        className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                        type="date"
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="mt-4">
+                  <label className="text-sm font-semibold block mb-2">
+                    Notes (optional)
+                  </label>
+                  <textarea
+                    value={form.notes}
+                    onChange={onChange("notes")}
+                    rows={3}
+                    className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                    placeholder="e.g. time-critical, collection needed, item values, special handling, delivery deadline…"
+                  />
                 </div>
               </div>
 
@@ -345,32 +738,32 @@ export default function NewBooking() {
               {/* Ports */}
               <div className="rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] p-4">
                 <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB] mb-3">
-                  Ports
+                  Ports / airports
                 </p>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="text-sm font-semibold block mb-2">
-                      Origin port
+                      Origin (port / town / airport)
                     </label>
                     <input
                       value={form.originPort}
                       onChange={onChange("originPort")}
                       className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
-                      placeholder="e.g. London"
+                      placeholder="e.g. Tilbury / London / Heathrow"
                       required
                     />
                   </div>
 
                   <div>
                     <label className="text-sm font-semibold block mb-2">
-                      Destination port
+                      Destination (port / city / airport)
                     </label>
                     <input
                       value={form.destinationPort}
                       onChange={onChange("destinationPort")}
                       className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
-                      placeholder="e.g. Tema"
+                      placeholder="e.g. Tema / Accra / Kotoka"
                       required
                     />
                   </div>
