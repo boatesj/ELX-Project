@@ -1,11 +1,9 @@
 // Admin/src/pages/Users.jsx
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import { FaTrash, FaEye, FaEdit } from "react-icons/fa";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const USERS_API = `${API_BASE}/users`;
+import { authRequest } from "../requestMethods";
 
 // Normalize status (backend tends to be "pending/active/suspended")
 const normalizeStatus = (status) => {
@@ -90,42 +88,19 @@ const Users = () => {
     []
   );
 
-  const fetchUsers = async () => {
+  const redirectToLogin = useCallback(() => {
+    navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+  }, [navigate, location.pathname]);
+
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
     setLoadError("");
     setDeleteError("");
 
     try {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        setLoadError("Please log in to view users.");
-        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
-        setLoading(false);
-        return;
-      }
-
-      const res = await fetch(USERS_API, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (res.status === 401) {
-        setLoadError("Your session has expired. Please log in again.");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
-        setLoading(false);
-        return;
-      }
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(data?.message || "Failed to load users");
-      }
+      // ✅ Canonical: /api/v1/users via authRequest baseURL
+      const res = await authRequest.get("/users");
+      const data = res?.data ?? {};
 
       const list = pickUsersArray(data);
 
@@ -152,75 +127,83 @@ const Users = () => {
         };
       });
 
-      // If backend returns empty, show "No users found" instead of demo
       setRows(mapped);
     } catch (err) {
-      console.error(err);
-      setLoadError(err.message || "Something went wrong loading users.");
-      // Only use fallback if the API failed (not merely empty)
+      const status = err?.response?.status;
+
+      if (status === 401 || status === 403) {
+        setLoadError("Your session has expired. Please log in again.");
+        redirectToLogin();
+        setLoading(false);
+        return;
+      }
+
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Something went wrong loading users.";
+
+      console.error("Users fetch error:", err);
+      setLoadError(msg);
+
+      // Only use fallback if API failed (not merely empty)
       setRows(fallbackRows);
     } finally {
       setLoading(false);
     }
-  };
+  }, [fallbackRows, redirectToLogin]);
 
   useEffect(() => {
     fetchUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchUsers]);
 
-  const handleView = (id) => {
-    if (!id) return;
-    navigate(`/users/${id}`);
-  };
+  const handleView = useCallback(
+    (id) => {
+      if (!id) return;
+      navigate(`/users/${id}`);
+    },
+    [navigate]
+  );
 
-  const handleEdit = (id) => {
-    if (!id) return;
-    navigate(`/users/${id}/edit`);
-  };
+  const handleEdit = useCallback(
+    (id) => {
+      if (!id) return;
+      navigate(`/users/${id}/edit`);
+    },
+    [navigate]
+  );
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
+  const handleDelete = useCallback(
+    async (id) => {
+      if (!id) return;
+      if (!window.confirm("Are you sure you want to delete this user?")) return;
 
-    setDeleteError("");
+      setDeleteError("");
 
-    try {
-      const token = localStorage.getItem("token");
+      try {
+        // ✅ Canonical: /api/v1/users/:id via authRequest
+        await authRequest.delete(`/users/${id}`);
+        setRows((prev) => prev.filter((row) => row.id !== id));
+      } catch (err) {
+        const status = err?.response?.status;
 
-      if (!token) {
-        setDeleteError("Please log in to delete users.");
-        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
-        return;
+        if (status === 401 || status === 403) {
+          setDeleteError("Your session has expired. Please log in again.");
+          redirectToLogin();
+          return;
+        }
+
+        const msg =
+          err?.response?.data?.message ||
+          err?.message ||
+          "Something went wrong deleting the user.";
+
+        console.error("Users delete error:", err);
+        setDeleteError(msg);
       }
-
-      const res = await fetch(`${USERS_API}/${id}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (res.status === 401) {
-        setDeleteError("Your session has expired. Please log in again.");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
-        return;
-      }
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(data?.message || "Failed to delete user");
-      }
-
-      setRows((prev) => prev.filter((row) => row.id !== id));
-    } catch (err) {
-      console.error(err);
-      setDeleteError(err.message || "Something went wrong deleting the user.");
-    }
-  };
+    },
+    [redirectToLogin]
+  );
 
   const columns = useMemo(
     () => [
@@ -300,7 +283,7 @@ const Users = () => {
         },
       },
     ],
-    []
+    [handleView, handleEdit, handleDelete]
   );
 
   return (

@@ -1,9 +1,7 @@
 // Admin/src/pages/UserDetails.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const USERS_API = `${API_BASE}/users`;
+import { authRequest } from "../requestMethods";
 
 const normalizeStatus = (status) => {
   const s = String(status || "pending")
@@ -76,56 +74,47 @@ const UserDetails = () => {
     [user?.status]
   );
 
-  const fetchUser = async () => {
+  const redirectToLogin = useCallback(() => {
+    navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
+  }, [navigate, location.pathname]);
+
+  const fetchUser = useCallback(async () => {
+    if (!id) return;
+
     setLoading(true);
     setLoadError("");
 
     try {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        setLoadError("Please log in to view this customer profile.");
-        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
-        setLoading(false);
-        return;
-      }
-
-      const res = await fetch(`${USERS_API}/${id}`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (res.status === 401) {
-        setLoadError("Your session has expired. Please log in again.");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
-        setLoading(false);
-        return;
-      }
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        throw new Error(data?.message || "Failed to load user details");
-      }
-
-      setUser(data.user || data);
+      // ✅ Canonical: /api/v1/users/:id via authRequest baseURL
+      const res = await authRequest.get(`/users/${id}`);
+      const data = res?.data ?? {};
+      setUser(data?.user || data);
     } catch (err) {
-      console.error(err);
-      setLoadError(err.message || "Something went wrong loading this profile.");
+      const status = err?.response?.status;
+
+      if (status === 401 || status === 403) {
+        setLoadError("Your session has expired. Please log in again.");
+        redirectToLogin();
+        setLoading(false);
+        return;
+      }
+
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Something went wrong loading this profile.";
+
+      console.error("UserDetails fetch error:", err);
+      setLoadError(msg);
       setUser(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, redirectToLogin]);
 
   useEffect(() => {
-    if (id) fetchUser();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+    fetchUser();
+  }, [fetchUser]);
 
   const title = user?.fullname || user?.name || "Customer Profile";
   const userId = user?._id || id;
