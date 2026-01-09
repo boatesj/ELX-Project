@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import PageShell from "../components/PageShell";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const TOKEN_KEY = "token"; // change to "accessToken" if that's what you store
+import { adminRequest } from "../requestMethods";
 
 const Chip = ({ children }) => (
   <span className="text-[11px] px-3 py-1 rounded-full bg-white/5 text-gray-200 border border-white/10">
@@ -94,24 +91,6 @@ function addDaysYmd(ymd, days) {
   return fmtYmd(dt);
 }
 
-async function apiRequest(path, { method = "GET", body, headers } = {}) {
-  const token = localStorage.getItem(TOKEN_KEY);
-
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers: {
-      ...(body ? { "Content-Type": "application/json" } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(headers || {}),
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
-
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.message || "Request failed");
-  return data;
-}
-
 function mapDbEventToUi(e) {
   return {
     id: e._id,
@@ -154,11 +133,10 @@ export default function Calendar() {
     kind: "event",
   });
 
-  // Window includes look-back for operational context
   const range = useMemo(() => {
     const now = new Date();
-    const from = new Date(Date.now() - 7 * 24 * 3600 * 1000); // 7 days back
-    const to = new Date(Date.now() + 14 * 24 * 3600 * 1000); // 14 days ahead
+    const from = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+    const to = new Date(Date.now() + 14 * 24 * 3600 * 1000);
     return { from: fmtYmd(from), to: fmtYmd(to), today: fmtYmd(now) };
   }, []);
 
@@ -175,16 +153,20 @@ export default function Calendar() {
     return all;
   }, [events, holidays, view]);
 
-  const load = async ({ quiet = true } = {}) => {
+  const load = async () => {
     try {
       setLoading(true);
 
-      const [db, hol] = await Promise.all([
-        apiRequest(`/admin/calendar/events?from=${range.from}&to=${range.to}`),
-        apiRequest(
-          `/admin/calendar/holidays?country=GB&year=${new Date().getFullYear()}`
+      // ✅ adminRequest baseURL = /admin
+      const [dbRes, holRes] = await Promise.all([
+        adminRequest.get(`/calendar/events?from=${range.from}&to=${range.to}`),
+        adminRequest.get(
+          `/calendar/holidays?country=GB&year=${new Date().getFullYear()}`
         ),
       ]);
+
+      const db = dbRes?.data;
+      const hol = holRes?.data;
 
       setEvents(Array.isArray(db) ? db.map(mapDbEventToUi) : []);
       setHolidays(
@@ -201,14 +183,11 @@ export default function Calendar() {
           raw: h,
         }))
       );
-
-      if (!quiet && banner.type !== "success") {
-        // no-op; we keep banners stable to avoid “reset to nothing” feel
-      }
     } catch (e) {
       setBanner({
         type: "error",
-        text: e.message || "Failed to load calendar",
+        text:
+          e?.response?.data?.message || e.message || "Failed to load calendar",
       });
     } finally {
       setLoading(false);
@@ -216,37 +195,29 @@ export default function Calendar() {
   };
 
   useEffect(() => {
-    load({ quiet: true });
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onOpen = (e) => setOpenEvent(e);
 
-  /**
-   * ✅ NEW BEHAVIOUR:
-   * Create task = same-day “Action today” reminder (NOT 1 day before).
-   * This is deliberately different from shipment sync reminders.
-   */
   const onCreateTask = async (e) => {
     try {
       setLoading(true);
 
       const today = range.today;
 
-      await apiRequest(`/admin/calendar/events`, {
-        method: "POST",
-        body: {
-          title: `Action today — ${e.title}`,
-          date: today,
-          time: "", // all-day action prompt
-          tag: "Operations",
-          meta: `Created from: ${e.title} (${e.date} • ${safeTime(e.time)}). ${
-            e.meta ? `Notes: ${e.meta}` : ""
-          }`.trim(),
-          kind: "reminder",
-          source: "manual",
-          shipmentId: e.shipmentId || null,
-        },
+      await adminRequest.post(`/calendar/events`, {
+        title: `Action today — ${e.title}`,
+        date: today,
+        time: "",
+        tag: "Operations",
+        meta: `Created from: ${e.title} (${e.date} • ${safeTime(e.time)}). ${
+          e.meta ? `Notes: ${e.meta}` : ""
+        }`.trim(),
+        kind: "reminder",
+        source: "manual",
+        shipmentId: e.shipmentId || null,
       });
 
       setBanner({
@@ -254,11 +225,14 @@ export default function Calendar() {
         text: "Task created for today (all-day action).",
       });
 
-      await load({ quiet: true });
+      await load();
     } catch (err) {
       setBanner({
         type: "error",
-        text: err.message || "Failed to create task",
+        text:
+          err?.response?.data?.message ||
+          err.message ||
+          "Failed to create task",
       });
     } finally {
       setLoading(false);
@@ -286,29 +260,29 @@ export default function Calendar() {
 
       setLoading(true);
 
-      await apiRequest(`/admin/calendar/events`, {
-        method: "POST",
-        body: {
-          title: createForm.title.trim(),
-          date: createForm.date.trim(),
-          time:
-            normKind(createForm.kind) === "reminder"
-              ? ""
-              : (createForm.time || "").trim(),
-          tag: (createForm.tag || "").trim() || "Operations",
-          meta: (createForm.meta || "").trim(),
-          kind: normKind(createForm.kind),
-          source: "manual",
-        },
+      await adminRequest.post(`/calendar/events`, {
+        title: createForm.title.trim(),
+        date: createForm.date.trim(),
+        time:
+          normKind(createForm.kind) === "reminder"
+            ? ""
+            : String(createForm.time || "").trim(),
+        tag: String(createForm.tag || "").trim() || "Operations",
+        meta: String(createForm.meta || "").trim(),
+        kind: normKind(createForm.kind),
+        source: "manual",
       });
 
       setCreateOpen(false);
       setBanner({ type: "success", text: "Event created." });
-      await load({ quiet: true });
+      await load();
     } catch (err) {
       setBanner({
         type: "error",
-        text: err.message || "Failed to create event",
+        text:
+          err?.response?.data?.message ||
+          err.message ||
+          "Failed to create event",
       });
     } finally {
       setLoading(false);
@@ -318,17 +292,19 @@ export default function Calendar() {
   const onSync = async () => {
     try {
       setLoading(true);
-      const r = await apiRequest(`/admin/calendar/sync-from-shipments`, {
-        method: "POST",
-      });
+      const res = await adminRequest.post(`/calendar/sync-from-shipments`);
+      const r = res?.data;
 
       setBanner({
         type: "success",
         text: `Synced from shipments. Created ${r?.createdCount ?? 0} events.`,
       });
-      await load({ quiet: true });
+      await load();
     } catch (err) {
-      setBanner({ type: "error", text: err.message || "Sync failed" });
+      setBanner({
+        type: "error",
+        text: err?.response?.data?.message || err.message || "Sync failed",
+      });
     } finally {
       setLoading(false);
     }
@@ -338,23 +314,13 @@ export default function Calendar() {
     try {
       setLoading(true);
 
-      const token = localStorage.getItem(TOKEN_KEY);
-      if (!token) {
-        setBanner({
-          type: "error",
-          text: "Missing token. Please log in again.",
-        });
-        return;
-      }
+      // ✅ download blob via axios
+      const res = await adminRequest.get(
+        `/calendar/ical?from=${range.from}&to=${range.to}`,
+        { responseType: "blob" }
+      );
 
-      const url = `${API_BASE_URL}/admin/calendar/ical?from=${range.from}&to=${range.to}`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error("Failed to export iCal");
-
-      const blob = await res.blob();
+      const blob = res?.data;
       const dlUrl = window.URL.createObjectURL(blob);
 
       const a = document.createElement("a");
@@ -363,22 +329,19 @@ export default function Calendar() {
       document.body.appendChild(a);
       a.click();
       a.remove();
-
       window.URL.revokeObjectURL(dlUrl);
 
       setBanner({ type: "success", text: "iCal exported." });
     } catch (err) {
-      setBanner({ type: "error", text: err.message || "Export failed" });
+      setBanner({
+        type: "error",
+        text: err?.response?.data?.message || err.message || "Export failed",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * ✅ NEW BEHAVIOUR:
-   * Set reminders = bulk create reminders 3 DAYS BEFORE each milestone.
-   * (Different from sync which does docs-check 7 days before ETD.)
-   */
   const onSetReminders = async () => {
     try {
       setLoading(true);
@@ -392,7 +355,6 @@ export default function Calendar() {
         return;
       }
 
-      // Build existing reminder keys from what we currently have loaded
       const existing = new Set(
         events
           .filter((e) => normKind(e.kind) === "reminder")
@@ -423,18 +385,15 @@ export default function Calendar() {
           continue;
         }
 
-        await apiRequest(`/admin/calendar/events`, {
-          method: "POST",
-          body: {
-            title,
-            date: reminderYmd,
-            time: "",
-            tag: "Compliance",
-            meta: `Auto reminder: 3 days before → ${m.title}`,
-            kind: "reminder",
-            source: "manual",
-            shipmentId: m.shipmentId || null,
-          },
+        await adminRequest.post(`/calendar/events`, {
+          title,
+          date: reminderYmd,
+          time: "",
+          tag: "Compliance",
+          meta: `Auto reminder: 3 days before → ${m.title}`,
+          kind: "reminder",
+          source: "manual",
+          shipmentId: m.shipmentId || null,
         });
 
         existing.add(k);
@@ -446,11 +405,14 @@ export default function Calendar() {
         text: `Reminders set: created ${created}, skipped ${skipped} existing.`,
       });
 
-      await load({ quiet: true });
+      await load();
     } catch (err) {
       setBanner({
         type: "error",
-        text: err.message || "Failed to set reminders",
+        text:
+          err?.response?.data?.message ||
+          err.message ||
+          "Failed to set reminders",
       });
     } finally {
       setLoading(false);
@@ -469,15 +431,15 @@ export default function Calendar() {
 
     try {
       setLoading(true);
-      await apiRequest(`/admin/calendar/events/${e.id}`, { method: "DELETE" });
+      await adminRequest.delete(`/calendar/events/${e.id}`);
 
       setBanner({ type: "success", text: "Event deleted." });
       setOpenEvent(null);
-      await load({ quiet: true });
+      await load();
     } catch (err) {
       setBanner({
         type: "error",
-        text: err.message || "Delete failed.",
+        text: err?.response?.data?.message || err.message || "Delete failed.",
       });
     } finally {
       setLoading(false);
@@ -529,10 +491,7 @@ export default function Calendar() {
               right={
                 <div className="flex items-center gap-2">
                   <Chip>Ops window</Chip>
-                  <Button
-                    onClick={() => load({ quiet: true })}
-                    disabled={loading}
-                  >
+                  <Button onClick={load} disabled={loading}>
                     Refresh
                   </Button>
                 </div>

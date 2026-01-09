@@ -1,11 +1,18 @@
 import { useEffect, useState } from "react";
 import { HiUserCircle, HiLockClosed } from "react-icons/hi2";
+import { rootRequest } from "../requestMethods";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+// Uses same token resolution rules as other admin calls:
+const ADMIN_TOKEN_KEY = "elx_admin_token";
+const LEGACY_TOKEN_KEY = "token";
 
-const PROFILE_API = `${API_BASE_URL}/auth/me`;
-const PASSWORD_API = `${API_BASE_URL}/auth/me/password`;
+function readAdminToken() {
+  return (
+    localStorage.getItem(ADMIN_TOKEN_KEY) ||
+    localStorage.getItem(LEGACY_TOKEN_KEY) ||
+    null
+  );
+}
 
 const Profile = () => {
   const [profile, setProfile] = useState({
@@ -27,43 +34,43 @@ const Profile = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // --------------------------
-  // FETCH PROFILE ON LOAD
-  // --------------------------
+  const authHeaders = () => {
+    const token = readAdminToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = readAdminToken();
         if (!token) {
           setErrorMessage("Missing authentication token.");
           setLoading(false);
           return;
         }
 
-        const res = await fetch(PROFILE_API, {
+        const res = await rootRequest.get("/auth/me", {
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            ...authHeaders(),
           },
         });
 
-        const data = await res.json();
+        const data = res?.data;
 
-        if (!data.ok) {
-          setErrorMessage(data.message || "Failed to load profile.");
+        if (!data?.ok) {
+          setErrorMessage(data?.message || "Failed to load profile.");
           setLoading(false);
           return;
         }
 
-        setProfile((prev) => ({
-          ...prev,
-          ...data.data,
-        }));
-
+        setProfile((prev) => ({ ...prev, ...(data?.data || {}) }));
         setLoading(false);
       } catch (err) {
         console.error("Profile fetch error:", err);
-        setErrorMessage("Failed to load profile.");
+        setErrorMessage(
+          err?.response?.data?.message || "Failed to load profile."
+        );
         setLoading(false);
       }
     };
@@ -71,43 +78,41 @@ const Profile = () => {
     fetchProfile();
   }, []);
 
-  // --------------------------
-  // UPDATE PROFILE
-  // --------------------------
   const handleProfileSave = async (e) => {
     e.preventDefault();
     setSaveMessage("");
     setErrorMessage("");
 
     try {
-      const token = localStorage.getItem("token");
+      const token = readAdminToken();
+      if (!token) {
+        setErrorMessage("Missing authentication token.");
+        return;
+      }
 
-      const res = await fetch(PROFILE_API, {
-        method: "PATCH",
+      const res = await rootRequest.patch("/auth/me", profile, {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...authHeaders(),
         },
-        body: JSON.stringify(profile),
       });
 
-      const data = await res.json();
+      const data = res?.data;
 
-      if (!data.ok) {
-        setErrorMessage(data.message || "Failed to update profile.");
+      if (!data?.ok) {
+        setErrorMessage(data?.message || "Failed to update profile.");
         return;
       }
 
       setSaveMessage("Profile updated successfully!");
     } catch (err) {
       console.error("Profile update error:", err);
-      setErrorMessage("Failed to update profile.");
+      setErrorMessage(
+        err?.response?.data?.message || "Failed to update profile."
+      );
     }
   };
 
-  // --------------------------
-  // UPDATE PASSWORD
-  // --------------------------
   const handlePasswordSave = async (e) => {
     e.preventDefault();
     setSaveMessage("");
@@ -119,24 +124,27 @@ const Profile = () => {
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const token = readAdminToken();
+      if (!token) {
+        setErrorMessage("Missing authentication token.");
+        return;
+      }
 
-      const res = await fetch(PASSWORD_API, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword,
-        }),
-      });
+      const res = await rootRequest.patch(
+        "/auth/me/password",
+        { currentPassword, newPassword },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(),
+          },
+        }
+      );
 
-      const data = await res.json();
+      const data = res?.data;
 
-      if (!data.ok) {
-        setErrorMessage(data.message || "Failed to update password.");
+      if (!data?.ok) {
+        setErrorMessage(data?.message || "Failed to update password.");
         return;
       }
 
@@ -146,13 +154,11 @@ const Profile = () => {
       setConfirmPassword("");
     } catch (err) {
       console.error("Password update error:", err);
-      setErrorMessage("Failed to update password.");
+      setErrorMessage(
+        err?.response?.data?.message || "Failed to update password."
+      );
     }
   };
-
-  // --------------------------
-  // RENDER
-  // --------------------------
 
   return (
     <div className="p-8 bg-[#0F0F0F] min-h-screen text-white">
@@ -172,11 +178,7 @@ const Profile = () => {
         </div>
       )}
 
-      {/* MAIN GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        {/* -------------------------- */}
-        {/* PROFILE FORM */}
-        {/* -------------------------- */}
         <div className="bg-[#1A1A1A] p-6 rounded-xl shadow-lg">
           <div className="flex items-center gap-3 mb-4">
             <HiUserCircle className="text-3xl text-[#FFA500]" />
@@ -277,9 +279,6 @@ const Profile = () => {
           )}
         </div>
 
-        {/* -------------------------- */}
-        {/* PASSWORD FORM */}
-        {/* -------------------------- */}
         <div className="bg-[#1A1A1A] p-6 rounded-xl shadow-lg">
           <div className="flex items-center gap-3 mb-4">
             <HiLockClosed className="text-3xl text-[#FFA500]" />

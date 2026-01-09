@@ -1,11 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { DataGrid } from "@mui/x-data-grid";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-
-const SHIPMENTS_API = `${API_BASE_URL}/shipments`;
+import { authRequest } from "../requestMethods";
 
 // Status chip styling
 const getStatusChipClass = (status) => {
@@ -40,74 +36,50 @@ const getPaymentChipClass = (paymentStatus) => {
   }
 };
 
+// Normalise different payload shapes:
+function pickShipmentsList(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.shipments)) return data.shipments;
+  if (Array.isArray(data?.results)) return data.results;
+  return [];
+}
+
 const Orders = () => {
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [shipments, setShipments] = useState([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [modeFilter, setModeFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
-  const [searchTerm, setSearchTerm] = useState(""); // 🔍 NEW
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
 
-  // Fetch shipments from backend
   const fetchShipments = async () => {
     setLoading(true);
     setLoadError("");
 
     try {
-      const token = localStorage.getItem("token");
+      // ✅ v1 canonical via authRequest (token attached by interceptor)
+      const res = await authRequest.get("/shipments");
+      const data = res?.data;
 
-      if (!token) {
-        setLoadError("Please log in to view orders.");
-        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
-        return;
-      }
-
-      const res = await fetch(SHIPMENTS_API, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (res.status === 401) {
-        setLoadError("Your session has expired. Please log in again.");
-        localStorage.removeItem("token");
-        navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
-        return;
-      }
-
-      const data = await res.json();
-      console.log("Shipments API raw response:", data);
-
-      if (!res.ok) {
-        throw new Error(data?.message || "Failed to load shipments");
-      }
-
-      // Normalise different payload shapes:
-      let list = [];
-
-      if (Array.isArray(data)) {
-        // e.g. backend returns just an array
-        list = data;
-      } else if (Array.isArray(data.data)) {
-        // e.g. { data: [...] }
-        list = data.data;
-      } else if (Array.isArray(data.shipments)) {
-        // e.g. { shipments: [...] }
-        list = data.shipments;
-      } else {
-        console.warn("Unexpected shipments response shape:", data);
-        list = [];
-      }
-
+      const list = pickShipmentsList(data);
       setShipments(list);
     } catch (err) {
-      console.error("Orders load error:", err);
-      setLoadError(err.message || "Failed to load orders.");
+      const status = err?.response?.status;
+
+      if (status === 401 || status === 403) {
+        setLoadError("Your session has expired. Please log in again.");
+        // Let Login page handle auth reset; our requestMethods already supports admin tokens.
+        navigate(`/login?redirect=${encodeURIComponent("/orders")}`);
+        return;
+      }
+
+      setLoadError(
+        err?.response?.data?.message || err?.message || "Failed to load orders."
+      );
     } finally {
       setLoading(false);
     }
@@ -118,7 +90,6 @@ const Orders = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Client-side filters + mapping into rows
   const filteredRows = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
 
@@ -126,17 +97,17 @@ const Orders = () => {
       .filter((s) =>
         statusFilter === "all"
           ? true
-          : (s.status || "").toLowerCase() === statusFilter
+          : String(s.status || "").toLowerCase() === statusFilter
       )
       .filter((s) =>
         modeFilter === "all"
           ? true
-          : (s.mode || "").toLowerCase() === modeFilter
+          : String(s.mode || "").toLowerCase() === modeFilter
       )
       .filter((s) =>
         paymentFilter === "all"
           ? true
-          : (s.paymentStatus || "").toLowerCase() === paymentFilter
+          : String(s.paymentStatus || "").toLowerCase() === paymentFilter
       )
       .filter((s) => {
         if (!term) return true;
@@ -159,7 +130,7 @@ const Orders = () => {
         return haystack.includes(term);
       })
       .map((s, index) => ({
-        id: s._id || index,
+        id: s._id || s.id || index,
         referenceNo: s.referenceNo,
         customer:
           s.customer?.fullname ||
@@ -212,7 +183,7 @@ const Orders = () => {
       headerName: "Payment",
       width: 150,
       renderCell: (params) => {
-        const value = (params.value || "unpaid").toLowerCase();
+        const value = String(params.value || "unpaid").toLowerCase();
         return (
           <span
             className={`px-2 py-1 rounded-full text-xs font-semibold ${getPaymentChipClass(
@@ -229,7 +200,7 @@ const Orders = () => {
       headerName: "Status",
       width: 150,
       renderCell: (params) => {
-        const value = (params.value || "pending").toLowerCase();
+        const value = String(params.value || "pending").toLowerCase();
         return (
           <span
             className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${getStatusChipClass(
@@ -250,22 +221,19 @@ const Orders = () => {
     navigate(`/shipments/${id}`);
   };
 
-  // Mobile card click uses the same navigation behaviour
   const handleCardClick = (id) => {
     if (!id) return;
     navigate(`/shipments/${id}`);
   };
 
-  // Quick stats
   const totalOrders = shipments.length;
   const deliveredCount = shipments.filter(
-    (s) => (s.status || "").toLowerCase() === "delivered"
+    (s) => String(s.status || "").toLowerCase() === "delivered"
   ).length;
   const unpaidCount = shipments.filter(
-    (s) => (s.paymentStatus || "").toLowerCase() === "unpaid"
+    (s) => String(s.paymentStatus || "").toLowerCase() === "unpaid"
   ).length;
 
-  // Export CSV for current filtered rows
   const handleExportCsv = () => {
     if (!filteredRows.length) return;
 
@@ -460,8 +428,8 @@ const Orders = () => {
           </div>
         ) : (
           filteredRows.map((row) => {
-            const payment = (row.paymentStatus || "unpaid").toLowerCase();
-            const status = (row.status || "pending").toLowerCase();
+            const payment = String(row.paymentStatus || "unpaid").toLowerCase();
+            const status = String(row.status || "pending").toLowerCase();
 
             return (
               <button
@@ -558,7 +526,6 @@ const Orders = () => {
             backgroundColor: "#020617",
             color: "#E5E5E5",
             fontSize: "0.85rem",
-
             "& .MuiDataGrid-columnHeaders": {
               backgroundColor: "#0D121C",
               borderBottom: "1px solid #1F2937",
