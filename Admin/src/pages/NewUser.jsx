@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getNames } from "country-list";
+import { authRequest } from "../requestMethods";
 
 // Pre-compute global country list (all ISO countries, sorted)
 const COUNTRY_OPTIONS = getNames().sort();
@@ -59,17 +60,12 @@ const Section = ({ title, subtitle, open, onToggle, children }) => (
   </div>
 );
 
-// Phase 3A: API standardised to /api/v1/*
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const USERS_API = `${API_BASE_URL}/api/v1/users`;
-
 const NewUser = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
   const [formData, setFormData] = useState({
-    accountType: "Business", // default
+    accountType: "Business",
     fullName: "",
     email: "",
     phone: "",
@@ -109,41 +105,25 @@ const NewUser = () => {
   const validate = () => {
     const newErrors = {};
 
-    if (!formData.accountType.trim()) {
+    if (!formData.accountType.trim())
       newErrors.accountType = "Account type is required.";
-    }
-
-    if (!formData.fullName.trim()) {
+    if (!formData.fullName.trim())
       newErrors.fullName = "Full name / company is required.";
-    }
 
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required.";
-    } else if (!formData.email.includes("@")) {
+    if (!formData.email.trim()) newErrors.email = "Email is required.";
+    else if (!formData.email.includes("@"))
       newErrors.email = "Please enter a valid email address.";
-    }
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required.";
-    } else if (formData.phone.trim().length < 7) {
+    if (!formData.phone.trim()) newErrors.phone = "Phone number is required.";
+    else if (formData.phone.trim().length < 7)
       newErrors.phone = "Phone number looks too short.";
-    }
 
-    if (!formData.country.trim()) {
-      newErrors.country = "Country is required.";
-    }
-
-    if (!formData.city.trim()) {
-      newErrors.city = "City / town is required.";
-    }
-
-    if (!formData.address.trim()) {
+    if (!formData.country.trim()) newErrors.country = "Country is required.";
+    if (!formData.city.trim()) newErrors.city = "City / town is required.";
+    if (!formData.address.trim())
       newErrors.address = "Street address is required.";
-    }
-
-    if (!formData.userType.trim()) {
+    if (!formData.userType.trim())
       newErrors.userType = "User type is required.";
-    }
 
     setErrors(newErrors);
 
@@ -170,7 +150,6 @@ const NewUser = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!validate()) return;
 
     setIsSubmitting(true);
@@ -192,35 +171,8 @@ const NewUser = () => {
     };
 
     try {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        setSubmitError("Please log in before creating a user.");
-        redirectToLogin();
-        return;
-      }
-
-      const res = await fetch(USERS_API, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.status === 401) {
-        setSubmitError("Your session has expired. Please log in again.");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        redirectToLogin();
-        return;
-      }
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to create user");
-      }
+      // ✅ v1 canonical via authRequest (token attached by interceptor)
+      await authRequest.post("/users", payload);
 
       setSuccessMessage("User created successfully.");
       setFormData({
@@ -240,8 +192,18 @@ const NewUser = () => {
         navigate("/users");
       }, 700);
     } catch (err) {
-      console.error(err);
-      setSubmitError(err.message || "Something went wrong creating the user.");
+      const status = err?.response?.status;
+
+      if (status === 401 || status === 403) {
+        setSubmitError("Your session has expired. Please log in again.");
+        redirectToLogin();
+      } else {
+        setSubmitError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Something went wrong creating the user."
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }

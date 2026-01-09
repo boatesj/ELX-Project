@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import PageShell from "../components/PageShell";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const USERS_API = `${API_BASE_URL}/api/v1/users`;
+import { authRequest } from "../requestMethods";
 
 const STATUS_OPTIONS = ["pending", "active", "suspended"];
 const ROLE_OPTIONS = ["Shipper", "Consignee", "Both", "Admin"];
@@ -44,55 +41,37 @@ const EditUser = () => {
     setLoadError("");
 
     try {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        setLoadError("Please log in to edit this customer.");
-        redirectToLogin();
-        setLoading(false);
-        return;
-      }
-
-      const res = await fetch(`${USERS_API}/${id}`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (res.status === 401) {
-        setLoadError("Your session has expired. Please log in again.");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        redirectToLogin();
-        setLoading(false);
-        return;
-      }
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to load user");
-      }
-
-      const data = await res.json();
-      const u = data.user || data.data || data;
+      // ✅ v1 canonical via authRequest
+      const res = await authRequest.get(`/users/${id}`);
+      const payload = res?.data;
+      const u = payload?.user || payload?.data || payload;
 
       setFormData({
-        accountType: u.accountType || "Business",
-        fullname: u.fullname || u.name || "",
-        email: u.email || "",
-        phone: u.phone || "",
-        country: u.country || "",
-        city: u.city || "",
-        postcode: u.postcode || "",
-        address: u.address || "",
-        role: u.role || "Shipper",
-        notes: u.notes || "",
-        status: u.status || "pending",
+        accountType: u?.accountType || "Business",
+        fullname: u?.fullname || u?.name || "",
+        email: u?.email || "",
+        phone: u?.phone || "",
+        country: u?.country || "",
+        city: u?.city || "",
+        postcode: u?.postcode || "",
+        address: u?.address || "",
+        role: u?.role || "Shipper",
+        notes: u?.notes || "",
+        status: u?.status || "pending",
       });
     } catch (err) {
-      console.error(err);
-      setLoadError(err.message || "Something went wrong loading this user.");
+      const status = err?.response?.status;
+
+      if (status === 401 || status === 403) {
+        setLoadError("Your session has expired. Please log in again.");
+        redirectToLogin();
+      } else {
+        setLoadError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Something went wrong loading this user."
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -105,10 +84,7 @@ const EditUser = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -117,43 +93,26 @@ const EditUser = () => {
     setSaveSuccess("");
 
     try {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        setSaveError("Please log in to save changes.");
-        redirectToLogin();
-        return;
-      }
-
-      const res = await fetch(`${USERS_API}/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (res.status === 401) {
-        setSaveError("Your session has expired. Please log in again.");
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        redirectToLogin();
-        return;
-      }
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to update user");
-      }
+      // ✅ v1 canonical via authRequest
+      await authRequest.put(`/users/${id}`, formData);
 
       setSaveSuccess("Customer details updated successfully.");
       setTimeout(() => {
         navigate(`/users/${id}`);
       }, 700);
     } catch (err) {
-      console.error(err);
-      setSaveError(err.message || "Something went wrong saving changes.");
+      const status = err?.response?.status;
+
+      if (status === 401 || status === 403) {
+        setSaveError("Your session has expired. Please log in again.");
+        redirectToLogin();
+      } else {
+        setSaveError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Something went wrong saving changes."
+        );
+      }
     }
   };
 

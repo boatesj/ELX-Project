@@ -5,32 +5,7 @@ import { BarChart } from "@mui/x-charts/BarChart";
 import Papa from "papaparse";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-
-async function apiGet(path) {
-  const token =
-    localStorage.getItem("token") ||
-    localStorage.getItem("accessToken") ||
-    sessionStorage.getItem("token");
-
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(
-      `GET ${path} failed (${res.status}): ${text || res.statusText}`
-    );
-  }
-
-  return res.json();
-}
+import { authRequest } from "../requestMethods";
 
 const Panel = ({ title, subtitle, children }) => (
   <div className="rounded-2xl bg-[#0F1720] border border-white/5 shadow-xl">
@@ -63,20 +38,30 @@ const titleCaseStatus = (s) => {
 export default function Charts() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [dashboard, setDashboard] = useState(null); // <-- this will be the inner "data" object
+  const [dashboard, setDashboard] = useState(null);
 
   // Filters use RAW backend enums (lowercase)
-  const [activeStatus, setActiveStatus] = useState(null); // e.g. "booked"
-  const [activeMonth, setActiveMonth] = useState(null); // e.g. "2025-12"
+  const [activeStatus, setActiveStatus] = useState(null);
+  const [activeMonth, setActiveMonth] = useState(null);
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
     setErr("");
+
     try {
-      const res = await apiGet("/shipments/dashboard");
-      setDashboard(res?.data || null); // ✅ correct for your backend shape
+      // ✅ v1 canonical via authRequest (baseURL already /api/v1)
+      const res = await authRequest.get("/shipments/dashboard");
+
+      // Accept common shapes:
+      // { data: {...} } OR { ok:true, data:{...} } OR { ... }
+      const payload = res?.data;
+      const d = payload?.data || payload?.dashboard || payload;
+
+      setDashboard(d || null);
     } catch (e) {
-      setErr(e?.message || "Failed to load dashboard");
+      const msg =
+        e?.response?.data?.message || e?.message || "Failed to load dashboard";
+      setErr(msg);
     } finally {
       setLoading(false);
     }
@@ -87,7 +72,6 @@ export default function Charts() {
   }, [fetchDashboard]);
 
   const statusCounts = useMemo(() => {
-    // backend will provide this once you add it; otherwise fall back to byStatus
     const sc = dashboard?.statusCounts || dashboard?.byStatus;
     return sc && typeof sc === "object" ? sc : {};
   }, [dashboard]);
@@ -116,7 +100,6 @@ export default function Charts() {
   }, [monthlyBookings]);
 
   const pieData = useMemo(() => {
-    // stable ordering for lifecycle (raw enums)
     const preferred = [
       "booked",
       "sailed",
@@ -447,7 +430,9 @@ export default function Charts() {
 
               <p className="text-[11px] text-gray-500 mt-3">
                 Data source:{" "}
-                <span className="text-gray-300">/shipments/dashboard</span>
+                <span className="text-gray-300">
+                  /api/v1/shipments/dashboard
+                </span>
               </p>
             </Panel>
 
