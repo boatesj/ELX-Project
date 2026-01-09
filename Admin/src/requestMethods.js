@@ -9,12 +9,12 @@ const ADMIN_API_BASE_URL =
   import.meta.env.VITE_ADMIN_API_BASE_URL || "http://localhost:8000/admin";
 
 // ✅ Admin-scoped keys (preferred)
-const ADMIN_TOKEN_KEY = "elx_admin_token";
-const ADMIN_USER_KEY = "elx_admin_user";
+export const ADMIN_TOKEN_KEY = "elx_admin_token";
+export const ADMIN_USER_KEY = "elx_admin_user";
 
 // ✅ Legacy keys (fallback for backwards compatibility)
-const LEGACY_TOKEN_KEY = "token";
-const LEGACY_USER_KEY = "user";
+export const LEGACY_TOKEN_KEY = "token";
+export const LEGACY_USER_KEY = "user";
 
 /**
  * Resolve admin token with safe fallback:
@@ -48,13 +48,33 @@ export const getAdminUser = () => {
   }
 };
 
+export function clearAdminAuth() {
+  try {
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
+    localStorage.removeItem(ADMIN_USER_KEY);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
+    localStorage.removeItem(LEGACY_USER_KEY);
+
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+    sessionStorage.removeItem(ADMIN_USER_KEY);
+    sessionStorage.removeItem(LEGACY_TOKEN_KEY);
+    sessionStorage.removeItem(LEGACY_USER_KEY);
+  } catch {
+    // no-op
+  }
+}
+
 /**
- * ✅ ROOT axios client (no auth)
+ * ✅ ROOT axios client
  * Use for:
  * - /auth/*
  * - /config/*
  * - /health
  * - /docs
+ *
+ * IMPORTANT:
+ * Root routes like /auth/me still require Bearer token,
+ * so we attach token here too.
  */
 export const rootRequest = axios.create({
   baseURL: API_ROOT_URL,
@@ -70,7 +90,6 @@ export const publicRequest = axios.create({
 
 /**
  * ✅ Protected endpoints (shipments, users, dashboard) — v1 canonical
- * This is the main workhorse for Admin data calls.
  */
 export const authRequest = axios.create({
   baseURL: API_V1_BASE_URL,
@@ -92,10 +111,35 @@ const attachToken = (config) => {
   return config;
 };
 
+// ✅ Attach token to ALL protected clients (including rootRequest for /auth/me)
 authRequest.interceptors.request.use(attachToken, (error) =>
   Promise.reject(error)
 );
-
 adminRequest.interceptors.request.use(attachToken, (error) =>
   Promise.reject(error)
 );
+rootRequest.interceptors.request.use(attachToken, (error) =>
+  Promise.reject(error)
+);
+
+/**
+ * ✅ Optional: consistent admin auto-logout on 401/403
+ * Prevents “stale token” loops and keeps UX predictable.
+ */
+const handleAuthFailure = (error) => {
+  const status = error?.response?.status;
+  if (status === 401 || status === 403) {
+    clearAdminAuth();
+    if (
+      typeof window !== "undefined" &&
+      window.location.pathname !== "/login"
+    ) {
+      window.location.href = "/login";
+    }
+  }
+  return Promise.reject(error);
+};
+
+authRequest.interceptors.response.use((r) => r, handleAuthFailure);
+adminRequest.interceptors.response.use((r) => r, handleAuthFailure);
+rootRequest.interceptors.response.use((r) => r, handleAuthFailure);
