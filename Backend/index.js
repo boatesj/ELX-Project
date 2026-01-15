@@ -53,7 +53,7 @@ const apiLimiter = rateLimit({
 });
 
 // --------------------
-// CORS (hardened)
+// CORS (Phase 5.2.2 — dev allowlist locked)
 // --------------------
 const parseOrigins = (val) =>
   String(val || "")
@@ -61,46 +61,47 @@ const parseOrigins = (val) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
+const isDev = process.env.NODE_ENV !== "production";
+
+// Env origins (can be comma-separated)
 const envAllow = [
   ...parseOrigins(process.env.CLIENT_URL),
   ...parseOrigins(process.env.ADMIN_URL),
   ...parseOrigins(process.env.ALLOWED_ORIGINS),
-];
+].filter(Boolean);
 
+// Explicit dev ports (locked)
 const devAllow = [
-  "http://localhost:3000",
+  // Common Vite / React dev ports
   "http://localhost:5173",
   "http://localhost:5174",
-  "http://127.0.0.1:3000",
+  // Common admin/dev ports (include 3000 for compatibility)
+  "http://localhost:3000",
+  // Loopback variants
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5174",
+  "http://127.0.0.1:3000",
 ];
 
-const allowlist = new Set(
-  (process.env.NODE_ENV === "production"
-    ? envAllow
-    : [...envAllow, ...devAllow]
-  ).filter(Boolean)
-);
+// Effective allowlist:
+// - Dev: env + locked dev ports
+// - Prod: env only (Phase 5.2.3 will lock prod domains explicitly)
+const allowlist = new Set(isDev ? [...envAllow, ...devAllow] : envAllow);
 
-app.use(
-  cors({
-    origin(origin, cb) {
-      if (!origin) return cb(null, true);
+const corsOptions = {
+  origin(origin, cb) {
+    // Allow server-to-server / curl / same-origin without Origin header
+    if (!origin) return cb(null, true);
 
-      if (allowlist.size === 0) {
-        if (process.env.NODE_ENV === "production") {
-          return cb(new Error("CORS blocked"));
-        }
-        return cb(null, true);
-      }
+    // Contract: Never fail-open due to missing allowlist.
+    if (allowlist.has(origin)) return cb(null, true);
 
-      if (allowlist.has(origin)) return cb(null, true);
-      return cb(new Error("CORS blocked"));
-    },
-    credentials: true,
-  })
-);
+    return cb(new Error("CORS blocked"));
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 
 // --------------------
 // MIDDLEWARES
