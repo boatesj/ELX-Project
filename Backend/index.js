@@ -53,7 +53,7 @@ const apiLimiter = rateLimit({
 });
 
 // --------------------
-// CORS (Phase 5.2.2 — dev allowlist locked)
+// CORS (Phase 5.2.3 — prod domains locked)
 // --------------------
 const parseOrigins = (val) =>
   String(val || "")
@@ -61,9 +61,16 @@ const parseOrigins = (val) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-const isDev = process.env.NODE_ENV !== "production";
+const isProd = process.env.NODE_ENV === "production";
 
-// Env origins (can be comma-separated)
+// Registered production domains (locked)
+const lockedProdAllow = [
+  "https://ellcworth.com",
+  "https://www.ellcworth.com",
+  "https://admin.ellcworth.com",
+];
+
+// Optional explicit additions (still explicit allowlist; useful for staging/cutover)
 const envAllow = [
   ...parseOrigins(process.env.CLIENT_URL),
   ...parseOrigins(process.env.ADMIN_URL),
@@ -84,16 +91,19 @@ const devAllow = [
 ];
 
 // Effective allowlist:
+// - Prod: locked registered domains + explicit env additions
 // - Dev: env + locked dev ports
-// - Prod: env only (Phase 5.2.3 will lock prod domains explicitly)
-const allowlist = new Set(isDev ? [...envAllow, ...devAllow] : envAllow);
+const allowlist = new Set(
+  (isProd ? [...lockedProdAllow, ...envAllow] : [...envAllow, ...devAllow]).map(
+    (o) => o.trim()
+  )
+);
 
 const corsOptions = {
   origin(origin, cb) {
     // Allow server-to-server / curl / same-origin without Origin header
     if (!origin) return cb(null, true);
 
-    // Contract: Never fail-open due to missing allowlist.
     if (allowlist.has(origin)) return cb(null, true);
 
     return cb(new Error("CORS blocked"));
