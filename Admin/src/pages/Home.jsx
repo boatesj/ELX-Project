@@ -219,11 +219,10 @@ const Home = () => {
     return { w, h, outerRadius, innerRadius };
   }, [chartSize]);
 
+  // Corporate standard: page does not manage tokens.
+  // If interceptors don't redirect for some reason, we still provide a safe fallback.
   const redirectToLogin = (message) => {
     setLoadError(message || "Please log in to view dashboard analytics.");
-    localStorage.removeItem("token");
-    localStorage.removeItem("ellcworth_token");
-    localStorage.removeItem("user");
     navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
   };
 
@@ -233,14 +232,7 @@ const Home = () => {
       setLoadError("");
 
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          redirectToLogin("Please log in to view dashboard analytics.");
-          setLoading(false);
-          return;
-        }
-
-        // ✅ Standardise Admin API calls to /api/v1
+        // ✅ Standardised Admin API calls to /api/v1 via authRequest
         const [usersRes, dashboardRes, shipmentsRes] = await Promise.all([
           authRequest.get("/users"),
           authRequest.get("/shipments/dashboard"),
@@ -313,7 +305,7 @@ const Home = () => {
         setLatestShipments(sortedShipments.slice(0, 5));
       } catch (err) {
         const status = err?.response?.status;
-        if (status === 401) {
+        if (status === 401 || status === 403) {
           redirectToLogin("Your session has expired. Please log in again.");
           return;
         }

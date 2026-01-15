@@ -73,12 +73,10 @@ const Shipments = () => {
     pageSize: 5,
   });
 
+  // Corporate standard: page does not manage tokens.
   const redirectToLogin = useCallback(
     (message) => {
       setLoadError(message || "Please log in to view shipments.");
-      localStorage.removeItem("token");
-      localStorage.removeItem("ellcworth_token");
-      localStorage.removeItem("user");
       navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
     },
     [location.pathname, navigate]
@@ -96,7 +94,7 @@ const Shipments = () => {
         setRows((prev) => prev.filter((row) => row._id !== id));
       } catch (error) {
         const status = error?.response?.status;
-        if (status === 401) {
+        if (status === 401 || status === 403) {
           redirectToLogin("Your session has expired. Please log in again.");
           return;
         }
@@ -245,13 +243,6 @@ const Shipments = () => {
       setLoadError("");
 
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          redirectToLogin("Please log in to view shipments.");
-          setLoading(false);
-          return;
-        }
-
         const res = await authRequest.get("/shipments");
 
         let shipmentsArray = [];
@@ -277,7 +268,7 @@ const Shipments = () => {
         setRows(normalised);
       } catch (error) {
         const status = error?.response?.status;
-        if (status === 401) {
+        if (status === 401 || status === 403) {
           redirectToLogin("Your session has expired. Please log in again.");
           return;
         }

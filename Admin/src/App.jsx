@@ -34,12 +34,43 @@ import Charts from "./pages/Charts";
 import Logs from "./pages/Logs";
 import Calendar from "./pages/Calendar";
 
+import { authRequest } from "./requestMethods";
+
 // -------------------- route guards --------------------
 function RequireAuth({ children }) {
   const location = useLocation();
-  const token = localStorage.getItem("token");
 
-  if (!token) {
+  const [checking, setChecking] = useState(true);
+  const [allowed, setAllowed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+
+    const checkAuth = async () => {
+      try {
+        // No token reads here. Interceptors handle token attachment + 401/403.
+        // Use a protected call as a lightweight auth probe.
+        await authRequest.get("/users");
+        if (!alive) return;
+        setAllowed(true);
+      } catch (err) {
+        if (!alive) return;
+        setAllowed(false);
+      } finally {
+        if (!alive) return;
+        setChecking(false);
+      }
+    };
+
+    checkAuth();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (checking) return null;
+
+  if (!allowed) {
     const redirect = encodeURIComponent(location.pathname + location.search);
     return <Navigate to={`/login?redirect=${redirect}`} replace />;
   }
@@ -53,7 +84,6 @@ function RequireAuth({ children }) {
  */
 function RequireNoAuth({ children }) {
   const location = useLocation();
-  const token = localStorage.getItem("token");
 
   const params = useMemo(
     () => new URLSearchParams(location.search),
@@ -61,7 +91,36 @@ function RequireNoAuth({ children }) {
   );
   const redirect = params.get("redirect") || "/";
 
-  if (token) return <Navigate to={redirect} replace />;
+  const [checking, setChecking] = useState(true);
+  const [isAuthed, setIsAuthed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+
+    const checkAuth = async () => {
+      try {
+        // If this succeeds, user is already authenticated -> bounce away from /login.
+        await authRequest.get("/users");
+        if (!alive) return;
+        setIsAuthed(true);
+      } catch (err) {
+        if (!alive) return;
+        setIsAuthed(false);
+      } finally {
+        if (!alive) return;
+        setChecking(false);
+      }
+    };
+
+    checkAuth();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (checking) return null;
+
+  if (isAuthed) return <Navigate to={redirect} replace />;
   return children;
 }
 
