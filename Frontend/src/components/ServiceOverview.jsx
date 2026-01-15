@@ -1,51 +1,5 @@
 import { Link } from "react-router-dom";
-import {
-  FaShip,
-  FaCarSide,
-  FaPlaneDeparture,
-  FaFileSignature,
-  FaBoxes,
-  FaRegClipboard,
-} from "react-icons/fa";
-
-const SERVICES = [
-  {
-    id: "container",
-    icon: FaShip,
-    title: "Container shipping (FCL & LCL)",
-    body: "Full and shared containers from the UK to key West African ports.",
-  },
-  {
-    id: "roro",
-    icon: FaCarSide,
-    title: "RoRo vehicle shipping",
-    body: "Cars, vans, 4×4s, trucks and plant on regular RoRo sailings.",
-  },
-  {
-    id: "air",
-    icon: FaPlaneDeparture,
-    title: "Fast air freight",
-    body: "Priority options for urgent cargo that can’t wait for a vessel.",
-  },
-  {
-    id: "documents",
-    icon: FaFileSignature,
-    title: "Secure document logistics",
-    body: "Certificates, cheques and other secure print handled with care.",
-  },
-  {
-    id: "repacking",
-    icon: FaBoxes,
-    title: "Repacking & consolidation",
-    body: "Multiple UK deliveries checked, repacked and shipped as one export.",
-  },
-  {
-    id: "customs",
-    icon: FaRegClipboard,
-    title: "Export & customs support",
-    body: "Practical help with export paperwork, valuations and destination rules.",
-  },
-];
+import { SERVICES } from "../data/servicesCatalog";
 
 const ServiceOverview = () => {
   return (
@@ -137,7 +91,7 @@ const ServiceOverview = () => {
                         {service.title}
                       </p>
                       <p className="mt-0.5 text-[11px] md:text-xs text-gray-600 leading-snug">
-                        {service.body}
+                        {service.summary}
                       </p>
                     </div>
                   </Link>

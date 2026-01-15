@@ -1,11 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
 import {
-  FaShip,
-  FaCarSide,
-  FaPlaneDeparture,
-  FaFileSignature,
-  FaBoxes,
-  FaRegClipboard,
   FaArrowRight,
   FaCheckCircle,
   FaBolt,
@@ -13,88 +7,7 @@ import {
   FaRoute,
 } from "react-icons/fa";
 
-const SERVICES = [
-  {
-    id: "container",
-    icon: FaShip,
-    eyebrow: "FCL & LCL",
-    title: "Container Shipping",
-    body: "Move freight with predictable planning — full containers for scale, shared containers for efficiency.",
-    highlights: [
-      "FCL / LCL options",
-      "Port-to-port or door solutions",
-      "Milestone updates",
-    ],
-    bestFor: "Planned export, bulk cargo, commercial lanes, and cost control.",
-  },
-  {
-    id: "roro",
-    icon: FaCarSide,
-    eyebrow: "Vehicles & Plant",
-    title: "RoRo Vehicle Shipping",
-    body: "Export cars and rolling equipment with disciplined handling and clear documentation guidance.",
-    highlights: [
-      "Regular sailings",
-      "Vehicle handling care",
-      "Docs and release guidance",
-    ],
-    bestFor: "Cars, 4×4s, vans, trucks, plant, and rolling stock.",
-  },
-  {
-    id: "air",
-    icon: FaPlaneDeparture,
-    eyebrow: "Priority uplift",
-    title: "Fast Air Freight",
-    body: "When timelines tighten, air keeps commitments intact — fast uplift with visible progress.",
-    highlights: [
-      "Time-critical lanes",
-      "Priority options",
-      "Clear handoff checkpoints",
-    ],
-    bestFor: "Urgent cargo where delays are not acceptable.",
-  },
-  {
-    id: "documents",
-    icon: FaFileSignature,
-    eyebrow: "Secure print & certificates",
-    title: "Secure Document Logistics",
-    body: "Sensitive documents handled with care and accountability — the right discipline for high-trust items.",
-    highlights: [
-      "Controlled handling",
-      "Clear accountability",
-      "Reduced risk of errors",
-    ],
-    bestFor: "Certificates, cheques, sensitive paperwork, secure print.",
-  },
-  {
-    id: "repacking",
-    icon: FaBoxes,
-    eyebrow: "Inbound → Export-ready",
-    title: "Repacking & Consolidation",
-    body: "Multiple UK deliveries consolidated into one export shipment — checked, repacked, and organised.",
-    highlights: [
-      "Inbound checks",
-      "Export-ready packing",
-      "Single consolidated shipment",
-    ],
-    bestFor:
-      "Multi-supplier orders, bulk buys, mixed cartons needing export prep.",
-  },
-  {
-    id: "customs",
-    icon: FaRegClipboard,
-    eyebrow: "Paperwork & compliance",
-    title: "Export & Customs Support",
-    body: "Practical guidance to reduce document errors and prevent avoidable delays at origin or destination.",
-    highlights: [
-      "Document preparation",
-      "Valuations guidance",
-      "Destination readiness",
-    ],
-    bestFor:
-      "Shippers who want fewer mistakes and smoother clearance outcomes.",
-  },
-];
+import { SERVICES } from "../../data/servicesCatalog";
 
 const Pill = ({ children }) => (
   <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-white/70 tracking-[0.14em] uppercase">
@@ -121,7 +34,7 @@ export default function Services() {
               <div className="max-w-2xl">
                 <div className="flex flex-wrap gap-2">
                   <Pill>Service Directory</Pill>
-                  <Pill>UK → West Africa</Pill>
+                  <Pill>UK → International Freight</Pill>
                   <Pill>Control Tower Standards</Pill>
                 </div>
 
@@ -294,7 +207,7 @@ export default function Services() {
                     </p>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      {s.highlights.map((m) => (
+                      {(s.highlights || []).map((m) => (
                         <span
                           key={m}
                           className="text-[11px] px-3 py-1 rounded-full border border-white/10 bg-white/5 text-white/70"
@@ -357,7 +270,6 @@ export default function Services() {
             </div>
           </div>
 
-          {/* ===== Gentle footer note ===== */}
           <p className="mt-8 text-center text-[11px] uppercase tracking-[0.24em] text-white/40">
             Ellcworth Express · Built for reliable export operations
           </p>
