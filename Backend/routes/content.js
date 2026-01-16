@@ -7,17 +7,15 @@ const {
   deleteContentBlockByKey,
 } = require("../controllers/content");
 
-// If you have auth middleware, you can plug it in here:
-// const { verifyTokenAndAdmin } = require("../middleware/verifyToken");
-// then wrap the handlers, e.g. router.post("/", verifyTokenAndAdmin, createContentBlock);
+const { requireAuth, requireAdmin } = require("../middleware/auth");
 
-// Public read (by key)
+// Public read (by key) — used by the public site
 router.get("/:key", getContentBlockByKey);
 
-// Admin list + CRUD
-router.get("/", getContentBlocks);
-router.post("/", createContentBlock);
-router.put("/:key", updateContentBlockByKey);
-router.delete("/:key", deleteContentBlockByKey);
+// Admin list + CRUD — protected
+router.get("/", requireAuth, requireAdmin, getContentBlocks);
+router.post("/", requireAuth, requireAdmin, createContentBlock);
+router.put("/:key", requireAuth, requireAdmin, updateContentBlockByKey);
+router.delete("/:key", requireAuth, requireAdmin, deleteContentBlockByKey);
 
 module.exports = router;
