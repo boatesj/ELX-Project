@@ -15,20 +15,17 @@ const PreFooterCTA = () => {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch (err) {
-      // If clipboard API fails, do nothing — the mailto link still exists
       console.warn("Clipboard copy failed:", err);
     }
   };
 
   return (
-    // ✅ Anchor target for "Speak to operations" / "Arrange warehouse support"
     <section
       id="contact"
       className="w-full bg-white border-t border-[#9A9EAB]/30 scroll-mt-24"
     >
       <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8 py-14 md:py-16">
         <div className="relative overflow-hidden rounded-2xl bg-[#1A2930] text-white shadow-xl">
-          {/* subtle enterprise texture */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 opacity-[0.35]"
@@ -38,9 +35,8 @@ const PreFooterCTA = () => {
             }}
           />
 
-          {/* content */}
           <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-10 p-8 md:p-12">
-            {/* LEFT: commercial messaging */}
+            {/* LEFT: message */}
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#FFA500]">
                 Ready when you are
@@ -56,26 +52,14 @@ const PreFooterCTA = () => {
                 pricing and timelines before anything moves.
               </p>
 
-              {/* reassurance bullets */}
               <ul className="mt-6 space-y-2 text-sm text-white/75">
                 <li>• Clear quotations before booking</li>
                 <li>• Dedicated UK–Africa logistics specialists</li>
                 <li>• Structured updates from collection to delivery</li>
               </ul>
 
-              {/* ✅ Live operational bulletin (corporate) */}
-              <div className="mt-6">
-                <ContentBlockPanel
-                  contentKey="weekly_sailings"
-                  tone="dark"
-                  compact
-                  titleOverride="Weekly sailings & cut-off guidance"
-                  className="bg-white/5"
-                />
-              </div>
-
-              {/* ✅ Practical fallback info (helps desktop users) */}
-              <div className="mt-6 text-[12px] text-white/70">
+              {/* Direct contacts */}
+              <div className="mt-7 text-[12px] text-white/70">
                 <p className="font-semibold text-white/90">Direct contacts</p>
                 <p className="mt-1">
                   Email:{" "}
@@ -90,9 +74,24 @@ const PreFooterCTA = () => {
               </div>
             </div>
 
-            {/* RIGHT: CTAs */}
+            {/* RIGHT: operational bulletin + CTAs */}
             <div className="flex flex-col justify-center gap-4 w-full max-w-md">
-              {/* ✅ Primary CTA: goes to QuoteSection */}
+              {/* ✅ Operational bulletin sits “balanced” in the right column */}
+              <div className="rounded-2xl border border-white/10 bg-black/15 backdrop-blur px-4 py-4 shadow-[0_18px_60px_-40px_rgba(0,0,0,0.8)]">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-white/60 font-semibold">
+                  Operational bulletin
+                </p>
+                <div className="mt-3">
+                  <ContentBlockPanel
+                    contentKey="weekly_sailings"
+                    tone="dark"
+                    compact={false}
+                    titleOverride="Weekly sailings & cut-off guidance"
+                    className="bg-white/5"
+                  />
+                </div>
+              </div>
+
               <a
                 href="/#quote"
                 className="inline-flex items-center justify-center rounded-lg bg-[#FFA500] text-[#1A2930] px-6 py-3 text-base font-bold shadow-lg shadow-black/30 transition hover:brightness-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FFA500]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1A2930]"
@@ -100,7 +99,6 @@ const PreFooterCTA = () => {
                 Get a shipping quote
               </a>
 
-              {/* Secondary CTA */}
               <div className="flex gap-3 flex-wrap">
                 <a
                   href={`mailto:${OPS_EMAIL}?subject=${encodeURIComponent(
@@ -121,7 +119,6 @@ const PreFooterCTA = () => {
                 </a>
               </div>
 
-              {/* ✅ Copy fallback (works even without a mail client) */}
               <button
                 type="button"
                 onClick={handleCopyEmail}
@@ -133,7 +130,6 @@ const PreFooterCTA = () => {
             </div>
           </div>
 
-          {/* bottom trust bar */}
           <div className="relative border-t border-white/10 px-8 md:px-12 py-4">
             <p className="text-xs md:text-[13px] text-white/70 text-center lg:text-left">
               Trusted by individuals, SMEs and exporters shipping between the UK

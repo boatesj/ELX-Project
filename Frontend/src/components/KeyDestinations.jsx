@@ -92,17 +92,6 @@ const KeyDestinations = () => {
             Ellcworth connects UK shippers to high-demand African routes with
             steady, transparent updates.
           </p>
-
-          {/* ✅ Live network coverage note */}
-          <div className="mt-6">
-            <ContentBlockPanel
-              contentKey="destinations"
-              tone="dark"
-              compact
-              titleOverride="Destinations served (live)"
-              className="bg-slate-900/60"
-            />
-          </div>
         </div>
 
         {/* Grid */}
@@ -176,6 +165,25 @@ const KeyDestinations = () => {
               </article>
             );
           })}
+        </div>
+
+        {/* ✅ Live network coverage (full width, below grid) */}
+        <div className="mt-10">
+          <div className="rounded-3xl border border-white/10 bg-black/15 backdrop-blur px-5 py-5 md:px-7 md:py-6 shadow-[0_20px_70px_-40px_rgba(0,0,0,0.8)]">
+            <p className="text-[11px] md:text-xs font-semibold uppercase tracking-[0.22em] text-white/60">
+              Live network coverage
+            </p>
+
+            <div className="mt-3">
+              <ContentBlockPanel
+                contentKey="destinations"
+                tone="dark"
+                compact={false}
+                titleOverride="Destinations served (live)"
+                className="bg-slate-900/45"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </section>
