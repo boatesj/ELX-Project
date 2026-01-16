@@ -21,6 +21,7 @@ const swaggerJsdoc = require("swagger-jsdoc");
 const authRoute = require("./routes/auth");
 const userRoute = require("./routes/user");
 const shipmentRoute = require("./routes/shipment");
+const contentRoute = require("./routes/content");
 
 // Admin system routes (already present in your build)
 const configRoute = require("./routes/config");
@@ -154,6 +155,13 @@ app.get("/", (req, res) => {
       users: "CRUD /api/v1/users (admin only) + legacy /users (temporary)",
       shipments:
         "CRUD /api/v1/shipments (auth) + admin ops at /api/v1/shipments/:id/* + legacy /shipments (temporary)",
+      content: {
+        list: "GET /api/v1/content (admin)",
+        byKey: "GET /api/v1/content/:key (public)",
+        create: "POST /api/v1/content (admin)",
+        update: "PUT /api/v1/content/:key (admin)",
+        delete: "DELETE /api/v1/content/:key (admin)",
+      },
       config: {
         ports: "/config/ports",
         serviceTypes: "/config/service-types",
@@ -199,6 +207,7 @@ app.use(
 app.use("/auth", authLimiter, authRoute);
 app.use("/api/v1/users", userRoute);
 app.use("/api/v1/shipments", shipmentRoute);
+app.use("/api/v1/content", contentRoute);
 
 // Legacy aliases (temporary) + logging
 app.use("/users", userRoute);
