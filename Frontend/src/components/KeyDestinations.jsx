@@ -6,6 +6,7 @@ import {
   FaRegClipboard,
   FaBoxes,
 } from "react-icons/fa";
+import ContentBlockPanel from "./ContentBlockPanel";
 
 const DESTINATIONS = [
   {
@@ -91,6 +92,17 @@ const KeyDestinations = () => {
             Ellcworth connects UK shippers to high-demand African routes with
             steady, transparent updates.
           </p>
+
+          {/* ✅ Live network coverage note */}
+          <div className="mt-6">
+            <ContentBlockPanel
+              contentKey="destinations"
+              tone="dark"
+              compact
+              titleOverride="Destinations served (live)"
+              className="bg-slate-900/60"
+            />
+          </div>
         </div>
 
         {/* Grid */}

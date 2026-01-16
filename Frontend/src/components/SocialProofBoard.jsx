@@ -1,3 +1,5 @@
+import ContentBlockPanel from "./ContentBlockPanel";
+
 const partners = [
   {
     name: "Presbyterian University",
@@ -75,6 +77,17 @@ const SocialProofBoard = () => {
               our commitment to reliability.
             </p>
           </div>
+        </div>
+
+        {/* ✅ Service updates / announcements (live) */}
+        <div className="mb-8 md:mb-10">
+          <ContentBlockPanel
+            contentKey="announcements"
+            tone="light"
+            compact
+            titleOverride="Service updates"
+            className="shadow-sm"
+          />
         </div>
 
         {/* Brand board */}

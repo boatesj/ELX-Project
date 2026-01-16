@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { FaPhoneAlt, FaEnvelope } from "react-icons/fa";
+import ContentBlockPanel from "./ContentBlockPanel";
 
 const OPS_EMAIL = "info@ellcworth.com";
 const UK_PHONE_DISPLAY = "+44 208 979 6054";
@@ -61,6 +62,17 @@ const PreFooterCTA = () => {
                 <li>• Dedicated UK–Africa logistics specialists</li>
                 <li>• Structured updates from collection to delivery</li>
               </ul>
+
+              {/* ✅ Live operational bulletin (corporate) */}
+              <div className="mt-6">
+                <ContentBlockPanel
+                  contentKey="weekly_sailings"
+                  tone="dark"
+                  compact
+                  titleOverride="Weekly sailings & cut-off guidance"
+                  className="bg-white/5"
+                />
+              </div>
 
               {/* ✅ Practical fallback info (helps desktop users) */}
               <div className="mt-6 text-[12px] text-white/70">
