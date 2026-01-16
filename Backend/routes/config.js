@@ -14,26 +14,44 @@ const {
   deleteCargoCategory,
 } = require("../controllers/config");
 
-// If you have auth middleware, you can plug it in here:
-// const { verifyTokenAndAdmin } = require("../middleware/verifyToken");
-// then wrap the handlers, e.g. router.get("/ports", verifyTokenAndAdmin, getPorts);
+const { requireAuth, requireAdmin } = require("../middleware/auth");
 
-// PORTS
+// PORTS (public reads, admin writes)
 router.get("/ports", getPorts);
-router.post("/ports", createPort);
-router.put("/ports/:id", updatePort);
-router.delete("/ports/:id", deletePort);
+router.post("/ports", requireAuth, requireAdmin, createPort);
+router.put("/ports/:id", requireAuth, requireAdmin, updatePort);
+router.delete("/ports/:id", requireAuth, requireAdmin, deletePort);
 
-// SERVICE TYPES
+// SERVICE TYPES (public reads, admin writes)
 router.get("/service-types", getServiceTypes);
-router.post("/service-types", createServiceType);
-router.put("/service-types/:id", updateServiceType);
-router.delete("/service-types/:id", deleteServiceType);
+router.post("/service-types", requireAuth, requireAdmin, createServiceType);
+router.put("/service-types/:id", requireAuth, requireAdmin, updateServiceType);
+router.delete(
+  "/service-types/:id",
+  requireAuth,
+  requireAdmin,
+  deleteServiceType
+);
 
-// CARGO CATEGORIES
+// CARGO CATEGORIES (public reads, admin writes)
 router.get("/cargo-categories", getCargoCategories);
-router.post("/cargo-categories", createCargoCategory);
-router.put("/cargo-categories/:id", updateCargoCategory);
-router.delete("/cargo-categories/:id", deleteCargoCategory);
+router.post(
+  "/cargo-categories",
+  requireAuth,
+  requireAdmin,
+  createCargoCategory
+);
+router.put(
+  "/cargo-categories/:id",
+  requireAuth,
+  requireAdmin,
+  updateCargoCategory
+);
+router.delete(
+  "/cargo-categories/:id",
+  requireAuth,
+  requireAdmin,
+  deleteCargoCategory
+);
 
 module.exports = router;
