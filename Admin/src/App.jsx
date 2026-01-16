@@ -34,6 +34,9 @@ import Charts from "./pages/Charts";
 import Logs from "./pages/Logs";
 import Calendar from "./pages/Calendar";
 
+// NEW: Content editor
+import Content from "./pages/Content";
+
 import { authRequest } from "./requestMethods";
 
 // -------------------- route guards --------------------
@@ -314,6 +317,9 @@ const router = createBrowserRouter([
       // Other admin pages
       { path: "profile", element: <Profile /> },
       { path: "orders", element: <Orders /> },
+
+      // Content management
+      { path: "content", element: <Content /> },
 
       // Elements / master data
       { path: "elements", element: <Elements /> },

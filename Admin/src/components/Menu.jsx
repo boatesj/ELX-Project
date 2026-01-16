@@ -10,6 +10,7 @@ import {
   FaChartBar,
   FaClipboard,
   FaCalendarAlt,
+  FaFileAlt,
 } from "react-icons/fa";
 import { NavLink, useNavigate } from "react-router-dom";
 
@@ -104,6 +105,18 @@ function Menu({ onNavigate }) {
             >
               <FaFileInvoice className="text-[18px]" />
               <span>Orders</span>
+            </NavLink>
+          </li>
+
+          {/* NEW: CONTENT */}
+          <li>
+            <NavLink
+              to="/content"
+              className={linkClass}
+              onClick={handleNavClick}
+            >
+              <FaFileAlt className="text-[18px]" />
+              <span>Content</span>
             </NavLink>
           </li>
 
