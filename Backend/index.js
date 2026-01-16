@@ -33,8 +33,11 @@ const calendarRoute = require("./routes/calendar");
 
 const app = express();
 
+const isProd = process.env.NODE_ENV === "production";
+
 // If deployed behind a proxy (Render/Heroku/Nginx), this helps rate-limit + IP correctness
-app.set("trust proxy", 1);
+// Safe default: enabled in production.
+app.set("trust proxy", isProd ? 1 : 0);
 
 // --------------------
 // RATE LIMITERS
@@ -62,9 +65,10 @@ const parseOrigins = (val) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-const isProd = process.env.NODE_ENV === "production";
+const isLocalOrigin = (origin) =>
+  /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(String(origin || ""));
 
-// Registered production domains (locked)
+// Registered production domains (LOCKED)
 const lockedProdAllow = [
   "https://ellcworth.com",
   "https://www.ellcworth.com",
@@ -72,32 +76,34 @@ const lockedProdAllow = [
 ];
 
 // Optional explicit additions (still explicit allowlist; useful for staging/cutover)
-const envAllow = [
+// NOTE: In production we will ignore localhost origins even if someone sets them here.
+const envAllowRaw = [
   ...parseOrigins(process.env.CLIENT_URL),
   ...parseOrigins(process.env.ADMIN_URL),
   ...parseOrigins(process.env.ALLOWED_ORIGINS),
 ].filter(Boolean);
 
-// Explicit dev ports (locked)
+const envAllow = isProd
+  ? envAllowRaw.filter((o) => !isLocalOrigin(o))
+  : envAllowRaw;
+
+// Explicit dev ports (LOCKED)
 const devAllow = [
-  // Common Vite / React dev ports
   "http://localhost:5173",
   "http://localhost:5174",
-  // Common admin/dev ports (include 3000 for compatibility)
   "http://localhost:3000",
-  // Loopback variants
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5174",
   "http://127.0.0.1:3000",
 ];
 
 // Effective allowlist:
-// - Prod: locked registered domains + explicit env additions
+// - Prod: locked registered domains + explicit env additions (non-local)
 // - Dev: env + locked dev ports
 const allowlist = new Set(
-  (isProd ? [...lockedProdAllow, ...envAllow] : [...envAllow, ...devAllow]).map(
-    (o) => o.trim()
-  )
+  (isProd ? [...lockedProdAllow, ...envAllow] : [...envAllow, ...devAllow])
+    .map((o) => String(o).trim())
+    .filter(Boolean)
 );
 
 const corsOptions = {
@@ -118,10 +124,18 @@ app.use(cors(corsOptions));
 // MIDDLEWARES
 // --------------------
 app.use(express.json({ limit: "1mb" }));
-app.use(helmet());
+
+// Helmet defaults can block static assets across origins (CORP).
+// For /uploads/* we want public access from allowed origins.
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
+
 app.use(apiLimiter);
 
-if (process.env.NODE_ENV === "development" && morgan) {
+if (!isProd && morgan) {
   app.use(morgan("dev"));
 }
 
@@ -176,15 +190,22 @@ app.get("/", (req, res) => {
 // --------------------
 // SWAGGER SETUP
 // --------------------
+const PORT = Number(process.env.PORT) || 8000;
+
+// Prefer a public URL in production (so docs show correct server)
+const publicApiUrl =
+  (process.env.PUBLIC_API_URL || "").replace(/\/+$/, "") ||
+  `http://localhost:${PORT}`;
+
 const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: "3.0.3",
     info: {
       title: "Ellcworth API",
       version: "1.0.0",
-      description: "Auth, Users & Shipments for Ellcworth backend.",
+      description: "Auth, Users, Shipments & Content for Ellcworth backend.",
     },
-    servers: [{ url: `http://localhost:${process.env.PORT || 8000}` }],
+    servers: [{ url: publicApiUrl }],
     components: {
       securitySchemes: {
         bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" },
@@ -209,7 +230,7 @@ app.use("/api/v1/users", userRoute);
 app.use("/api/v1/shipments", shipmentRoute);
 app.use("/api/v1/content", contentRoute);
 
-// Legacy aliases (temporary) + logging
+// Legacy aliases (temporary)
 app.use("/users", userRoute);
 app.use("/shipments", shipmentRoute);
 
@@ -243,7 +264,8 @@ app.use((err, req, res, next) => {
     message: err.publicMessage || err.message || "Something went wrong",
   };
 
-  if (process.env.NODE_ENV !== "production") {
+  // Only expose stack in non-production
+  if (!isProd) {
     payload.error = err.message;
     payload.stack = err.stack;
   }
@@ -261,7 +283,6 @@ app.use((err, req, res, next) => {
 // --------------------
 // DB + SERVER START
 // --------------------
-const PORT = Number(process.env.PORT) || 8000;
 const MONGO_URI = process.env.MONGO_URI || process.env.DB;
 
 if (!MONGO_URI) {
@@ -269,11 +290,16 @@ if (!MONGO_URI) {
   process.exit(1);
 }
 
+// Recommended mongoose setting (avoids warnings in some setups)
+mongoose.set("strictQuery", true);
+
+let server = null;
+
 mongoose
   .connect(MONGO_URI)
   .then(() => {
     console.log("✅ DB connection successful");
-    app.listen(PORT, () => {
+    server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
     });
   })
@@ -281,5 +307,24 @@ mongoose
     console.error("❌ DB connection failed:", err.message);
     process.exit(1);
   });
+
+// Graceful shutdown (Render/Railway/Fly will send SIGTERM)
+const shutdown = async (signal) => {
+  try {
+    console.log(`🛑 Received ${signal}. Shutting down gracefully...`);
+    if (server) {
+      await new Promise((resolve) => server.close(resolve));
+    }
+    await mongoose.connection.close(false);
+    console.log("✅ Shutdown complete");
+    process.exit(0);
+  } catch (e) {
+    console.error("❌ Shutdown error:", e?.message || e);
+    process.exit(1);
+  }
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 module.exports = app;
