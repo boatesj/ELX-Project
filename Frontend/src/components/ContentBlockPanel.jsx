@@ -1,14 +1,17 @@
+// Frontend/src/components/ContentBlockPanel.jsx
 import { useEffect, useMemo, useState } from "react";
 
 function buildApiUrl(path) {
-  const origin = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+  const originBase =
+    import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "";
+  const origin = String(originBase || "").replace(/\/+$/, "");
   const prefixRaw = import.meta.env.VITE_API_PREFIX || "/api/v1";
   const prefix = String(prefixRaw || "/api/v1")
     .trim()
     .replace(/\/+$/, "");
   const p = String(path || "").startsWith("/") ? path : `/${path}`;
 
-  // If VITE_API_URL is missing, fall back to relative (useful in some proxy setups)
+  // If origin is missing, fall back to relative (useful in some proxy setups)
   if (!origin) return `${prefix}${p}`;
   return `${origin}${prefix}${p}`;
 }
@@ -31,6 +34,10 @@ function formatUpdated(iso) {
  * - Fetches /api/v1/content/:key (public)
  * - Renders Title + Body + UpdatedAt
  * - No auth / no tokens
+ *
+ * Styling intent (corporate):
+ * - Always visually distinct from adjacent sections (no "merged blob")
+ * - Uses a subtle frame + inset highlight (rather than plain white slab)
  */
 export default function ContentBlockPanel({
   contentKey,
@@ -45,7 +52,7 @@ export default function ContentBlockPanel({
       String(contentKey || "")
         .trim()
         .toLowerCase(),
-    [contentKey]
+    [contentKey],
   );
 
   const [loading, setLoading] = useState(true);
@@ -108,9 +115,12 @@ export default function ContentBlockPanel({
 
   const isDark = tone === "dark";
 
+  // Corporate separation:
+  // - light mode becomes an elevated "card" on a light background (never plain white slab)
+  // - dark mode keeps a glassy panel but adds a subtle inset ring
   const shell = isDark
-    ? "rounded-2xl border border-white/10 bg-black/20 backdrop-blur-sm"
-    : "rounded-2xl border border-gray-200 bg-white";
+    ? "relative rounded-2xl border border-white/12 bg-black/25 backdrop-blur-sm shadow-[0_18px_55px_-32px_rgba(0,0,0,0.55)]"
+    : "relative rounded-2xl border border-gray-200/90 bg-white shadow-[0_18px_55px_-38px_rgba(15,23,42,0.30)]";
 
   const titleCls = isDark ? "text-white" : "text-[#111827]";
   const bodyCls = isDark ? "text-white/75" : "text-gray-700";
@@ -123,10 +133,18 @@ export default function ContentBlockPanel({
 
   return (
     <div className={`${shell} ${pad} ${className}`}>
-      {/* Top accent bar */}
+      {/* Subtle inset highlight to prevent "flat slab" merging */}
       <div
-        className={`h-1 w-full rounded-full mb-4 ${
-          isDark ? "bg-[#FFA500]/70" : "bg-[#FFA500]"
+        className={`pointer-events-none absolute inset-0 rounded-2xl ${
+          isDark ? "ring-1 ring-white/8" : "ring-1 ring-black/5"
+        }`}
+        aria-hidden="true"
+      />
+
+      {/* Top accent bar (slimmer + refined) */}
+      <div
+        className={`h-[3px] w-full rounded-full mb-4 ${
+          isDark ? "bg-[#FFA500]/75" : "bg-[#FFA500]"
         }`}
         aria-hidden="true"
       />
@@ -138,18 +156,18 @@ export default function ContentBlockPanel({
           </p>
           <div className="mt-3 space-y-2">
             <div
-              className={`h-3 w-2/3 rounded bg-white/10 ${
-                !isDark ? "bg-gray-100" : ""
+              className={`h-3 w-2/3 rounded ${
+                isDark ? "bg-white/10" : "bg-gray-100"
               }`}
             />
             <div
-              className={`h-3 w-full rounded bg-white/10 ${
-                !isDark ? "bg-gray-100" : ""
+              className={`h-3 w-full rounded ${
+                isDark ? "bg-white/10" : "bg-gray-100"
               }`}
             />
             <div
-              className={`h-3 w-5/6 rounded bg-white/10 ${
-                !isDark ? "bg-gray-100" : ""
+              className={`h-3 w-5/6 rounded ${
+                isDark ? "bg-white/10" : "bg-gray-100"
               }`}
             />
           </div>
