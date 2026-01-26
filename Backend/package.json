@@ -6,7 +6,9 @@
   "type": "commonjs",
   "scripts": {
     "start": "node index.js",
+    "start:prod": "NODE_ENV=production dotenv_config_path=.env.production node index.js",
     "dev": "nodemon index.js",
+    "dev:prod": "NODE_ENV=production dotenv_config_path=.env.production nodemon index.js",
     "test": "node -c index.js"
   },
   "keywords": [],
