@@ -120,29 +120,36 @@ This baseline is assumed going forward unless a blocking defect appears.
 **Goal:**  
 A fresh machine can run all services using documented environment variables only.
 
-#### Remaining (TODO)
+#### Status
 
-- Create and lock `.env.example` files for:
+✅ **DONE (CLOSED)** — Environment contracts are locked and a fresh-start smoke test has passed.
+
+#### Completed (DONE)
+
+- `.env.example` files created and locked for:
   - Frontend
   - Admin
   - Backend
   - BackgroundServices
-- Perform fresh-start smoke test using docs-only env values
+- Fresh-start smoke test passed using examples-only values:
+  - Backend started and connected successfully
+  - Admin started successfully
+  - Frontend started successfully
+  - BackgroundServices started successfully
+  - Public request submission works
+  - Admin shipments list loads
+  - Admin shipment detail loads
+  - Admin dashboard loads
 
-#### Micro-steps (each = 1 commit)
+#### Locked notes (Phase 5 hygiene)
 
-- **5.1.1 Lock `Frontend/.env.example`**
-- **5.1.2 Lock `Admin/.env.example`**
-- **5.1.3 Lock `Backend/.env.example`**
-- **5.1.4 Lock `BackgroundServices/.env.example`**
-- **5.1.5 Fresh-start smoke test (all services)**
-  - Delete/ignore local `.env` files (use examples only)
-  - Start Backend, Admin, Frontend, BackgroundServices
-  - Verify:
-    - Public request submission works
-    - Admin shipments list loads
-    - Admin shipment detail loads
-    - Admin dashboard loads
+- Dev ports are stabilised and must remain consistent:
+  - Frontend: `5173`
+  - Admin: `3000`
+  - Backend: `8000`
+- Public marketing anchors are stable and must not regress:
+  - Duplicate section IDs removed from child components (Home owns anchors)
+  - `/` hash navigation confirmed working (e.g. `/#repackaging` → How It Works)
 
 ---
 
@@ -317,14 +324,8 @@ Examples:
 
 ## 10) Immediate Next Execution Step (Locked)
 
-We are executing **Phase 5.1**.
+We are executing **Phase 5.2**.
 
 ### Next micro-step (one commit)
 
-- **5.1.1 Lock `Frontend/.env.example`**
-  - Align env var names with `Frontend/src/requestMethods.js`
-  - Include compatibility alias if older code references it
-
-Then proceed to:
-
-- **5.1.2 Lock `Admin/.env.example`**
+- **5.2.1 Audit all Admin + Frontend requests: canonical `/api/v1` only**
