@@ -83,11 +83,10 @@ const envAllowRaw = [
   ...parseOrigins(process.env.ALLOWED_ORIGINS),
 ].filter(Boolean);
 
-const envAllow = isProd
-  ? envAllowRaw.filter((o) => !isLocalOrigin(o))
-  : envAllowRaw;
+// Prod additions: ignore any localhost/127.0.0.1 even if set by mistake
+const envAllowProd = envAllowRaw.filter((o) => !isLocalOrigin(o));
 
-// Explicit dev ports (LOCKED)
+// Dev origins are LOCKED and do not expand from env vars
 const devAllow = [
   "http://localhost:5173",
   "http://localhost:5174",
@@ -98,13 +97,29 @@ const devAllow = [
 ];
 
 // Effective allowlist:
-// - Prod: locked registered domains + explicit env additions (non-local)
-// - Dev: LOCKED dev ports ONLY (env vars do NOT expand dev origins)
+// - Prod: locked registered domains + explicit env additions (non-local only)
+// - Dev: LOCKED dev ports ONLY
 const allowlist = new Set(
-  (isProd ? [...lockedProdAllow, ...envAllow] : [...devAllow])
+  (isProd ? [...lockedProdAllow, ...envAllowProd] : [...devAllow])
     .map((o) => String(o).trim())
     .filter(Boolean),
 );
+
+// Phase 5.2.3: In production, fail fast if allowlist is empty
+// (prevents accidental "open/unknown" CORS behaviour)
+if (isProd && allowlist.size === 0) {
+  console.error(
+    "❌ CORS PROD LOCK: allowlist is empty. Set registered domains and/or ALLOWED_ORIGINS/CLIENT_URL/ADMIN_URL (non-local).",
+  );
+  process.exit(1);
+}
+
+// Phase 5.2.3: In production, warn if someone attempted to include localhost
+if (isProd && envAllowRaw.some((o) => isLocalOrigin(o))) {
+  console.warn(
+    "⚠️ CORS PROD LOCK: localhost/127.0.0.1 origins were provided via env vars and have been ignored.",
+  );
+}
 
 const corsOptions = {
   origin(origin, cb) {
@@ -113,7 +128,10 @@ const corsOptions = {
 
     if (allowlist.has(origin)) return cb(null, true);
 
-    return cb(new Error("CORS blocked"));
+    // Provide a clearer error in dev to aid debugging
+    const err = new Error("CORS blocked");
+    if (!isProd) err.status = 403;
+    return cb(err);
   },
   credentials: true,
 };
