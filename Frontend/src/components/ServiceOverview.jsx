@@ -4,7 +4,6 @@ import { SERVICES } from "../data/servicesCatalog";
 const ServiceOverview = () => {
   return (
     <section
-      id="services"
       className="
         w-full
         bg-[#E5E7EB]
