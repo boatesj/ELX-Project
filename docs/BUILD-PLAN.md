@@ -1,3 +1,5 @@
+# docs/BUILD-PLAN.md
+
 # ELX Progressive Build Plan (Phase 4 → Deployment)
 
 **Project:** Ellcworth Express (ELX-Project)  
@@ -77,7 +79,8 @@ Public site is consistent, conversion-ready, and contract-compliant.
   - `*` (NotFound)
 - Hash navigation allowed **only** on `/`
 - Booking CTA scrolls reliably from all public pages
-- Public lead capture form works end-to-end
+- Public lead capture form works end-to-end:
+  - `POST /api/v1/shipments/public-request`
 - Frontend production build passes
 
 **Status:**  
@@ -89,7 +92,26 @@ No redesigns or content churn allowed unless conversion is broken.
 ## 3) Phase 5 — System Integration Readiness (CURRENT PHASE)
 
 **Outcome:**  
-All apps run together cleanly with stable environment and API contracts.
+All apps run together cleanly with stable environment + API contracts and a reproducible “fresh machine” setup.
+
+---
+
+### 5.0 Verified Running State (Baseline)
+
+**Verified stable (already true):**
+
+- Frontend, Admin, Backend run concurrently with no network/CORS errors
+- Canonical API base confirmed and locked: `/api/v1`
+- Admin shipment endpoints verified:
+  - `GET /api/v1/shipments`
+  - `GET /api/v1/shipments/:id`
+  - `GET /api/v1/shipments/dashboard`
+- Public lead submission works:
+  - `POST /api/v1/shipments/public-request`
+- Frontend production build passes
+- Admin production build passes
+
+This baseline is assumed going forward unless a blocking defect appears.
 
 ---
 
@@ -97,19 +119,6 @@ All apps run together cleanly with stable environment and API contracts.
 
 **Goal:**  
 A fresh machine can run all services using documented environment variables only.
-
-#### Verified (DONE)
-
-- Frontend, Admin, and Backend run concurrently
-- Canonical API base confirmed: `/api/v1`
-- CORS issues resolved in dev
-- Public lead submission works end-to-end
-- Admin dashboard + shipment APIs verified:
-  - `GET /api/v1/shipments`
-  - `GET /api/v1/shipments/:id`
-  - `GET /api/v1/shipments/dashboard`
-- Frontend build passes
-- Admin build passes
 
 #### Remaining (TODO)
 
@@ -122,20 +131,27 @@ A fresh machine can run all services using documented environment variables only
 
 #### Micro-steps (each = 1 commit)
 
-- 5.1.1 Create `.env.example` — Frontend
-- 5.1.2 Create `.env.example` — Admin
-- 5.1.3 Create `.env.example` — Backend
-- 5.1.4 Create `.env.example` — BackgroundServices
-- 5.1.5 Fresh-start smoke test (all services)
+- **5.1.1 Lock `Frontend/.env.example`**
+- **5.1.2 Lock `Admin/.env.example`**
+- **5.1.3 Lock `Backend/.env.example`**
+- **5.1.4 Lock `BackgroundServices/.env.example`**
+- **5.1.5 Fresh-start smoke test (all services)**
+  - Delete/ignore local `.env` files (use examples only)
+  - Start Backend, Admin, Frontend, BackgroundServices
+  - Verify:
+    - Public request submission works
+    - Admin shipments list loads
+    - Admin shipment detail loads
+    - Admin dashboard loads
 
 ---
 
 ### 5.2 API Base + CORS Contract Freeze
 
 **Goal:**  
-API usage and CORS behaviour are locked for dev and prod.
+API usage and CORS behaviour are locked for dev and prod (no accidental regressions).
 
-#### Completed
+#### Completed (already true)
 
 - Canonical API base locked to `/api/v1`
 - Admin quote builder wired to:
@@ -143,24 +159,24 @@ API usage and CORS behaviour are locked for dev and prod.
   - `POST /api/v1/shipments/:id/quote/send`
 - Legacy route usage eliminated from active flows
 
-#### Remaining
+#### Remaining (TODO)
 
-- Explicitly lock dev CORS allowlist
-- Lock prod CORS domains (Frontend + Admin)
+- Lock dev CORS allowlist explicitly (documented)
+- Lock prod CORS domains (Frontend + Admin) explicitly (documented)
 - Document API base + CORS rules in README / env docs
 
 #### Micro-steps (each = 1 commit)
 
-- 5.2.1 Audit all Admin + Frontend requests for `/api/v1/*` only
-- 5.2.2 Lock Backend CORS for dev ports
-- 5.2.3 Lock Backend CORS for prod domains
-- 5.2.4 Document API + CORS contract
-- 5.2.1A Wire public CTAs + deep-link QuoteSection by service (?service=container|roro|air)
-- 5.2.1B Upgrade Customer NewBooking to quote-realistic fields + include Air freight mode
+- **5.2.1 Audit all Admin + Frontend requests: canonical `/api/v1` only**
+- **5.2.2 Lock Backend CORS allowlist for dev ports**
+- **5.2.3 Lock Backend CORS allowlist for prod domains**
+- **5.2.4 Document API + CORS contract (README / env docs)**
+
+> Note (locked): Feature work such as “CTA deep-links”, “new booking field expansions”, etc. belongs in **Phase 6** unless it is blocking the verified baseline above.
 
 ---
 
-### Phase 5 Blocking Defects Log
+### Phase 5 Blocking Defects Log (Only blocking items)
 
 Blocking defects are fixed immediately and logged here.
 
@@ -168,7 +184,7 @@ Blocking defects are fixed immediately and logged here.
   - File: `Admin/src/pages/Shipment.jsx`
   - Issue: JSX parse error in quote builder
   - Status: Build passes
-  - **Pending:** mandatory commit
+  - **Rule:** If this fix is already present on the branch with no staged changes, do **not** force a redundant commit. Only commit when there is an actual diff.
 
 ---
 
@@ -292,21 +308,23 @@ After DONE:
 
 Examples:
 
-- `Phase 5: lock frontend env contract`
+- `Phase 5: lock frontend env example`
+- `Phase 5: lock backend env example`
 - `Phase 6: booking endpoint MVP`
 - `Phase 9: deploy backend to render`
 
 ---
 
-## 10) Immediate Next Execution Step
+## 10) Immediate Next Execution Step (Locked)
 
-**We are in Phase 5.1 → Phase 5.2.**
+We are executing **Phase 5.1**.
 
-### Required next action (must commit):
+### Next micro-step (one commit)
 
-- Stage + commit:
-  - `Admin/src/pages/Shipment.jsx`
+- **5.1.1 Lock `Frontend/.env.example`**
+  - Align env var names with `Frontend/src/requestMethods.js`
+  - Include compatibility alias if older code references it
 
-Suggested commit message:
+Then proceed to:
 
-Then proceed immediately with **Phase 5.1.1** — Frontend `.env.example`.
+- **5.1.2 Lock `Admin/.env.example`**
