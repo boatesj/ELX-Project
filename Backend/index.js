@@ -57,7 +57,7 @@ const apiLimiter = rateLimit({
 });
 
 // --------------------
-// CORS (Phase 5.2.3 — prod domains locked)
+// CORS (Phase 5.2.2 — dev ports locked; Phase 5.2.3 — prod domains locked)
 // --------------------
 const parseOrigins = (val) =>
   String(val || "")
@@ -99,11 +99,11 @@ const devAllow = [
 
 // Effective allowlist:
 // - Prod: locked registered domains + explicit env additions (non-local)
-// - Dev: env + locked dev ports
+// - Dev: LOCKED dev ports ONLY (env vars do NOT expand dev origins)
 const allowlist = new Set(
-  (isProd ? [...lockedProdAllow, ...envAllow] : [...envAllow, ...devAllow])
+  (isProd ? [...lockedProdAllow, ...envAllow] : [...devAllow])
     .map((o) => String(o).trim())
-    .filter(Boolean)
+    .filter(Boolean),
 );
 
 const corsOptions = {
@@ -130,7 +130,7 @@ app.use(express.json({ limit: "1mb" }));
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
-  })
+  }),
 );
 
 app.use(apiLimiter);
@@ -219,7 +219,7 @@ const swaggerSpec = swaggerJsdoc({
 app.use(
   "/docs",
   swaggerUI.serve,
-  swaggerUI.setup(swaggerSpec, { explorer: true })
+  swaggerUI.setup(swaggerSpec, { explorer: true }),
 );
 
 // --------------------
