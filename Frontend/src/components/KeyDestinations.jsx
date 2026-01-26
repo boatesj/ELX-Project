@@ -68,7 +68,6 @@ const DESTINATIONS = [
 const KeyDestinations = () => {
   return (
     <section
-      id="services"
       className="
         w-full
         bg-gradient-to-b from-[#1A2930] via-[#9A9EAB] to-[#F3F4F6]
