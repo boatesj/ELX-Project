@@ -9,7 +9,7 @@ import {
 const BusinessAccountSection = () => {
   return (
     <section
-      id="booking"
+      id="business"
       className="
         w-full
         bg-gradient-to-r from-[#1A2930] via-[#1A2930] to-[#121826]
