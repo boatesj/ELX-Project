@@ -1,9 +1,12 @@
+// Frontend/src/requestMethods.js
 import axios from "axios";
 
-const API_ROOT_URL =
+export const API_V1_PREFIX = "/api/v1";
+
+export const API_ROOT_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
-const API_V1_BASE_URL = `${API_ROOT_URL}/api/v1`;
+const API_V1_BASE_URL = `${API_ROOT_URL}${API_V1_PREFIX}`;
 
 /**
  * Customer auth storage keys
@@ -81,7 +84,7 @@ customerAuthRequest.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // If token expires / is invalid → clear auth + force redirect to login
@@ -101,5 +104,5 @@ customerAuthRequest.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
