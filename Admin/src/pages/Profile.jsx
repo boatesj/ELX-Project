@@ -2,18 +2,6 @@ import { useEffect, useState } from "react";
 import { HiUserCircle, HiLockClosed } from "react-icons/hi2";
 import { rootRequest } from "../requestMethods";
 
-// Uses same token resolution rules as other admin calls:
-const ADMIN_TOKEN_KEY = "elx_admin_token";
-const LEGACY_TOKEN_KEY = "token";
-
-function readAdminToken() {
-  return (
-    localStorage.getItem(ADMIN_TOKEN_KEY) ||
-    localStorage.getItem(LEGACY_TOKEN_KEY) ||
-    null
-  );
-}
-
 const Profile = () => {
   const [profile, setProfile] = useState({
     fullname: "",
@@ -34,27 +22,14 @@ const Profile = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const authHeaders = () => {
-    const token = readAdminToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  };
-
   useEffect(() => {
     const fetchProfile = async () => {
-      try {
-        const token = readAdminToken();
-        if (!token) {
-          setErrorMessage("Missing authentication token.");
-          setLoading(false);
-          return;
-        }
+      setLoading(true);
+      setErrorMessage("");
 
-        const res = await rootRequest.get("/auth/me", {
-          headers: {
-            "Content-Type": "application/json",
-            ...authHeaders(),
-          },
-        });
+      try {
+        // ✅ Token is attached by rootRequest interceptors
+        const res = await rootRequest.get("/auth/me");
 
         const data = res?.data;
 
@@ -65,12 +40,12 @@ const Profile = () => {
         }
 
         setProfile((prev) => ({ ...prev, ...(data?.data || {}) }));
-        setLoading(false);
       } catch (err) {
         console.error("Profile fetch error:", err);
         setErrorMessage(
-          err?.response?.data?.message || "Failed to load profile."
+          err?.response?.data?.message || "Failed to load profile.",
         );
+      } finally {
         setLoading(false);
       }
     };
@@ -84,18 +59,8 @@ const Profile = () => {
     setErrorMessage("");
 
     try {
-      const token = readAdminToken();
-      if (!token) {
-        setErrorMessage("Missing authentication token.");
-        return;
-      }
-
-      const res = await rootRequest.patch("/auth/me", profile, {
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders(),
-        },
-      });
+      // ✅ Token is attached by rootRequest interceptors
+      const res = await rootRequest.patch("/auth/me", profile);
 
       const data = res?.data;
 
@@ -108,7 +73,7 @@ const Profile = () => {
     } catch (err) {
       console.error("Profile update error:", err);
       setErrorMessage(
-        err?.response?.data?.message || "Failed to update profile."
+        err?.response?.data?.message || "Failed to update profile.",
       );
     }
   };
@@ -124,22 +89,11 @@ const Profile = () => {
     }
 
     try {
-      const token = readAdminToken();
-      if (!token) {
-        setErrorMessage("Missing authentication token.");
-        return;
-      }
-
-      const res = await rootRequest.patch(
-        "/auth/me/password",
-        { currentPassword, newPassword },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            ...authHeaders(),
-          },
-        }
-      );
+      // ✅ Token is attached by rootRequest interceptors
+      const res = await rootRequest.patch("/auth/me/password", {
+        currentPassword,
+        newPassword,
+      });
 
       const data = res?.data;
 
@@ -155,7 +109,7 @@ const Profile = () => {
     } catch (err) {
       console.error("Password update error:", err);
       setErrorMessage(
-        err?.response?.data?.message || "Failed to update password."
+        err?.response?.data?.message || "Failed to update password.",
       );
     }
   };
