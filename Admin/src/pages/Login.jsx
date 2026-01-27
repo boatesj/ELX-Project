@@ -1,15 +1,14 @@
+// Admin/src/pages/Login.jsx
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FaShip, FaTruck, FaUserShield } from "react-icons/fa";
-import { rootRequest } from "../requestMethods";
-
-// ✅ Admin-only storage keys (avoid collisions with Customer Portal)
-const ADMIN_TOKEN_KEY = "elx_admin_token";
-const ADMIN_USER_KEY = "elx_admin_user";
-
-// Legacy keys (keep for backwards compatibility with existing authRequest usage)
-const LEGACY_TOKEN_KEY = "token";
-const LEGACY_USER_KEY = "user";
+import {
+  rootRequest,
+  ADMIN_TOKEN_KEY,
+  ADMIN_USER_KEY,
+  LEGACY_TOKEN_KEY,
+  LEGACY_USER_KEY,
+} from "../requestMethods";
 
 // Prevent open-redirects (only allow internal paths)
 function safeRedirect(value, fallback = "/shipments") {
@@ -52,31 +51,21 @@ const Login = () => {
         return;
       }
 
+      const userPayload = {
+        id: u?._id || u?.id,
+        fullname: u?.fullname,
+        email: u?.email,
+        role: u?.role,
+        status: u?.status,
+      };
+
       // ✅ Store admin-scoped keys
       localStorage.setItem(ADMIN_TOKEN_KEY, token);
-      localStorage.setItem(
-        ADMIN_USER_KEY,
-        JSON.stringify({
-          id: u?._id || u?.id,
-          fullname: u?.fullname,
-          email: u?.email,
-          role: u?.role,
-          status: u?.status,
-        })
-      );
+      localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(userPayload));
 
       // ✅ Also store legacy keys so existing authRequest keeps working today
       localStorage.setItem(LEGACY_TOKEN_KEY, token);
-      localStorage.setItem(
-        LEGACY_USER_KEY,
-        JSON.stringify({
-          id: u?._id || u?.id,
-          fullname: u?.fullname,
-          email: u?.email,
-          role: u?.role,
-          status: u?.status,
-        })
-      );
+      localStorage.setItem(LEGACY_USER_KEY, JSON.stringify(userPayload));
 
       navigate(redirectTo, { replace: true });
     } catch (err) {
