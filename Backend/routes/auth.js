@@ -53,7 +53,7 @@ router.post(
   "/customer/login",
   validateLogin,
   handleValidation,
-  customerLoginUser
+  customerLoginUser,
 );
 
 /** GET /auth/me (protected) */
@@ -127,6 +127,14 @@ router.patch("/me/password", requireAuth, async (req, res) => {
         .json({ ok: false, message: "Both passwords are required" });
     }
 
+    // Minimal sanity check (keep it simple, avoid policy debates)
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({
+        ok: false,
+        message: "New password must be at least 8 characters long",
+      });
+    }
+
     const user = await User.findById(req.user.id).select("+password");
     if (!user)
       return res.status(404).json({ ok: false, message: "User not found" });
@@ -137,7 +145,11 @@ router.patch("/me/password", requireAuth, async (req, res) => {
         .status(400)
         .json({ ok: false, message: "Current password is incorrect" });
 
-    user.password = newPassword; // triggers hashing via pre-save hook
+    // ✅ Explicitly hash here (do not depend on a pre-save hook)
+    const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS) || 10;
+    const hashed = await bcrypt.hash(String(newPassword), saltRounds);
+
+    user.password = hashed;
     await user.save();
 
     return res.json({
