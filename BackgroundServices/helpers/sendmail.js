@@ -1,40 +1,111 @@
 const nodemailer = require("nodemailer");
+const path = require("path");
 const dotenv = require("dotenv");
-dotenv.config();
 
-/**
- * Prepare the Gmail carrier (mail transporter).
- */
-function prepareDispatch() {
-  const config = {
-    service: "gmail",
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    auth: {
-      user: process.env.EMAIL,
-      pass: process.env.PASSWORD,
-    },
-  };
+// Deterministic env loading (avoid CWD surprises)
+dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
+dotenv.config({ path: path.resolve(__dirname, "..", "..", ".env") });
 
-  return nodemailer.createTransport(config);
+function hasSmtpCreds() {
+  return Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
+}
+
+function hasGmailCreds() {
+  return Boolean(process.env.EMAIL && process.env.PASSWORD);
 }
 
 /**
- * Dispatch an email shipment (using Gmail only at this stage).
+ * Prepare the mail transporter.
+ *
+ * Supported modes:
+ * - MAIL_TRANSPORT=console  -> logs emails to console (dev-safe)
+ * - MAIL_TRANSPORT=smtp     -> uses SMTP_* keys (preferred, works for Gmail + IONOS)
+ * - default (dev): console if missing creds, otherwise smtp/gmail depending on keys
+ */
+function prepareDispatch() {
+  const mode = String(process.env.MAIL_TRANSPORT || "")
+    .toLowerCase()
+    .trim();
+
+  // Explicit console transport
+  if (mode === "console") {
+    return nodemailer.createTransport({
+      name: "console-transport",
+      streamTransport: true,
+      newline: "unix",
+      buffer: true,
+    });
+  }
+
+  // Preferred: SMTP transport (works for Gmail/IONOS/etc)
+  if (mode === "smtp" || hasSmtpCreds()) {
+    const host = process.env.SMTP_HOST || "smtp.gmail.com";
+    const port = Number(process.env.SMTP_PORT || 587);
+    const secure = port === 465; // 465 = implicit TLS, 587 = STARTTLS
+    return nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+  }
+
+  // Legacy Gmail config (your current env key names)
+  if (hasGmailCreds()) {
+    return nodemailer.createTransport({
+      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      requireTLS: true,
+      auth: {
+        user: process.env.EMAIL,
+        pass: process.env.PASSWORD,
+      },
+    });
+  }
+
+  // Dev-safe default: don't crash scheduled jobs if creds aren't set
+  return nodemailer.createTransport({
+    name: "console-transport-default",
+    streamTransport: true,
+    newline: "unix",
+    buffer: true,
+  });
+}
+
+/**
+ * Dispatch an email.
+ * If using console transport, it will log the raw message instead of sending.
  */
 const dispatchMail = async (messageOptions) => {
+  const transporter = prepareDispatch();
+
   try {
-    const transporter = prepareDispatch();
+    // Verify connection only for real SMTP/Gmail (console transport doesn't need it)
+    const isConsole =
+      transporter.options &&
+      (transporter.options.streamTransport ||
+        transporter.options.name?.includes("console"));
 
-    // Verify connection
-    await transporter.verify();
-    console.log("✅ Gmail carrier is ready to dispatch messages");
+    if (!isConsole) {
+      await transporter.verify();
+      console.log("✅ Mail transporter is ready");
+    } else {
+      console.log("📝 Mail transporter = console (no SMTP creds configured)");
+    }
 
-    // Send email
     const info = await transporter.sendMail(messageOptions);
-    console.log("📩 Message dispatched:", info.response);
+
+    // For console transport, print the message preview
+    if (info && info.message) {
+      console.log("📩 Email (console):\n", info.message.toString());
+    } else {
+      console.log("📩 Message dispatched:", info.response || "(no response)");
+    }
 
     return info;
   } catch (err) {
