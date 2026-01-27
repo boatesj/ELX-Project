@@ -6,8 +6,8 @@ const {
   registerUser,
   loginUser,
   customerLoginUser, // ✅ new
-  requestPasswordReset,
-  resetPassword,
+  requestPasswordReset, // NOTE: this verifies a reset token (expects req.params.token)
+  resetPassword, // consumes token + sets new password
 } = require("../controllers/auth");
 const { validateLogin, validateRegister } = require("../utils/validators");
 const { handleValidation } = require("../middleware/validate");
@@ -127,7 +127,6 @@ router.patch("/me/password", requireAuth, async (req, res) => {
         .json({ ok: false, message: "Both passwords are required" });
     }
 
-    // Minimal sanity check (keep it simple, avoid policy debates)
     if (String(newPassword).length < 8) {
       return res.status(400).json({
         ok: false,
@@ -145,11 +144,9 @@ router.patch("/me/password", requireAuth, async (req, res) => {
         .status(400)
         .json({ ok: false, message: "Current password is incorrect" });
 
-    // ✅ Explicitly hash here (do not depend on a pre-save hook)
-    const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS) || 10;
-    const hashed = await bcrypt.hash(String(newPassword), saltRounds);
-
-    user.password = hashed;
+    // ✅ IMPORTANT: Do NOT hash here.
+    // Your User model hashes in a pre('save') hook.
+    user.password = String(newPassword);
     await user.save();
 
     return res.json({
@@ -166,7 +163,16 @@ router.patch("/me/password", requireAuth, async (req, res) => {
   }
 });
 
-/** Password reset flow */
+/**
+ * Password reset flow (matches controllers/auth.js)
+ *
+ * IMPORTANT:
+ * - requestPasswordReset = VERIFY RESET TOKEN (expects :token)
+ * - resetPassword = SET NEW PASSWORD (expects :token + body.password)
+ *
+ * If you want a "request reset email by email" endpoint, we must implement
+ * a NEW controller (e.g. startPasswordReset) that issues jwt.sign(...) and sends mail.
+ */
 router.get("/reset-password/:token", requestPasswordReset);
 router.post("/reset-password/:token", resetPassword);
 
