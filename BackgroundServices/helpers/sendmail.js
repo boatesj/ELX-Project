@@ -10,7 +10,8 @@ function hasSmtpCreds() {
   return Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
 }
 
-function hasGmailCreds() {
+// Legacy Gmail env (older helper used EMAIL/PASSWORD)
+function hasLegacyGmailCreds() {
   return Boolean(process.env.EMAIL && process.env.PASSWORD);
 }
 
@@ -18,9 +19,13 @@ function hasGmailCreds() {
  * Prepare the mail transporter.
  *
  * Supported modes:
- * - MAIL_TRANSPORT=console  -> logs emails to console (dev-safe)
- * - MAIL_TRANSPORT=smtp     -> uses SMTP_* keys (preferred, works for Gmail + IONOS)
- * - default (dev): console if missing creds, otherwise smtp/gmail depending on keys
+ * - MAIL_TRANSPORT=console -> logs emails to console (dev-safe)
+ * - MAIL_TRANSPORT=smtp    -> uses SMTP_* keys (preferred, works for Gmail + IONOS)
+ *
+ * Default:
+ * - If SMTP creds exist -> smtp
+ * - Else if legacy Gmail creds exist -> gmail
+ * - Else -> console (dev-safe)
  */
 function prepareDispatch() {
   const mode = String(process.env.MAIL_TRANSPORT || "")
@@ -42,6 +47,7 @@ function prepareDispatch() {
     const host = process.env.SMTP_HOST || "smtp.gmail.com";
     const port = Number(process.env.SMTP_PORT || 587);
     const secure = port === 465; // 465 = implicit TLS, 587 = STARTTLS
+
     return nodemailer.createTransport({
       host,
       port,
@@ -53,8 +59,8 @@ function prepareDispatch() {
     });
   }
 
-  // Legacy Gmail config (your current env key names)
-  if (hasGmailCreds()) {
+  // Legacy Gmail transport (kept for compatibility; not recommended going forward)
+  if (hasLegacyGmailCreds()) {
     return nodemailer.createTransport({
       service: "gmail",
       host: "smtp.gmail.com",
@@ -85,7 +91,6 @@ const dispatchMail = async (messageOptions) => {
   const transporter = prepareDispatch();
 
   try {
-    // Verify connection only for real SMTP/Gmail (console transport doesn't need it)
     const isConsole =
       transporter.options &&
       (transporter.options.streamTransport ||
