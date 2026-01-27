@@ -1,19 +1,19 @@
 // Frontend/src/components/ContentBlockPanel.jsx
 import { useEffect, useMemo, useState } from "react";
+import { API_ROOT_URL, API_V1_PREFIX } from "../requestMethods";
 
-function buildApiUrl(path) {
-  const originBase =
-    import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "";
-  const origin = String(originBase || "").replace(/\/+$/, "");
-  const prefixRaw = import.meta.env.VITE_API_PREFIX || "/api/v1";
-  const prefix = String(prefixRaw || "/api/v1")
+function buildPublicContentUrl(key) {
+  const base = String(API_ROOT_URL || "").replace(/\/+$/, "");
+  const prefix = String(API_V1_PREFIX || "/api/v1")
     .trim()
     .replace(/\/+$/, "");
-  const p = String(path || "").startsWith("/") ? path : `/${path}`;
+  const k = encodeURIComponent(
+    String(key || "")
+      .trim()
+      .toLowerCase(),
+  );
 
-  // If origin is missing, fall back to relative (useful in some proxy setups)
-  if (!origin) return `${prefix}${p}`;
-  return `${origin}${prefix}${p}`;
+  return `${base}${prefix}/content/${k}`;
 }
 
 function formatUpdated(iso) {
@@ -73,7 +73,7 @@ export default function ContentBlockPanel({
       }
 
       try {
-        const url = buildApiUrl(`/content/${encodeURIComponent(key)}`);
+        const url = buildPublicContentUrl(key);
         const res = await fetch(url, { method: "GET" });
 
         if (!alive) return;
