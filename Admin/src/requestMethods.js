@@ -4,14 +4,23 @@ import axios from "axios";
 export const API_V1_PREFIX = "/api/v1";
 export const ADMIN_API_PREFIX = "/admin";
 
-export const API_ROOT_URL =
+const API_ROOT_URL_RAW =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
+// Normalise to prevent double slashes in composed URLs
+export const API_ROOT_URL = String(API_ROOT_URL_RAW || "").replace(/\/+$/, "");
 
 export const API_V1_BASE_URL = `${API_ROOT_URL}${API_V1_PREFIX}`;
 
-export const ADMIN_API_BASE_URL =
+const ADMIN_API_BASE_URL_RAW =
   import.meta.env.VITE_ADMIN_API_BASE_URL ||
   `${API_ROOT_URL}${ADMIN_API_PREFIX}`;
+
+// Normalise too (covers env values like http://localhost:8000/admin/)
+export const ADMIN_API_BASE_URL = String(ADMIN_API_BASE_URL_RAW || "").replace(
+  /\/+$/,
+  "",
+);
 
 // ✅ Admin-scoped keys (preferred)
 export const ADMIN_TOKEN_KEY = "elx_admin_token";

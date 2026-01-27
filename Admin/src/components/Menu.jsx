@@ -1,3 +1,4 @@
+// Admin/src/components/Menu.jsx
 import {
   FaShippingFast,
   FaHome,
@@ -12,11 +13,10 @@ import {
   FaCalendarAlt,
   FaFileAlt,
 } from "react-icons/fa";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
+import { clearAdminAuth } from "../requestMethods";
 
 function Menu({ onNavigate }) {
-  const navigate = useNavigate();
-
   const baseItem =
     "flex items-center gap-3 px-4 py-2.5 rounded-r-full text-[14px] font-medium cursor-pointer transition-colors duration-150";
   const inactiveItem = "text-[#D7D7D7] hover:text-[#FFA500] hover:bg-white/5";
@@ -27,11 +27,14 @@ function Menu({ onNavigate }) {
     `${baseItem} ${isActive ? activeItem : inactiveItem}`;
 
   const handleLogout = () => {
-    // Clear any auth tokens we might have used
-    localStorage.removeItem("token");
-    localStorage.removeItem("ellcworth_token");
-    onNavigate?.(); // close drawer if we're on mobile
-    navigate("/login");
+    // ✅ Clear ALL admin auth keys (new + legacy) in one place
+    clearAdminAuth();
+
+    // Close drawer if we're on mobile
+    onNavigate?.();
+
+    // ✅ Hard redirect guarantees state resets
+    window.location.href = "/login";
   };
 
   // Close drawer after clicking a nav link (safe no-op on desktop)
