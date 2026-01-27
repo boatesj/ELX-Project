@@ -1,12 +1,17 @@
+// Admin/src/requestMethods.js
 import axios from "axios";
 
-const API_ROOT_URL =
+export const API_V1_PREFIX = "/api/v1";
+export const ADMIN_API_PREFIX = "/admin";
+
+export const API_ROOT_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
-const API_V1_BASE_URL = `${API_ROOT_URL}/api/v1`;
+export const API_V1_BASE_URL = `${API_ROOT_URL}${API_V1_PREFIX}`;
 
-const ADMIN_API_BASE_URL =
-  import.meta.env.VITE_ADMIN_API_BASE_URL || "http://localhost:8000/admin";
+export const ADMIN_API_BASE_URL =
+  import.meta.env.VITE_ADMIN_API_BASE_URL ||
+  `${API_ROOT_URL}${ADMIN_API_PREFIX}`;
 
 // ✅ Admin-scoped keys (preferred)
 export const ADMIN_TOKEN_KEY = "elx_admin_token";
@@ -113,13 +118,13 @@ const attachToken = (config) => {
 
 // ✅ Attach token to ALL protected clients (including rootRequest for /auth/me)
 authRequest.interceptors.request.use(attachToken, (error) =>
-  Promise.reject(error)
+  Promise.reject(error),
 );
 adminRequest.interceptors.request.use(attachToken, (error) =>
-  Promise.reject(error)
+  Promise.reject(error),
 );
 rootRequest.interceptors.request.use(attachToken, (error) =>
-  Promise.reject(error)
+  Promise.reject(error),
 );
 
 /**
