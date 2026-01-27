@@ -1,16 +1,16 @@
+// Admin/src/components/Navbar.jsx
 import { Link, NavLink, useNavigate } from "react-router-dom";
+import { clearAdminAuth } from "../requestMethods";
 
 function Navbar({ onMenuClick }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    // ✅ Standardised auth key is "token"
-    localStorage.removeItem("token");
+    // ✅ Clear ALL admin auth keys (new + legacy) in one place
+    clearAdminAuth();
 
-    // ✅ Optional cleanup for any legacy key you used before
-    localStorage.removeItem("ellcworth_token");
-
-    navigate("/login");
+    // ✅ Hard redirect guarantees state resets even if app cached anything in memory
+    window.location.href = "/login";
   };
 
   const baseLink =
