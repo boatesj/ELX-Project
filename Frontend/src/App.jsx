@@ -8,6 +8,7 @@ import NotFound from "@/pages/public/NotFound.jsx";
 import Services from "@/pages/public/Services.jsx";
 import ServiceDetail from "@/pages/public/ServiceDetail.jsx";
 import CustomerLogin from "@/pages/auth/CustomerLogin.jsx";
+import ResetPassword from "@/pages/auth/ResetPassword.jsx";
 
 // Customer
 import MyShipments from "@/pages/customer/MyShipments.jsx";
@@ -29,6 +30,9 @@ const router = createBrowserRouter([
 
       // Auth
       { path: "login", element: <CustomerLogin /> },
+
+      // ✅ Password set/reset via welcome email token
+      { path: "reset-password/:token", element: <ResetPassword /> },
 
       // Customer (protected)
       {
