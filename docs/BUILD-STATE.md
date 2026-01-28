@@ -151,4 +151,6 @@ Then proceed to lock `.env.example` files to complete Phase 5.1.
 
 -Fix applied: BackgroundServices Shipment mode enum aligned with Backend to prevent validation errors when saving notifications.
 
+- Welcome email verified via real user creation (Postman), SMTP dev - FIXED
+
 Date: 28 Jan 2026.
