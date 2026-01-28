@@ -10,7 +10,7 @@ const TrackingEventSchema = new mongoose.Schema(
     notes: { type: String, trim: true },
     eventAt: { type: Date, default: Date.now },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // Uploaded documents (BOL, ID, Invoice, etc.)
@@ -20,7 +20,7 @@ const DocumentSchema = new mongoose.Schema(
     url: { type: String, required: true, trim: true },
     uploadedAt: { type: Date, default: Date.now },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // ------------------ MAIN SCHEMA ------------------
@@ -67,9 +67,18 @@ const ShipmentSchema = new mongoose.Schema(
     },
 
     // Transport mode
+    // ✅ Align with Backend to avoid validation errors when BackgroundServices updates shipments
     mode: {
       type: String,
-      enum: ["RoRo", "Container"],
+      enum: [
+        "RoRo",
+        "Container",
+        "Air",
+        "LCL",
+        "Documents",
+        "Pallets",
+        "Parcels",
+      ],
       default: "RoRo",
     },
 
@@ -136,7 +145,7 @@ const ShipmentSchema = new mongoose.Schema(
     // Logical deletion (for soft deletes)
     isDeleted: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // ------------------ INDEXES ------------------
