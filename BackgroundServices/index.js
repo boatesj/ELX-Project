@@ -1,15 +1,24 @@
-const express = require("express");
-const app = express();
+// BackgroundServices/index.js
+
+const path = require("path");
 const dotenv = require("dotenv");
+
+// Load env FIRST (before importing any modules that read process.env at require-time)
+dotenv.config({ path: path.resolve(__dirname, ".env") });
+
+// Optional fallback: repo-root .env (harmless if not present)
+dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
+
+const express = require("express");
 const cron = require("node-cron");
 const mongoose = require("mongoose");
 
-// Import all email jobs
+const app = express();
+
+// Import all email jobs (now safe because env is already loaded)
 const { sendWelcomeMail } = require("./EmailService/WelcomeEmail");
 const { PendingShipmentEmail } = require("./EmailService/PendingShipment");
 const { DeliveredShipmentEmail } = require("./EmailService/DeliveredShipment");
-
-dotenv.config();
 
 // --- DB CONNECTION ---
 const DB = process.env.MONGO_URI || process.env.DB;
