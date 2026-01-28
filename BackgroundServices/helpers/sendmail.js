@@ -1,122 +1,130 @@
-const nodemailer = require("nodemailer");
-const path = require("path");
-const dotenv = require("dotenv");
-
-// Deterministic env loading (avoid CWD surprises)
-dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
-dotenv.config({ path: path.resolve(__dirname, "..", "..", ".env") });
-
-function hasSmtpCreds() {
-  return Boolean(process.env.SMTP_USER && process.env.SMTP_PASS);
-}
-
-// Legacy Gmail env (older helper used EMAIL/PASSWORD)
-function hasLegacyGmailCreds() {
-  return Boolean(process.env.EMAIL && process.env.PASSWORD);
-}
-
 /**
- * Prepare the mail transporter.
+ * BackgroundServices/helpers/sendmail.js
  *
- * Supported modes:
- * - MAIL_TRANSPORT=console -> logs emails to console (dev-safe)
- * - MAIL_TRANSPORT=smtp    -> uses SMTP_* keys (preferred, works for Gmail + IONOS)
+ * LOCKED DESIGN:
+ * - SMTP_* variables are PRIMARY
+ * - MAIL_TRANSPORT controls behaviour: "smtp" | "console"
+ * - Dev uses Gmail via SMTP
+ * - Production switches to IONOS via env vars only (no code changes)
+ * - Legacy EMAIL/PASSWORD allowed only as fallback safety net
  *
- * Default:
- * - If SMTP creds exist -> smtp
- * - Else if legacy Gmail creds exist -> gmail
- * - Else -> console (dev-safe)
+ * Compatibility:
+ * - Exports dispatchMail() for existing callers (WelcomeEmail.js etc.)
+ * - dispatchMail signature accepts { from, to, subject, html, text }
  */
-function prepareDispatch() {
-  const mode = String(process.env.MAIL_TRANSPORT || "")
-    .toLowerCase()
-    .trim();
 
-  // Explicit console transport
-  if (mode === "console") {
+const nodemailer = require("nodemailer");
+
+const {
+  MAIL_TRANSPORT = "smtp",
+
+  SMTP_HOST,
+  SMTP_PORT,
+  SMTP_USER,
+  SMTP_PASS,
+  SMTP_SECURE,
+
+  // Legacy fallback (safety only)
+  EMAIL,
+  PASSWORD,
+} = process.env;
+
+function createSmtpTransporter() {
+  // Primary: generic SMTP_* (IONOS-ready)
+  if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS) {
     return nodemailer.createTransport({
-      name: "console-transport",
-      streamTransport: true,
-      newline: "unix",
-      buffer: true,
-    });
-  }
-
-  // Preferred: SMTP transport (works for Gmail/IONOS/etc)
-  if (mode === "smtp" || hasSmtpCreds()) {
-    const host = process.env.SMTP_HOST || "smtp.gmail.com";
-    const port = Number(process.env.SMTP_PORT || 587);
-    const secure = port === 465; // 465 = implicit TLS, 587 = STARTTLS
-
-    return nodemailer.createTransport({
-      host,
-      port,
-      secure,
+      host: SMTP_HOST,
+      port: Number(SMTP_PORT),
+      secure: String(SMTP_SECURE).toLowerCase() === "true", // true for 465, false for 587
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: SMTP_USER,
+        pass: SMTP_PASS,
       },
     });
   }
 
-  // Legacy Gmail transport (kept for compatibility; not recommended going forward)
-  if (hasLegacyGmailCreds()) {
+  // Fallback: legacy Gmail service config (NOT recommended for prod)
+  if (EMAIL && PASSWORD) {
+    console.warn(
+      "[sendmail] Using legacy EMAIL/PASSWORD fallback (safety only; avoid in prod)",
+    );
+
     return nodemailer.createTransport({
       service: "gmail",
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
-      requireTLS: true,
       auth: {
-        user: process.env.EMAIL,
-        pass: process.env.PASSWORD,
+        user: EMAIL,
+        pass: PASSWORD,
       },
     });
   }
 
-  // Dev-safe default: don't crash scheduled jobs if creds aren't set
-  return nodemailer.createTransport({
-    name: "console-transport-default",
-    streamTransport: true,
-    newline: "unix",
-    buffer: true,
-  });
+  throw new Error(
+    "SMTP configuration missing. Set SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS (primary) or legacy EMAIL/PASSWORD (fallback).",
+  );
+}
+
+function createConsoleTransporter() {
+  return {
+    sendMail: async (options) => {
+      console.log("📧 [MAIL:CONSOLE]");
+      console.log("From:", options.from);
+      console.log("To:", options.to);
+      console.log("Subject:", options.subject);
+      console.log("Body:", options.html || options.text);
+      return { messageId: "console-transport" };
+    },
+  };
+}
+
+function getTransporter() {
+  if (MAIL_TRANSPORT === "console") {
+    console.log("[sendmail] MAIL_TRANSPORT=console");
+    return createConsoleTransporter();
+  }
+
+  console.log("[sendmail] MAIL_TRANSPORT=smtp");
+  return createSmtpTransporter();
 }
 
 /**
- * Dispatch an email.
- * If using console transport, it will log the raw message instead of sending.
+ * Core send function (preferred internal name)
  */
-const dispatchMail = async (messageOptions) => {
-  const transporter = prepareDispatch();
+async function sendMail({ from, to, subject, html, text }) {
+  if (!to) throw new Error("sendMail: 'to' is required");
+  if (!subject) throw new Error("sendMail: 'subject' is required");
+
+  const transporter = getTransporter();
+
+  const defaultFrom =
+    SMTP_USER || EMAIL || process.env.EMAIL_FROM || "no-reply@ellcworth.com";
+
+  const messageOptions = {
+    from: from || defaultFrom,
+    to,
+    subject,
+    html,
+    text,
+  };
 
   try {
-    const isConsole =
-      transporter.options &&
-      (transporter.options.streamTransport ||
-        transporter.options.name?.includes("console"));
-
-    if (!isConsole) {
-      await transporter.verify();
-      console.log("✅ Mail transporter is ready");
-    } else {
-      console.log("📝 Mail transporter = console (no SMTP creds configured)");
-    }
-
     const info = await transporter.sendMail(messageOptions);
-
-    // For console transport, print the message preview
-    if (info && info.message) {
-      console.log("📩 Email (console):\n", info.message.toString());
-    } else {
-      console.log("📩 Message dispatched:", info.response || "(no response)");
-    }
-
+    console.log("[sendmail] Message sent:", info.messageId || info);
     return info;
   } catch (err) {
-    console.error("❌ Error dispatching mail:", err);
+    console.error("[sendmail] Failed to send email:", err.message);
     throw err;
   }
-};
+}
 
-module.exports = { dispatchMail };
+/**
+ * Backward-compatible alias used by existing jobs.
+ * Keeps Phase 5 forward-only (no refactor of job files).
+ */
+async function dispatchMail(options) {
+  return sendMail(options);
+}
+
+module.exports = {
+  sendMail,
+  dispatchMail,
+};
