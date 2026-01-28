@@ -144,3 +144,11 @@ Public UI is now **frozen** per plan.
 Suggested commit message:
 
 Then proceed to lock `.env.example` files to complete Phase 5.1.
+
+-SMTP-first mail verified (dev): MAIL*TRANSPORT=smtp with SMTP*\* variables; successful send observed.
+
+-BackgroundServices cron jobs verified: Welcome (no pending users), PendingShipment (sent + marked notified), DeliveredShipment (none).
+
+-Fix applied: BackgroundServices Shipment mode enum aligned with Backend to prevent validation errors when saving notifications.
+
+Date: 28 Jan 2026.
