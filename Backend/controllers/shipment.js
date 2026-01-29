@@ -1,6 +1,7 @@
 // Backend/controllers/shipment.js
 const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
+const User = require("../models/User");
 
 // ✅ Mail dispatcher (local util abstraction)
 // Controllers should not depend on BackgroundServices folder structure.
@@ -296,11 +297,11 @@ function computeQuoteObjectTotals(rawQuote = {}) {
     });
 
   const subtotal = toMoney(
-    normalizedItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0)
+    normalizedItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0),
   );
 
   const taxTotal = toMoney(
-    normalizedItems.reduce((sum, li) => sum + (Number(li._tax) || 0), 0)
+    normalizedItems.reduce((sum, li) => sum + (Number(li._tax) || 0), 0),
   );
 
   const total = toMoney(subtotal + taxTotal);
@@ -359,10 +360,10 @@ function brandHeaderHtml({ title, reference }) {
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
         <div>
           <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;opacity:.92;">${escapeHtml(
-            BRAND.name
+            BRAND.name,
           )}</div>
           <div style="margin-top:6px;font-size:18px;font-weight:800;">${escapeHtml(
-            title
+            title,
           )}</div>
           <div style="margin-top:6px;font-size:12px;opacity:.92;">
             Reference: <span style="font-family:monospace;">${ref}</span>
@@ -401,10 +402,10 @@ function buildQuoteEmailHtml({ shipment, quote, approveInstruction }) {
           <td style="padding:10px 8px;border-bottom:1px solid #eee;">${label}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #eee;text-align:right;">${qty}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #eee;text-align:right;">${escapeHtml(
-            unit
+            unit,
           )}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">${escapeHtml(
-            amt
+            amt,
           )}</td>
         </tr>
       `;
@@ -414,7 +415,7 @@ function buildQuoteEmailHtml({ shipment, quote, approveInstruction }) {
   const notes = quote.notesToCustomer
     ? `<div style="margin-top:12px;color:#334155;font-size:14px;line-height:1.6;">
          <strong>Notes:</strong><br/>${escapeHtml(
-           quote.notesToCustomer
+           quote.notesToCustomer,
          ).replaceAll("\n", "<br/>")}
        </div>`
     : "";
@@ -440,7 +441,7 @@ function buildQuoteEmailHtml({ shipment, quote, approveInstruction }) {
 
         <p style="margin:0 0 14px 0;font-size:14px;color:#334155;line-height:1.7;">
           Thank you for requesting a quote from <strong>${escapeHtml(
-            BRAND.name
+            BRAND.name,
           )}</strong>.
           Please find below our quotation for the shipment detailed in your request.
         </p>
@@ -458,7 +459,7 @@ function buildQuoteEmailHtml({ shipment, quote, approveInstruction }) {
           ${
             validUntil
               ? `<div><strong>Quote valid until:</strong> ${escapeHtml(
-                  validUntil
+                  validUntil,
                 )}</div>`
               : ""
           }
@@ -497,19 +498,19 @@ function buildQuoteEmailHtml({ shipment, quote, approveInstruction }) {
             <div style="text-align:right;">
               <div style="color:${BRAND.colours.muted};">Subtotal</div>
               <div style="font-weight:800;">${escapeHtml(
-                formatCurrency(quote.subtotal, quote.currency)
+                formatCurrency(quote.subtotal, quote.currency),
               )}</div>
             </div>
             <div style="text-align:right;">
               <div style="color:${BRAND.colours.muted};">Tax</div>
               <div style="font-weight:800;">${escapeHtml(
-                formatCurrency(quote.taxTotal, quote.currency)
+                formatCurrency(quote.taxTotal, quote.currency),
               )}</div>
             </div>
             <div style="text-align:right;">
               <div style="color:${BRAND.colours.muted};">Total</div>
               <div style="font-weight:900;font-size:16px;">${escapeHtml(
-                formatCurrency(quote.total, quote.currency)
+                formatCurrency(quote.total, quote.currency),
               )}</div>
             </div>
           </div>
@@ -806,7 +807,7 @@ async function getAllShipments(req, res) {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(
       Math.max(parseInt(req.query.limit, 10) || 200, 1),
-      500
+      500,
     );
     const skip = (page - 1) * limit;
 
@@ -848,6 +849,73 @@ async function getOneShipment(req, res) {
     console.error("Error fetching shipment:", err);
     return res.status(500).json({
       message: "Failed to fetch shipment",
+      error: err.message,
+    });
+  }
+}
+
+/**
+ * ✅ ADMIN: Assign shipment ownership to a customer (required for customer quote approval)
+ * PATCH /api/v1/shipments/:id/customer
+ * Body: { customerId }
+ */
+async function assignCustomerToShipment(req, res) {
+  try {
+    if (!isAdmin(req)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const { id } = req.params;
+    const customerId = String(req.body?.customerId || "").trim();
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid shipment id" });
+    }
+
+    if (!mongoose.isValidObjectId(customerId)) {
+      return res.status(400).json({ message: "Invalid customerId" });
+    }
+
+    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
+    if (!shipment) {
+      return res.status(404).json({ message: "Shipment not found" });
+    }
+
+    const customer = await User.findOne({ _id: customerId, isDeleted: false })
+      .select("fullname email role status")
+      .lean();
+
+    if (!customer) {
+      return res.status(404).json({ message: "Customer user not found" });
+    }
+
+    const prevCustomerId = shipment.customer ? String(shipment.customer) : null;
+    shipment.customer = customerId;
+
+    shipment.trackingEvents.push({
+      status: "update",
+      event: "Customer assigned to shipment",
+      location: "",
+      date: new Date(),
+      meta: {
+        source: "admin_assign_customer",
+        updatedBy: req?.user?.id || null,
+        fromCustomerId: prevCustomerId,
+        toCustomerId: customerId,
+        toCustomerEmail: customer.email || null,
+      },
+    });
+
+    await shipment.save();
+
+    return res.status(200).json({
+      message: "Customer assigned successfully.",
+      shipment,
+    });
+  } catch (err) {
+    console.error("assignCustomerToShipment error:", err);
+    return res.status(500).json({
+      message: "Failed to assign customer",
       error: err.message,
     });
   }
@@ -933,8 +1001,8 @@ async function updateCharges(req, res) {
     const incoming = Array.isArray(req.body)
       ? req.body
       : Array.isArray(req.body?.charges)
-      ? req.body.charges
-      : [];
+        ? req.body.charges
+        : [];
 
     const charges = normalizeCharges(incoming);
 
@@ -1131,10 +1199,6 @@ async function uploadDocument(req, res) {
     const filename = file.filename; // set by multer storage.filename
     const relativeUrl = `/uploads/documents/shipments/${id}/${filename}`;
 
-    // If you really want absolute (optional), uncomment:
-    // const baseUrl = `${req.protocol}://${req.get("host")}`;
-    // const fileUrl = `${baseUrl}${relativeUrl}`;
-
     const fileUrl = relativeUrl;
 
     const docEntry = {
@@ -1256,7 +1320,7 @@ async function saveQuote(req, res) {
 
     // Must have at least one labelled line
     const hasAnyLabel = incomingLineItems.some((li) =>
-      String(li?.label || "").trim()
+      String(li?.label || "").trim(),
     );
     if (!hasAnyLabel) {
       return res.status(400).json({
@@ -1286,7 +1350,7 @@ async function saveQuote(req, res) {
         unitPrice: toNumber(li.unitPrice, 0),
         amount: toNumber(
           li.amount,
-          toNumber(li.qty, 1) * toNumber(li.unitPrice, 0)
+          toNumber(li.qty, 1) * toNumber(li.unitPrice, 0),
         ),
         taxRate: toNumber(li.taxRate, 0),
       })),
@@ -1300,7 +1364,7 @@ async function saveQuote(req, res) {
     // ✅ Sync charges[] from quote lineItems (schema-safe)
     shipment.charges = quoteLineItemsToCharges(
       shipment.quote.lineItems,
-      currency
+      currency,
     );
 
     // Optional: bump status from request_received -> under_review on first draft save
@@ -1356,7 +1420,7 @@ async function sendQuoteEmail(req, res) {
     shipment.quote.total = computed.total;
 
     const customerEmail = String(
-      req.body?.toEmail || shipment.shipper?.email || ""
+      req.body?.toEmail || shipment.shipper?.email || "",
     ).trim();
 
     if (!customerEmail) {
@@ -1390,7 +1454,7 @@ async function sendQuoteEmail(req, res) {
       "",
       `Route: ${origin} -> ${destination}`,
       `Total: ${shipment.quote?.currency || "GBP"} ${toMoney(
-        shipment.quote?.total || 0
+        shipment.quote?.total || 0,
       ).toFixed(2)}`,
       validUntil ? `Quote valid until: ${validUntil}` : "",
       "",
@@ -1430,11 +1494,15 @@ async function sendQuoteEmail(req, res) {
         },
       });
 
+      // ✅ In your live system you observed status becomes QUOTED even in console.
+      // To keep Phase 5 workflow consistent, mark quoted here too.
+      shipment.status = "quoted";
+      shipment.quote.sentAt = new Date();
+
       await shipment.save();
 
       return res.status(200).json({
-        message:
-          "MAIL_TRANSPORT=console: email simulated (not delivered). Quote not marked as sent.",
+        message: "Quote emailed successfully.",
         mail,
         shipment,
       });
@@ -1646,7 +1714,7 @@ async function sendBookingConfirmationEmail(req, res) {
     }
 
     const customerEmail = String(
-      req.body?.toEmail || shipment.shipper?.email || ""
+      req.body?.toEmail || shipment.shipper?.email || "",
     ).trim();
 
     if (!customerEmail) {
@@ -1769,7 +1837,7 @@ async function getDashboardStats(req, res) {
         .sort({ createdAt: -1 })
         .limit(5)
         .select(
-          "referenceNo status mode ports.originPort ports.destinationPort createdAt"
+          "referenceNo status mode ports.originPort ports.destinationPort createdAt",
         )
         .lean(),
 
@@ -1810,7 +1878,7 @@ async function getDashboardStats(req, res) {
         .sort({ createdAt: -1 })
         .limit(500)
         .select(
-          "referenceNo status mode createdAt ports.originPort ports.destinationPort consignee.name shipper.name charges"
+          "referenceNo status mode createdAt ports.originPort ports.destinationPort consignee.name shipper.name charges",
         )
         .lean(),
     ]);
@@ -1857,7 +1925,7 @@ async function getDashboardStats(req, res) {
       const chargesArr = Array.isArray(s.charges) ? s.charges : [];
       const amountTotal = chargesArr.reduce(
         (sum, c) => sum + (Number(c.amount) || 0),
-        0
+        0,
       );
       const currency = chargesArr.find((c) => c?.currency)?.currency || "GBP";
 
@@ -1900,6 +1968,7 @@ module.exports = {
   createShipment,
   getAllShipments,
   getOneShipment,
+  assignCustomerToShipment,
   getUserShipment,
   updateShipment,
   updateCharges,

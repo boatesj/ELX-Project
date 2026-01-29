@@ -33,6 +33,9 @@ const {
   // ✅ NEW: customer quote decisions
   approveQuoteAsCustomer,
   requestQuoteChangesAsCustomer,
+
+  // ✅ NEW: admin assigns shipment owner (customer)
+  assignCustomerToShipment,
 } = require("../controllers/shipment");
 
 const { requireAuth, requireRole } = require("../middleware/auth");
@@ -88,7 +91,7 @@ const storage = multer.diskStorage({
       "uploads",
       "documents",
       "shipments",
-      shipmentId
+      shipmentId,
     );
     fs.mkdirSync(dest, { recursive: true });
     cb(null, dest);
@@ -111,7 +114,10 @@ const upload = multer({
     const type = String(file.mimetype || "");
     if (!type || !ALLOWED_MIME.has(type)) {
       return cb(
-        new multer.MulterError("LIMIT_UNEXPECTED_FILE", "Unsupported file type")
+        new multer.MulterError(
+          "LIMIT_UNEXPECTED_FILE",
+          "Unsupported file type",
+        ),
       );
     }
     return cb(null, true);
@@ -143,7 +149,7 @@ function multerDocUpload() {
               err.field === "Unsupported file type"
                 ? "Unsupported file type. Allowed: PDF, PNG, JPG, DOC/DOCX, XLS/XLSX, CSV, TXT."
                 : `Unexpected field. File key must be one of: ${DOC_FILE_KEYS.join(
-                    ", "
+                    ", ",
                   )}. (Preferred: "file")`;
 
             return res.status(400).json({
@@ -167,7 +173,7 @@ function multerDocUpload() {
       // Normalize to req.file for controller compatibility
       const files = req.files || {};
       const available = DOC_FILE_KEYS.filter(
-        (k) => Array.isArray(files[k]) && files[k][0]
+        (k) => Array.isArray(files[k]) && files[k][0],
       );
 
       // ✅ Enforce exactly one uploaded file even if client sends multiple keys
@@ -214,7 +220,7 @@ router.post(
   "/public-request",
   validateShipmentCreate,
   handleValidation,
-  createPublicLeadShipment
+  createPublicLeadShipment,
 );
 
 /**
@@ -226,7 +232,7 @@ router.post(
   requireAuth,
   validateShipmentCreate,
   handleValidation,
-  createShipment
+  createShipment,
 );
 
 /**
@@ -271,7 +277,7 @@ router.get("/track/:ref", async (req, res) => {
           "trackingEvents.meta",
           "createdAt",
           "updatedAt",
-        ].join(" ")
+        ].join(" "),
       )
       .lean();
 
@@ -311,7 +317,23 @@ router.get(
   requireAuth,
   validateObjectIdParam("id"),
   handleValidation,
-  getOneShipment
+  getOneShipment,
+);
+
+/**
+ * ✅ NEW
+ * @route   PATCH /shipments/:id/customer
+ * @desc    Assign shipment customer (ownership) for quote approval workflow
+ * @access  Admin only
+ * JSON: { customerId }
+ */
+router.patch(
+  "/:id/customer",
+  requireAuth,
+  requireRole("admin"),
+  validateObjectIdParam("id"),
+  handleValidation,
+  assignCustomerToShipment,
 );
 
 /**
@@ -324,7 +346,7 @@ router.patch(
   requireRole("admin"),
   validateObjectIdParam("id"),
   handleValidation,
-  updateCharges
+  updateCharges,
 );
 
 /**
@@ -337,7 +359,7 @@ router.patch(
   requireRole("admin"),
   validateObjectIdParam("id"),
   handleValidation,
-  saveQuote
+  saveQuote,
 );
 
 /**
@@ -350,7 +372,7 @@ router.post(
   requireRole("admin"),
   validateObjectIdParam("id"),
   handleValidation,
-  sendQuoteEmail
+  sendQuoteEmail,
 );
 
 /**
@@ -363,7 +385,7 @@ router.post(
   requireRole("customer"),
   validateObjectIdParam("id"),
   handleValidation,
-  approveQuoteAsCustomer
+  approveQuoteAsCustomer,
 );
 
 /**
@@ -376,7 +398,7 @@ router.post(
   requireRole("customer"),
   validateObjectIdParam("id"),
   handleValidation,
-  requestQuoteChangesAsCustomer
+  requestQuoteChangesAsCustomer,
 );
 
 /**
@@ -389,7 +411,7 @@ router.post(
   requireRole("admin"),
   validateObjectIdParam("id"),
   handleValidation,
-  sendBookingConfirmationEmail
+  sendBookingConfirmationEmail,
 );
 
 /**
@@ -401,7 +423,7 @@ router.put(
   requireAuth,
   validateObjectIdParam("id"),
   handleValidation,
-  updateShipment
+  updateShipment,
 );
 
 /**
@@ -413,7 +435,7 @@ router.delete(
   requireAuth,
   validateObjectIdParam("id"),
   handleValidation,
-  deleteShipment
+  deleteShipment,
 );
 
 /**
@@ -427,7 +449,7 @@ router.post(
   validateObjectIdParam("id"),
   validateTrackingEvent,
   handleValidation,
-  addTrackingEvent
+  addTrackingEvent,
 );
 
 /**
@@ -443,7 +465,7 @@ router.post(
   validateObjectIdParam("id"),
   validateDocument,
   handleValidation,
-  addDocument
+  addDocument,
 );
 
 /**
@@ -466,7 +488,7 @@ router.post(
   handleValidation,
   multerDocUpload(),
   requireDocUploadFields,
-  uploadDocument
+  uploadDocument,
 );
 
 /**
@@ -479,7 +501,7 @@ router.patch(
   requireRole("admin"),
   validateObjectIdParam("id"),
   handleValidation,
-  updateStatus
+  updateStatus,
 );
 
 module.exports = router;
