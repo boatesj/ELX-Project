@@ -76,6 +76,11 @@ const Shipment = () => {
   const [quoteMsg, setQuoteMsg] = useState("");
   const [statusActing, setStatusActing] = useState(false);
 
+  // Booking confirmation action state
+  const [bookingSending, setBookingSending] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+  const [bookingMsg, setBookingMsg] = useState("");
+
   // Mobile section toggles
   const [openService, setOpenService] = useState(true);
   const [openVessel, setOpenVessel] = useState(false);
@@ -309,10 +314,10 @@ const Shipment = () => {
       } catch (error) {
         console.error(
           "❌ Error fetching shipment:",
-          error.response?.data || error
+          error.response?.data || error,
         );
         setErrorMsg(
-          error.response?.data?.message || "Could not load shipment details."
+          error.response?.data?.message || "Could not load shipment details.",
         );
       } finally {
         setLoading(false);
@@ -342,10 +347,10 @@ const Shipment = () => {
     } catch (error) {
       console.error(
         "❌ Error updating shipment:",
-        error.response?.data || error
+        error.response?.data || error,
       );
       setErrorMsg(
-        error.response?.data?.message || "Failed to update this shipment."
+        error.response?.data?.message || "Failed to update this shipment.",
       );
     } finally {
       setSaving(false);
@@ -381,7 +386,7 @@ const Shipment = () => {
 
       setQuoteMsg(
         opts?.successMsg ||
-          `Status updated to ${formatStatusLabel(nextStatus)}.`
+          `Status updated to ${formatStatusLabel(nextStatus)}.`,
       );
     } catch (err) {
       console.error("❌ Error updating status:", err?.response?.data || err);
@@ -392,7 +397,7 @@ const Shipment = () => {
 
       setQuoteError(
         err?.response?.data?.message ||
-          "Failed to update status. Please try again."
+          "Failed to update status. Please try again.",
       );
     } finally {
       setStatusActing(false);
@@ -433,7 +438,7 @@ const Shipment = () => {
             const pct = Math.round((evt.loaded * 100) / total);
             setUploadProgress(pct);
           },
-        }
+        },
       );
 
       const docs = extractDocumentsFromResponse(res);
@@ -451,10 +456,10 @@ const Shipment = () => {
     } catch (error) {
       console.error(
         "❌ Error uploading document:",
-        error.response?.data || error
+        error.response?.data || error,
       );
       setDocError(
-        error.response?.data?.message || "Failed to upload document."
+        error.response?.data?.message || "Failed to upload document.",
       );
     } finally {
       setUploadingDoc(false);
@@ -548,7 +553,7 @@ const Shipment = () => {
 
       const res = await authRequest.patch(
         `/shipments/${shipmentId}/quote`,
-        payload
+        payload,
       );
       const updated = extractShipmentFromResponse(res);
 
@@ -564,7 +569,7 @@ const Shipment = () => {
     } catch (err) {
       console.error("❌ Error saving quote:", err?.response?.data || err);
       setQuoteError(
-        err?.response?.data?.message || "Failed to save quote draft."
+        err?.response?.data?.message || "Failed to save quote draft.",
       );
       return false;
     } finally {
@@ -596,7 +601,7 @@ const Shipment = () => {
         `/shipments/${shipmentId}/quote/send`,
         {
           // optional override: toEmail
-        }
+        },
       );
 
       const updated = extractShipmentFromResponse(res);
@@ -607,14 +612,54 @@ const Shipment = () => {
       setForm((p) => ({ ...p, status: newStatus }));
       setQuoteMsg(
         `Quote emailed successfully. Status set to ${String(
-          newStatus
-        ).toUpperCase()}.`
+          newStatus,
+        ).toUpperCase()}.`,
       );
     } catch (err) {
       console.error("❌ Error sending quote:", err?.response?.data || err);
       setQuoteError(err?.response?.data?.message || "Failed to email quote.");
     } finally {
       setQuoteSending(false);
+    }
+  };
+
+  // ✅ Booking confirmation (REAL workflow endpoint)
+  const handleSendBookingConfirmation = async () => {
+    if (!shipmentId) return;
+
+    setBookingMsg("");
+    setBookingError("");
+    setQuoteMsg("");
+    setQuoteError("");
+
+    const ok = window.confirm(
+      "Send booking confirmation email now?\n\nNOTE: If MAIL_TRANSPORT=console, this will simulate sending and will NOT mark as booked.",
+    );
+    if (!ok) return;
+
+    try {
+      setBookingSending(true);
+
+      const res = await authRequest.post(
+        `/shipments/${shipmentId}/booking/confirm`,
+        {},
+      );
+
+      const updated = extractShipmentFromResponse(res);
+      if (updated) {
+        setShipment((prev) => ({ ...(prev || {}), ...(updated || {}) }));
+        if (updated?.status) setForm((p) => ({ ...p, status: updated.status }));
+      }
+
+      const apiMsg = res?.data?.message || "Booking confirmation processed.";
+      setBookingMsg(apiMsg);
+    } catch (err) {
+      console.error("❌ Booking confirm failed:", err?.response?.data || err);
+      setBookingError(
+        err?.response?.data?.message || "Failed to send booking confirmation.",
+      );
+    } finally {
+      setBookingSending(false);
     }
   };
 
@@ -636,7 +681,7 @@ const Shipment = () => {
 
   // ---------------- Derived quote display helpers ----------------
   const quoteCurrency = String(
-    quoteForm?.currency || shipment?.quote?.currency || "GBP"
+    quoteForm?.currency || shipment?.quote?.currency || "GBP",
   );
 
   const quoteVersion =
@@ -724,7 +769,7 @@ const Shipment = () => {
                   Quote:{" "}
                   {formatMoney(
                     shipment.quote.total,
-                    shipment.quote.currency || "GBP"
+                    shipment.quote.currency || "GBP",
                   )}
                 </span>
               ) : null}
@@ -735,7 +780,7 @@ const Shipment = () => {
         <div className="flex flex-col sm:items-end gap-2">
           <span
             className={`px-3 py-1 rounded-full text-xs font-semibold w-fit ${getStatusClasses(
-              form.status
+              form.status,
             )}`}
           >
             {formatStatusLabel(form.status)}
@@ -1276,11 +1321,11 @@ const Shipment = () => {
                           {formatMoney(
                             (toMoney(
                               li.amount ||
-                                Number(li.qty || 1) * Number(li.unitPrice || 0)
+                                Number(li.qty || 1) * Number(li.unitPrice || 0),
                             ) *
                               Number(li.taxRate || 0)) /
                               100,
-                            quoteCurrency
+                            quoteCurrency,
                           )}
                         </span>
                         <button
@@ -1376,7 +1421,7 @@ const Shipment = () => {
                     type="button"
                     onClick={() => {
                       const ok = window.confirm(
-                        "Mark this quote as customer approved?"
+                        "Mark this quote as customer approved?",
                       );
                       if (!ok) return;
                       quickSetStatus("customer_approved", {
@@ -1397,25 +1442,23 @@ const Shipment = () => {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      const ok = window.confirm(
-                        "Confirm booking now? This will move the shipment to BOOKED."
-                      );
-                      if (!ok) return;
-                      quickSetStatus("booked", {
-                        successMsg:
-                          "Booking confirmed. Shipment moved to BOOKED.",
-                      });
-                    }}
-                    disabled={!canConfirmBooking}
+                    onClick={handleSendBookingConfirmation}
+                    disabled={
+                      !canConfirmBooking ||
+                      bookingSending ||
+                      quoteSending ||
+                      quoteSaving ||
+                      statusActing ||
+                      saving
+                    }
                     className="inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition disabled:opacity-50 disabled:cursor-not-allowed"
                     title={
                       canConfirmBooking
-                        ? "Confirm booking and move to operational pipeline"
+                        ? "Send booking confirmation email and move to BOOKED (SMTP only)"
                         : "Available after customer approval"
                     }
                   >
-                    {statusActing ? "Updating..." : "Confirm booking"}
+                    {bookingSending ? "Sending..." : "Confirm booking"}
                   </button>
                 </div>
 
@@ -1461,6 +1504,18 @@ const Shipment = () => {
               {quoteMsg ? (
                 <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-md">
                   {quoteMsg}
+                </p>
+              ) : null}
+
+              {bookingError ? (
+                <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md">
+                  {bookingError}
+                </p>
+              ) : null}
+
+              {bookingMsg ? (
+                <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-md">
+                  {bookingMsg}
                 </p>
               ) : null}
 
@@ -1571,11 +1626,11 @@ const Shipment = () => {
                           {formatMoney(
                             (toMoney(
                               li.amount ||
-                                Number(li.qty || 1) * Number(li.unitPrice || 0)
+                                Number(li.qty || 1) * Number(li.unitPrice || 0),
                             ) *
                               Number(li.taxRate || 0)) /
                               100,
-                            quoteCurrency
+                            quoteCurrency,
                           )}
                         </span>
 
@@ -1683,7 +1738,7 @@ const Shipment = () => {
                     type="button"
                     onClick={() => {
                       const ok = window.confirm(
-                        "Mark this quote as customer approved?"
+                        "Mark this quote as customer approved?",
                       );
                       if (!ok) return;
                       quickSetStatus("customer_approved", {
@@ -1704,25 +1759,23 @@ const Shipment = () => {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      const ok = window.confirm(
-                        "Confirm booking now? This will move the shipment to BOOKED."
-                      );
-                      if (!ok) return;
-                      quickSetStatus("booked", {
-                        successMsg:
-                          "Booking confirmed. Shipment moved to BOOKED.",
-                      });
-                    }}
-                    disabled={!canConfirmBooking}
+                    onClick={handleSendBookingConfirmation}
+                    disabled={
+                      !canConfirmBooking ||
+                      bookingSending ||
+                      quoteSending ||
+                      quoteSaving ||
+                      statusActing ||
+                      saving
+                    }
                     className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition disabled:opacity-50 disabled:cursor-not-allowed"
                     title={
                       canConfirmBooking
-                        ? "Confirm booking and move to operational pipeline"
+                        ? "Send booking confirmation email and move to BOOKED (SMTP only)"
                         : "Available after customer approval"
                     }
                   >
-                    {statusActing ? "Updating..." : "Confirm booking"}
+                    {bookingSending ? "Sending..." : "Confirm booking"}
                   </button>
                 </div>
 
