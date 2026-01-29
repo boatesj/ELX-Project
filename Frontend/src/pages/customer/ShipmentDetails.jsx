@@ -1,4 +1,4 @@
-// Frontend/src/pages/shipments/ShipmentDetail.jsx
+// Frontend/src/pages/customer/ShipmentDetails.jsx
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -21,6 +21,12 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { customerAuthRequest, CUSTOMER_TOKEN_KEY } from "@/requestMethods";
 
 const SHIPMENT_PATH = (id) => `/shipments/${id}`;
+
+// Backend root for serving /uploads/*
+// (same env var used by requestMethods.js)
+const API_ROOT_URL_RAW =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_ROOT_URL = String(API_ROOT_URL_RAW || "").replace(/\/+$/, "");
 
 const getStatusClasses = (status) => {
   const s = String(status || "").toLowerCase();
@@ -175,8 +181,25 @@ function canActOnDoc(doc) {
   const url = String(doc?.fileUrl || "").trim();
   return url.length > 0;
 }
+
+/**
+ * FIX: backend serves /uploads/*, so relative /uploads URLs
+ * must be prefixed with the API root (backend host).
+ */
 function getDocUrl(doc) {
-  return String(doc?.fileUrl || "").trim();
+  const raw = String(doc?.fileUrl || "").trim();
+  if (!raw) return "";
+
+  // Absolute already
+  if (/^https?:\/\//i.test(raw)) return raw;
+
+  // Backend-hosted uploads
+  if (raw.startsWith("/uploads/")) {
+    return `${API_ROOT_URL}${raw}`;
+  }
+
+  // Leave other relative URLs as-is
+  return raw;
 }
 
 function pickShipment(payload) {
