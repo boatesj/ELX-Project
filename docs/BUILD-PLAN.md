@@ -195,6 +195,72 @@ Blocking defects are fixed immediately and logged here.
 
 ---
 
+✅ Completed (newly locked)
+
+- Password Reset UX + Brand Integration
+
+- Tailwind v4 configuration confirmed and fixed (@config enforced)
+
+- Ellcworth corporate colour tokens (elx.\*) now correctly loaded
+
+- Reset Password page redesigned:
+
+- Width clamped and visually contained
+
+- Modern, warm corporate background (no blue overlay)
+
+- Clear, readable reset card
+
+- Accessible show / hide password toggles
+
+- Subtle, non-intrusive marketing CTA added
+
+- Footer brand line updated to corporate accent colour
+
+- No backend logic changes
+
+- No routing changes
+
+Status: ✔ COMPLETE
+Commit:
+Phase 5: Modern branded ResetPassword page with subtle marketing CTA
+
+📍 Current Progress Line
+
+Phase 5 — System Integration Readiness
+➡️ Password Reset UX polish COMPLETE
+➡️ Proceeding to Admin / Customer flow integrity review
+
+🧭 NEXT FOCUS (Phase 5 continuation)
+
+Admin & Customer Workflow Integrity
+
+Priority items to address next (in order):
+
+User status lifecycle
+
+Clarify and enforce meaning of pending / active
+
+Who can update status and via which UI
+
+Separate Admin vs Customer handling
+
+Shipment quote → approval → status transitions
+
+Verify customer request flow
+
+Verify admin quotation flow
+
+Restore correct state progression and visibility
+
+Admin navigation audit
+
+Ensure all Admin menu items are functional
+
+Remove dead routes / legacy paths
+
+Confirm API paths align with /api/v1/\* contract
+
 ## 4) Phase 6 — Customer Booking MVP (END-TO-END)
 
 **Outcome:**  
