@@ -1,3 +1,5 @@
+// Frontend/src/pages/shipments/ShipmentDetail.jsx
+
 import { useEffect, useMemo, useState } from "react";
 import {
   FaArrowLeft,
@@ -12,6 +14,8 @@ import {
   FaEye,
   FaInfoCircle,
   FaEdit,
+  FaPoundSign,
+  FaPaperPlane,
 } from "react-icons/fa";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { customerAuthRequest, CUSTOMER_TOKEN_KEY } from "@/requestMethods";
@@ -25,7 +29,7 @@ const getStatusClasses = (status) => {
   }
   if (
     ["at_origin_yard", "loaded", "sailed", "in transit", "in_transit"].includes(
-      s
+      s,
     )
   ) {
     return "bg-[#9A9EAB]/20 text-[#1A2930] border border-[#9A9EAB]/60";
@@ -185,6 +189,19 @@ function pickShipment(payload) {
   return null;
 }
 
+function formatCurrency(amount, currency = "GBP") {
+  const n = Number(amount || 0);
+  try {
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+    }).format(n);
+  } catch {
+    return `${currency} ${n.toFixed(2)}`;
+  }
+}
+
 const ShipmentFeedback = ({ reference }) => {
   const [message, setMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -275,22 +292,22 @@ const MilestoneRow = ({ item, isLast }) => {
   const titleColor = done
     ? "text-[#1A2930]"
     : current
-    ? "text-[#1A2930]"
-    : "text-slate-700";
+      ? "text-[#1A2930]"
+      : "text-slate-700";
 
   const metaColor = done
     ? "text-slate-600"
     : current
-    ? "text-slate-600"
-    : "text-slate-500";
+      ? "text-slate-600"
+      : "text-slate-500";
 
   const badge = done ? "Completed" : current ? "In progress" : "Upcoming";
 
   const badgeClass = done
     ? "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20"
     : current
-    ? "bg-[#FFA500]/10 text-[#A16207] border border-[#FFA500]/25"
-    : "bg-slate-500/10 text-slate-700 border border-slate-500/20";
+      ? "bg-[#FFA500]/10 text-[#A16207] border border-[#FFA500]/25"
+      : "bg-slate-500/10 text-slate-700 border border-slate-500/20";
 
   const smallTag = item?.badge ? String(item.badge).trim() : "";
 
@@ -359,6 +376,11 @@ const ShipmentDetails = () => {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState("");
 
+  // Quote actions UI state
+  const [quoteMsg, setQuoteMsg] = useState("");
+  const [quoteActionMsg, setQuoteActionMsg] = useState("");
+  const [quoteSubmitting, setQuoteSubmitting] = useState(false);
+
   useEffect(() => {
     const onStorage = () => {
       const local = localStorage.getItem(CUSTOMER_TOKEN_KEY);
@@ -368,6 +390,13 @@ const ShipmentDetails = () => {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
+
+  const fetchShipment = async (signal) => {
+    const res = await customerAuthRequest.get(SHIPMENT_PATH(id), { signal });
+    const payload = res?.data ?? {};
+    const picked = pickShipment(payload);
+    return picked;
+  };
 
   useEffect(() => {
     if (!hasToken) {
@@ -385,12 +414,7 @@ const ShipmentDetails = () => {
       setErrMsg("");
 
       try {
-        const res = await customerAuthRequest.get(SHIPMENT_PATH(id), {
-          signal: ac.signal,
-        });
-
-        const payload = res?.data ?? {};
-        const picked = pickShipment(payload);
+        const picked = await fetchShipment(ac.signal);
 
         if (!picked) {
           setShipment(null);
@@ -417,7 +441,7 @@ const ShipmentDetails = () => {
 
         setShipment(null);
         setErrMsg(
-          "We couldn’t load this shipment right now. Please go back and try again."
+          "We couldn’t load this shipment right now. Please go back and try again.",
         );
         console.error("ShipmentDetails fetch error:", e);
       } finally {
@@ -430,7 +454,7 @@ const ShipmentDetails = () => {
 
   const timeline = useMemo(
     () => (shipment ? buildTimeline(shipment) : []),
-    [shipment]
+    [shipment],
   );
 
   const reference = shipment?.referenceNo || "—";
@@ -450,6 +474,15 @@ const ShipmentDetails = () => {
     ? shipment.documents
     : [];
 
+  const quote = shipment?.quote || null;
+  const quoteCurrency = quote?.currency || "GBP";
+  const quoteLineItems = Array.isArray(quote?.lineItems) ? quote.lineItems : [];
+  const hasQuote = Boolean(quote && quoteLineItems.length > 0);
+  const canApprove = hasQuote && String(status).toLowerCase() === "quoted";
+  const isApproved = String(status).toLowerCase() === "customer_approved";
+  const changesRequested =
+    String(status).toLowerCase() === "customer_requested_changes";
+
   const handleViewDoc = (doc) => {
     const url = getDocUrl(doc);
     if (!url) return;
@@ -460,6 +493,63 @@ const ShipmentDetails = () => {
     const url = getDocUrl(doc);
     if (!url) return;
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const onApproveQuote = async () => {
+    if (!canApprove || quoteSubmitting) return;
+
+    setQuoteSubmitting(true);
+    setQuoteActionMsg("");
+
+    try {
+      await customerAuthRequest.post(`/shipments/${id}/quote/approve`, {});
+      setQuoteActionMsg(
+        "Thank you — your approval has been sent to Ellcworth.",
+      );
+      const refreshed = await fetchShipment();
+      if (refreshed) setShipment(refreshed);
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message ||
+        "We couldn’t submit your approval. Please try again.";
+      setQuoteActionMsg(msg);
+      console.error("Approve quote failed:", e);
+    } finally {
+      setQuoteSubmitting(false);
+    }
+  };
+
+  const onRequestChanges = async () => {
+    if (!hasQuote || quoteSubmitting) return;
+
+    const message = String(quoteMsg || "").trim();
+    if (!message) {
+      setQuoteActionMsg("Please type a short message describing the changes.");
+      return;
+    }
+
+    setQuoteSubmitting(true);
+    setQuoteActionMsg("");
+
+    try {
+      await customerAuthRequest.post(`/shipments/${id}/quote/request-changes`, {
+        message,
+      });
+      setQuoteActionMsg(
+        "Thanks — your change request has been sent to Ellcworth.",
+      );
+      setQuoteMsg("");
+      const refreshed = await fetchShipment();
+      if (refreshed) setShipment(refreshed);
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message ||
+        "We couldn’t submit your request. Please try again.";
+      setQuoteActionMsg(msg);
+      console.error("Request changes failed:", e);
+    } finally {
+      setQuoteSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -562,6 +652,228 @@ const ShipmentDetails = () => {
           </div>
 
           <div className="px-5 py-5 space-y-6">
+            {/* Quote (NEW) */}
+            <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E5E7EB]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB]">
+                    Quote
+                  </p>
+                  <p className="text-xs md:text-sm text-slate-600 mt-1 max-w-2xl">
+                    If a quote has been issued, you can review it here and
+                    approve to proceed, or request adjustments.
+                  </p>
+                </div>
+
+                <span className="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#1A2930]/5 text-[#1A2930] border border-[#1A2930]/10 inline-flex items-center gap-2">
+                  <FaPoundSign />
+                  {hasQuote
+                    ? formatCurrency(quote?.total || 0, quoteCurrency)
+                    : "No quote yet"}
+                </span>
+              </div>
+
+              {!hasQuote ? (
+                <div className="mt-4 bg-white rounded-lg border border-dashed border-[#D1D5DB] p-4 text-xs md:text-sm text-slate-600">
+                  Your quote is not yet available. Please check back soon, or
+                  contact Ellcworth Operations if you need urgency.
+                </div>
+              ) : (
+                <div className="mt-4 space-y-4">
+                  <div className="bg-white rounded-lg border border-[#E5E7EB] overflow-hidden">
+                    <div className="px-4 py-3 border-b border-[#E5E7EB] flex items-center justify-between">
+                      <div className="text-sm font-semibold text-[#1A2930]">
+                        Quote summary
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        Currency: {quoteCurrency}
+                      </div>
+                    </div>
+
+                    <div className="p-4">
+                      <div className="divide-y divide-[#E5E7EB] border border-[#E5E7EB] rounded-lg overflow-hidden">
+                        {quoteLineItems.map((li, idx) => {
+                          const label =
+                            String(li?.label || "").trim() || "Item";
+                          const qty = Number(li?.qty ?? 1);
+                          const unitPrice = Number(li?.unitPrice ?? 0);
+                          const amount = Number(li?.amount ?? qty * unitPrice);
+
+                          return (
+                            <div
+                              key={`${label}-${idx}`}
+                              className="px-4 py-3 flex items-center justify-between gap-4 bg-white"
+                            >
+                              <div>
+                                <div className="text-sm font-semibold text-[#1A2930]">
+                                  {label}
+                                </div>
+                                <div className="text-[11px] text-slate-500 mt-0.5">
+                                  Qty: {Number.isFinite(qty) ? qty : 1} · Unit:{" "}
+                                  {formatCurrency(unitPrice, quoteCurrency)}
+                                </div>
+                              </div>
+                              <div className="text-sm font-bold text-[#1A2930]">
+                                {formatCurrency(amount, quoteCurrency)}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="mt-4 grid gap-2 md:grid-cols-3">
+                        <div className="rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] p-3">
+                          <div className="text-[11px] text-slate-500 uppercase tracking-[0.16em]">
+                            Subtotal
+                          </div>
+                          <div className="text-sm font-bold text-[#1A2930] mt-1">
+                            {formatCurrency(
+                              quote?.subtotal || 0,
+                              quoteCurrency,
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] p-3">
+                          <div className="text-[11px] text-slate-500 uppercase tracking-[0.16em]">
+                            Tax
+                          </div>
+                          <div className="text-sm font-bold text-[#1A2930] mt-1">
+                            {formatCurrency(
+                              quote?.taxTotal || 0,
+                              quoteCurrency,
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded-lg border border-[#FFA500]/30 bg-[#FFA500]/10 p-3">
+                          <div className="text-[11px] text-[#A16207] uppercase tracking-[0.16em]">
+                            Total
+                          </div>
+                          <div className="text-sm font-extrabold text-[#1A2930] mt-1">
+                            {formatCurrency(quote?.total || 0, quoteCurrency)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {quote?.notesToCustomer ? (
+                        <div className="mt-4 rounded-lg border border-[#E5E7EB] bg-white p-3">
+                          <div className="text-[11px] text-slate-500 uppercase tracking-[0.16em]">
+                            Notes
+                          </div>
+                          <div className="mt-1 text-sm text-slate-700 whitespace-pre-wrap">
+                            {String(quote.notesToCustomer)}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="bg-white rounded-lg border border-[#E5E7EB] p-4">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-[#1A2930]">
+                          Approve or request changes
+                        </div>
+                        <div className="text-xs text-slate-600 mt-1">
+                          Status:{" "}
+                          <span className="font-semibold">
+                            {String(status)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={onApproveQuote}
+                          disabled={!canApprove || quoteSubmitting}
+                          className={`
+                            inline-flex items-center gap-2
+                            px-4 py-2 rounded-full text-[12px] font-semibold
+                            border transition
+                            ${
+                              !canApprove || quoteSubmitting
+                                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                                : "bg-[#1A2930] text-white border-[#1A2930] hover:bg-[#FFA500] hover:text-[#1A2930] hover:border-[#FFA500]"
+                            }
+                          `}
+                          title={
+                            !canApprove
+                              ? isApproved
+                                ? "Quote already approved"
+                                : "Approve is available once the quote is issued (status: quoted)"
+                              : "Approve quote"
+                          }
+                        >
+                          <FaCheckCircle />
+                          {quoteSubmitting ? "Submitting…" : "Approve quote"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {(isApproved || changesRequested) && (
+                      <div className="mt-3 text-xs text-slate-600">
+                        {isApproved
+                          ? "You have approved this quote. Ellcworth will send a booking confirmation shortly."
+                          : "You have requested changes to this quote. Ellcworth will review and respond."}
+                      </div>
+                    )}
+
+                    <div className="mt-4">
+                      <label className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB]">
+                        Request changes (message to Ellcworth)
+                      </label>
+                      <textarea
+                        value={quoteMsg}
+                        onChange={(e) => setQuoteMsg(e.target.value)}
+                        rows={3}
+                        maxLength={800}
+                        placeholder="Briefly describe what you’d like adjusted (e.g., timing, scope, or line items)..."
+                        className="mt-2 w-full text-sm border border-[#D1D5DB] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500] bg-white"
+                        disabled={quoteSubmitting}
+                      />
+
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <span className="text-[11px] text-slate-400">
+                          Reference: {reference}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={onRequestChanges}
+                          disabled={!hasQuote || quoteSubmitting}
+                          className={`
+                            inline-flex items-center gap-2
+                            px-4 py-2 rounded-full text-[12px] font-semibold
+                            border transition
+                            ${
+                              !hasQuote || quoteSubmitting
+                                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                                : "bg-white text-[#1A2930] border-[#1A2930]/40 hover:border-[#FFA500] hover:text-[#FFA500]"
+                            }
+                          `}
+                          title={
+                            !hasQuote
+                              ? "Quote not available yet"
+                              : "Request changes"
+                          }
+                        >
+                          <FaPaperPlane />
+                          {quoteSubmitting ? "Sending…" : "Request changes"}
+                        </button>
+                      </div>
+
+                      {quoteActionMsg ? (
+                        <div className="mt-3 text-xs text-emerald-700">
+                          {quoteActionMsg}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Tracking */}
             <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E5E7EB]">
               <div className="flex items-start justify-between gap-4">
