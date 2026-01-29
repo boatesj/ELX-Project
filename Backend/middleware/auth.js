@@ -5,11 +5,11 @@ const jwt = require("jsonwebtoken");
  * Normalize role strings from token payload / DB values.
  *
  * Phase 5 integrity rule:
- * - DB has legacy roles: "Shipper", "Consignee", "Both", "user", "Admin"
- * - Customer portal routes requireRole("customer")
+ * - DB legacy roles: "Shipper", "Consignee", "Both", "user", "Admin"
+ * - Customer portal routes use requireRole("customer")
  *
- * Therefore we map legacy customer-facing roles to "customer":
- *   shipper | consignee | both | user | customer  -> "customer"
+ * Map legacy customer-facing roles to "customer":
+ *   shipper | consignee | both | user | customer -> "customer"
  *   admin                                     -> "admin"
  *
  * Fail-closed: if role isn't recognized, return empty string.
@@ -18,10 +18,10 @@ function normalizeRole(role) {
   if (typeof role !== "string") return "";
   const r = role.trim().toLowerCase();
 
-  // Canonical roles used by middleware/guards
+  // Canonical admin
   if (r === "admin") return "admin";
 
-  // Map legacy DB roles → customer portal role
+  // Canonical customer (including legacy roles)
   if (r === "customer") return "customer";
   if (r === "shipper") return "customer";
   if (r === "consignee") return "customer";
@@ -72,7 +72,7 @@ function requireAuth(req, res, next) {
         .json({ ok: false, message: "Invalid token payload" });
     }
 
-    // If role is unrecognized, treat as unauthorized (fail-closed)
+    // Fail-closed on role
     if (!role) {
       return res
         .status(403)
