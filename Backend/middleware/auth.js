@@ -3,21 +3,32 @@ const jwt = require("jsonwebtoken");
 
 /**
  * Normalize role strings from token payload / DB values.
+ *
+ * Phase 5 integrity rule:
+ * - DB has legacy roles: "Shipper", "Consignee", "Both", "user", "Admin"
+ * - Customer portal routes requireRole("customer")
+ *
+ * Therefore we map legacy customer-facing roles to "customer":
+ *   shipper | consignee | both | user | customer  -> "customer"
+ *   admin                                     -> "admin"
+ *
  * Fail-closed: if role isn't recognized, return empty string.
  */
 function normalizeRole(role) {
   if (typeof role !== "string") return "";
   const r = role.trim().toLowerCase();
 
-  const allowed = new Set([
-    "admin",
-    "customer",
-    "shipper",
-    "consignee",
-    "both",
-    "user",
-  ]);
-  return allowed.has(r) ? r : "";
+  // Canonical roles used by middleware/guards
+  if (r === "admin") return "admin";
+
+  // Map legacy DB roles → customer portal role
+  if (r === "customer") return "customer";
+  if (r === "shipper") return "customer";
+  if (r === "consignee") return "customer";
+  if (r === "both") return "customer";
+  if (r === "user") return "customer";
+
+  return "";
 }
 
 function getJwtSecret() {
@@ -61,10 +72,17 @@ function requireAuth(req, res, next) {
         .json({ ok: false, message: "Invalid token payload" });
     }
 
+    // If role is unrecognized, treat as unauthorized (fail-closed)
+    if (!role) {
+      return res
+        .status(403)
+        .json({ ok: false, message: "Forbidden: invalid role" });
+    }
+
     req.user = {
       ...payload,
       id,
-      role,
+      role, // canonical: "admin" | "customer"
       rawRole: payload?.role,
     };
 
