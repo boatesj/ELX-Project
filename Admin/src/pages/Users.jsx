@@ -45,6 +45,9 @@ const pickUsersArray = (payload) => {
 
 const STATUS_OPTIONS = ["pending", "active", "suspended"];
 
+// Strict Mongo ObjectId check (24 hex chars)
+const isMongoId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ""));
+
 const Users = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -59,6 +62,7 @@ const Users = () => {
     () => [
       {
         id: "demo-1",
+        realId: "",
         name: "OceanGate Logistics Ltd",
         email: "ops@oceangate.co.uk",
         phone: "+44 20 8801 9900",
@@ -74,6 +78,7 @@ const Users = () => {
       },
       {
         id: "demo-2",
+        realId: "",
         name: "Global Tech Supplies Inc.",
         email: "contact@globaltechsupplies.com",
         phone: "+1 415 227 9002",
@@ -109,11 +114,13 @@ const Users = () => {
       const list = pickUsersArray(data);
 
       const mapped = list.map((user, index) => {
-        const id = user._id || user.id || `${index + 1}`;
+        const realId = String(user._id || user.id || "");
+        const gridId = realId || `tmp-${index + 1}`;
         const name = user.fullname || user.name || "—";
 
         return {
-          id,
+          id: gridId, // DataGrid identity (can be tmp)
+          realId, // DB identity (must exist for delete/edit/view)
           name,
           email: user.email || "—",
           phone: user.phone || "—",
@@ -162,32 +169,50 @@ const Users = () => {
   }, [fetchUsers]);
 
   const handleView = useCallback(
-    (id) => {
-      if (!id) return;
-      navigate(`/users/${id}`);
+    (realId) => {
+      if (!realId) return;
+      navigate(`/users/${realId}`);
     },
     [navigate],
   );
 
   const handleEdit = useCallback(
-    (id) => {
-      if (!id) return;
-      navigate(`/users/${id}/edit`);
+    (realId) => {
+      if (!realId) return;
+      navigate(`/users/${realId}/edit`);
     },
     [navigate],
   );
 
   const handleDelete = useCallback(
-    async (id) => {
-      if (!id) return;
+    async (realId) => {
+      if (!realId) {
+        setDeleteError(
+          "This row is not a real database user (missing id). It cannot be deleted.",
+        );
+        return;
+      }
+
+      if (!isMongoId(realId)) {
+        setDeleteError(
+          `This user id is not a valid Mongo id (${realId}). Cannot delete.`,
+        );
+        return;
+      }
+
       if (!window.confirm("Are you sure you want to delete this user?")) return;
 
       setDeleteError("");
 
       try {
+        // Optimistic UI removal
+        setRows((prev) => prev.filter((row) => row.realId !== realId));
+
         // ✅ Canonical: /api/v1/users/:id via authRequest
-        await authRequest.delete(`/users/${id}`);
-        setRows((prev) => prev.filter((row) => row.id !== id));
+        await authRequest.delete(`/users/${realId}`);
+
+        // Re-fetch to ensure list matches backend truth
+        await fetchUsers();
       } catch (err) {
         const status = err?.response?.status;
 
@@ -204,25 +229,40 @@ const Users = () => {
 
         console.error("Users delete error:", err);
         setDeleteError(msg);
+
+        // Restore truth
+        await fetchUsers();
       }
     },
-    [redirectToLogin],
+    [fetchUsers, redirectToLogin],
   );
 
   const handleStatusChange = useCallback(
-    async (id, nextStatus) => {
-      if (!id) return;
+    async (realId, nextStatus) => {
+      if (!realId) {
+        setStatusError(
+          "This row is not a real database user (missing id). Status cannot be changed.",
+        );
+        return;
+      }
+
+      if (!isMongoId(realId)) {
+        setStatusError(
+          `This user id is not a valid Mongo id (${realId}). Cannot update status.`,
+        );
+        return;
+      }
 
       const safeNext = normalizeStatus(nextStatus);
       setStatusError("");
 
       // optimistic UI update
       setRows((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, status: safeNext } : r)),
+        prev.map((r) => (r.realId === realId ? { ...r, status: safeNext } : r)),
       );
 
       try {
-        await authRequest.put(`/users/${id}`, { status: safeNext });
+        await authRequest.put(`/users/${realId}`, { status: safeNext });
       } catch (err) {
         const status = err?.response?.status;
 
@@ -275,7 +315,7 @@ const Users = () => {
         width: 220,
         renderCell: (params) => {
           const current = normalizeStatus(params.value);
-          const userId = params.row.id;
+          const realId = params.row.realId;
 
           return (
             <div className="flex items-center h-full gap-2">
@@ -289,9 +329,10 @@ const Users = () => {
 
               <select
                 value={current}
-                onChange={(e) => handleStatusChange(userId, e.target.value)}
+                onChange={(e) => handleStatusChange(realId, e.target.value)}
                 className="text-xs px-2 py-1 rounded-md border border-slate-300 bg-white"
                 title="Change status"
+                disabled={!isMongoId(realId)}
               >
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s} value={s}>
@@ -311,31 +352,47 @@ const Users = () => {
         sortable: false,
         filterable: false,
         renderCell: (params) => {
-          const userId = params.row.id;
+          const realId = params.row.realId;
+          const canAct = isMongoId(realId);
 
           return (
             <div className="flex items-center h-full gap-2">
               <button
-                onClick={() => handleView(userId)}
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-[#1A2930] text-white hover:bg-[#243746] transition"
+                onClick={() => handleView(realId)}
+                disabled={!canAct}
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition ${
+                  canAct
+                    ? "bg-[#1A2930] text-white hover:bg-[#243746]"
+                    : "bg-slate-200 text-slate-500 cursor-not-allowed"
+                }`}
               >
-                <FaEye className="text-white" />
+                <FaEye className={canAct ? "text-white" : "text-slate-500"} />
                 View
               </button>
 
               <button
-                onClick={() => handleEdit(userId)}
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-[#FFA500] text-[#1A2930] hover:bg-[#ffb733] transition"
+                onClick={() => handleEdit(realId)}
+                disabled={!canAct}
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition ${
+                  canAct
+                    ? "bg-[#FFA500] text-[#1A2930] hover:bg-[#ffb733]"
+                    : "bg-slate-200 text-slate-500 cursor-not-allowed"
+                }`}
               >
                 <FaEdit />
                 Edit
               </button>
 
               <button
-                onClick={() => handleDelete(userId)}
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-[#E53935] text-white hover:bg-[#c62828] transition"
+                onClick={() => handleDelete(realId)}
+                disabled={!canAct}
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition ${
+                  canAct
+                    ? "bg-[#E53935] text-white hover:bg-[#c62828]"
+                    : "bg-slate-200 text-slate-500 cursor-not-allowed"
+                }`}
               >
-                <FaTrash className="text-white" />
+                <FaTrash className={canAct ? "text-white" : "text-slate-500"} />
                 Delete
               </button>
             </div>
@@ -383,104 +440,131 @@ const Users = () => {
             No users found.
           </div>
         ) : (
-          rows.map((row) => (
-            <div
-              key={row.id}
-              className="bg-white rounded-md p-4 shadow-md border border-slate-100"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-slate-900 break-words">
-                    {row.name || "—"}
+          rows.map((row) => {
+            const canAct = isMongoId(row.realId);
+
+            return (
+              <div
+                key={row.id}
+                className="bg-white rounded-md p-4 shadow-md border border-slate-100"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-slate-900 break-words">
+                      {row.name || "—"}
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1 break-words">
+                      {row.email || "—"}
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-500 mt-1 break-words">
-                    {row.email || "—"}
-                  </div>
-                </div>
 
-                <span
-                  className={`shrink-0 px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
-                    row.status,
-                  )}`}
-                >
-                  {statusLabel(row.status)}
-                </span>
-              </div>
-
-              <div className="mt-3 grid gap-2 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-slate-500 text-xs">Phone</span>
-                  <span className="text-slate-900 text-sm font-medium text-right break-words">
-                    {row.phone || "—"}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-slate-500 text-xs">Type</span>
-                  <span className="text-slate-900 text-sm font-medium text-right break-words">
-                    {row.type || "—"}{" "}
-                    {row.accountType ? `(${row.accountType})` : ""}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-slate-500 text-xs">Location</span>
-                  <span className="text-slate-900 text-sm font-medium text-right break-words">
-                    {[row.city, row.country].filter(Boolean).join(", ") || "—"}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-slate-500 text-xs">Registered</span>
-                  <span className="text-slate-900 text-sm font-medium text-right">
-                    {row.registered || "—"}
-                  </span>
-                </div>
-
-                {/* ✅ Status control (mobile) */}
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-slate-500 text-xs">Set Status</span>
-                  <select
-                    value={normalizeStatus(row.status)}
-                    onChange={(e) => handleStatusChange(row.id, e.target.value)}
-                    className="text-xs px-2 py-1 rounded-md border border-slate-300 bg-white"
+                  <span
+                    className={`shrink-0 px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
+                      row.status,
+                    )}`}
                   >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {statusLabel(s)}
-                      </option>
-                    ))}
-                  </select>
+                    {statusLabel(row.status)}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid gap-2 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500 text-xs">Phone</span>
+                    <span className="text-slate-900 text-sm font-medium text-right break-words">
+                      {row.phone || "—"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500 text-xs">Type</span>
+                    <span className="text-slate-900 text-sm font-medium text-right break-words">
+                      {row.type || "—"}{" "}
+                      {row.accountType ? `(${row.accountType})` : ""}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500 text-xs">Location</span>
+                    <span className="text-slate-900 text-sm font-medium text-right break-words">
+                      {[row.city, row.country].filter(Boolean).join(", ") ||
+                        "—"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500 text-xs">Registered</span>
+                    <span className="text-slate-900 text-sm font-medium text-right">
+                      {row.registered || "—"}
+                    </span>
+                  </div>
+
+                  {/* ✅ Status control (mobile) */}
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500 text-xs">Set Status</span>
+                    <select
+                      value={normalizeStatus(row.status)}
+                      onChange={(e) =>
+                        handleStatusChange(row.realId, e.target.value)
+                      }
+                      className="text-xs px-2 py-1 rounded-md border border-slate-300 bg-white"
+                      disabled={!canAct}
+                    >
+                      {STATUS_OPTIONS.map((s) => (
+                        <option key={s} value={s}>
+                          {statusLabel(s)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => handleView(row.realId)}
+                    disabled={!canAct}
+                    className={`flex items-center justify-center gap-1 px-2 py-2 rounded-md text-xs font-semibold transition ${
+                      canAct
+                        ? "bg-[#1A2930] text-white hover:bg-[#243746]"
+                        : "bg-slate-200 text-slate-500 cursor-not-allowed"
+                    }`}
+                  >
+                    <FaEye
+                      className={canAct ? "text-white" : "text-slate-500"}
+                    />
+                    View
+                  </button>
+
+                  <button
+                    onClick={() => handleEdit(row.realId)}
+                    disabled={!canAct}
+                    className={`flex items-center justify-center gap-1 px-2 py-2 rounded-md text-xs font-semibold transition ${
+                      canAct
+                        ? "bg-[#FFA500] text-[#1A2930] hover:bg-[#ffb733]"
+                        : "bg-slate-200 text-slate-500 cursor-not-allowed"
+                    }`}
+                  >
+                    <FaEdit />
+                    Edit
+                  </button>
+
+                  <button
+                    onClick={() => handleDelete(row.realId)}
+                    disabled={!canAct}
+                    className={`flex items-center justify-center gap-1 px-2 py-2 rounded-md text-xs font-semibold transition ${
+                      canAct
+                        ? "bg-[#E53935] text-white hover:bg-[#c62828]"
+                        : "bg-slate-200 text-slate-500 cursor-not-allowed"
+                    }`}
+                  >
+                    <FaTrash
+                      className={canAct ? "text-white" : "text-slate-500"}
+                    />
+                    Delete
+                  </button>
                 </div>
               </div>
-
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => handleView(row.id)}
-                  className="flex items-center justify-center gap-1 px-2 py-2 rounded-md text-xs font-semibold bg-[#1A2930] text-white hover:bg-[#243746] transition"
-                >
-                  <FaEye className="text-white" />
-                  View
-                </button>
-
-                <button
-                  onClick={() => handleEdit(row.id)}
-                  className="flex items-center justify-center gap-1 px-2 py-2 rounded-md text-xs font-semibold bg-[#FFA500] text-[#1A2930] hover:bg-[#ffb733] transition"
-                >
-                  <FaEdit />
-                  Edit
-                </button>
-
-                <button
-                  onClick={() => handleDelete(row.id)}
-                  className="flex items-center justify-center gap-1 px-2 py-2 rounded-md text-xs font-semibold bg-[#E53935] text-white hover:bg-[#c62828] transition"
-                >
-                  <FaTrash className="text-white" />
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
