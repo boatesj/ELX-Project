@@ -428,11 +428,12 @@ router.put(
 
 /**
  * @route   DELETE /shipments/:id
- * @access  Auth
+ * @access  Admin
  */
 router.delete(
   "/:id",
   requireAuth,
+  requireRole("admin"),
   validateObjectIdParam("id"),
   handleValidation,
   deleteShipment,

@@ -1041,21 +1041,37 @@ async function updateCharges(req, res) {
 
 async function deleteShipment(req, res) {
   try {
+    // ✅ Defensive: route is admin-only, but keep controller strict too
+    if (!isAdmin(req)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
     const { id } = req.params;
 
-    const { shipment, error } = await findAccessibleShipmentById(req, id, {
-      lean: false,
-      populateCustomer: false,
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid shipment id" });
+    }
+
+    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
+    if (!shipment) {
+      return res.status(404).json({ message: "Shipment not found" });
+    }
+
+    // Soft delete
+    shipment.isDeleted = true;
+
+    // Audit trail (Phase 5 integrity)
+    shipment.trackingEvents.push({
+      status: "update",
+      event: "Shipment deleted (soft delete) by admin",
+      location: "",
+      date: new Date(),
+      meta: {
+        source: "admin_delete_shipment",
+        deletedBy: req?.user?.id || null,
+      },
     });
 
-    if (error === "Invalid shipment id")
-      return res.status(400).json({ message: error });
-    if (error === "Unauthorized")
-      return res.status(401).json({ message: error });
-    if (error === "Shipment not found")
-      return res.status(404).json({ message: error });
-
-    shipment.isDeleted = true;
     await shipment.save();
 
     return res.status(200).json({
