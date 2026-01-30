@@ -56,6 +56,12 @@ const REQUEST_STATUSES = new Set([
   "customer_approved",
 ]);
 
+const normalizeShipmentId = (s) => {
+  // Legacy safety: some older test records may have `id` instead of `_id`
+  const id = s?._id || s?.id;
+  return typeof id === "string" ? id : id ? String(id) : "";
+};
+
 const Shipments = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -79,19 +85,78 @@ const Shipments = () => {
       setLoadError(message || "Please log in to view shipments.");
       navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
     },
-    [location.pathname, navigate]
+    [location.pathname, navigate],
   );
+
+  const fetchShipments = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+
+    try {
+      const res = await authRequest.get("/shipments");
+
+      let shipmentsArray = [];
+      if (Array.isArray(res.data)) shipmentsArray = res.data;
+      else if (Array.isArray(res.data.shipments))
+        shipmentsArray = res.data.shipments;
+      else if (Array.isArray(res.data.data)) shipmentsArray = res.data.data;
+
+      const normalised = shipmentsArray
+        .map((s) => {
+          const _id = normalizeShipmentId(s);
+
+          return {
+            _id, // grid + actions rely on this
+            referenceNo: s.referenceNo,
+            shipper: s.shipper?.name || "",
+            consignee: s.consignee?.name || "",
+            from: s.ports?.originPort || "",
+            destination: s.ports?.destinationPort || "",
+            mode: s.mode || "",
+            weight: s.cargo?.weight || "",
+            status: s.status || "pending",
+            docsCount: Array.isArray(s.documents) ? s.documents.length : 0,
+            raw: s,
+          };
+        })
+        // If a record is truly missing an id, keep it out of the grid
+        // (it cannot be edited or deleted safely)
+        .filter((r) => Boolean(r._id));
+
+      setRows(normalised);
+    } catch (error) {
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) {
+        redirectToLogin("Your session has expired. Please log in again.");
+        return;
+      }
+      console.error(
+        "❌ Error fetching shipments:",
+        error?.response?.data || error,
+      );
+      setLoadError(
+        error?.response?.data?.message || "Failed to load shipments.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [redirectToLogin]);
 
   const handleDelete = useCallback(
     async (id) => {
       const confirm = window.confirm(
-        "Are you sure you want to delete this shipment?"
+        "Are you sure you want to delete this shipment?",
       );
       if (!confirm) return;
 
       try {
-        await authRequest.delete(`/shipments/${id}`);
+        // Optimistic UI removal first
         setRows((prev) => prev.filter((row) => row._id !== id));
+
+        await authRequest.delete(`/shipments/${id}`);
+
+        // Re-fetch to guarantee UI reflects backend truth
+        await fetchShipments();
       } catch (error) {
         const status = error?.response?.status;
         if (status === 401 || status === 403) {
@@ -100,12 +165,15 @@ const Shipments = () => {
         }
         console.error(
           "❌ Error deleting shipment:",
-          error?.response?.data || error
+          error?.response?.data || error,
         );
         alert("Failed to delete shipment. Please try again.");
+
+        // Restore truth after failure
+        await fetchShipments();
       }
     },
-    [redirectToLogin]
+    [fetchShipments, redirectToLogin],
   );
 
   const columns = useMemo(
@@ -151,7 +219,7 @@ const Shipments = () => {
           <div className="flex items-center h-full">
             <span
               className={`px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
-                params.value
+                params.value,
               )}`}
             >
               {formatStatusLabel(params.value)}
@@ -234,58 +302,12 @@ const Shipments = () => {
         },
       },
     ],
-    [handleDelete]
+    [handleDelete],
   );
 
   useEffect(() => {
-    const getShipments = async () => {
-      setLoading(true);
-      setLoadError("");
-
-      try {
-        const res = await authRequest.get("/shipments");
-
-        let shipmentsArray = [];
-        if (Array.isArray(res.data)) shipmentsArray = res.data;
-        else if (Array.isArray(res.data.shipments))
-          shipmentsArray = res.data.shipments;
-        else if (Array.isArray(res.data.data)) shipmentsArray = res.data.data;
-
-        const normalised = shipmentsArray.map((s) => ({
-          _id: s._id,
-          referenceNo: s.referenceNo,
-          shipper: s.shipper?.name || "",
-          consignee: s.consignee?.name || "",
-          from: s.ports?.originPort || "",
-          destination: s.ports?.destinationPort || "",
-          mode: s.mode || "",
-          weight: s.cargo?.weight || "",
-          status: s.status || "pending",
-          docsCount: Array.isArray(s.documents) ? s.documents.length : 0,
-          raw: s,
-        }));
-
-        setRows(normalised);
-      } catch (error) {
-        const status = error?.response?.status;
-        if (status === 401 || status === 403) {
-          redirectToLogin("Your session has expired. Please log in again.");
-          return;
-        }
-        console.error(
-          "❌ Error fetching shipments:",
-          error?.response?.data || error
-        );
-        setLoadError(
-          error?.response?.data?.message || "Failed to load shipments."
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getShipments();
-  }, [redirectToLogin]);
+    fetchShipments();
+  }, [fetchShipments]);
 
   const filteredRows = useMemo(() => {
     if (viewMode === "requests") {
@@ -393,7 +415,7 @@ const Shipments = () => {
 
                   <span
                     className={`shrink-0 px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
-                      row.status
+                      row.status,
                     )}`}
                   >
                     {formatStatusLabel(row.status)}

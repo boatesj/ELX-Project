@@ -43,6 +43,8 @@ const pickUsersArray = (payload) => {
   return [];
 };
 
+const STATUS_OPTIONS = ["pending", "active", "suspended"];
+
 const Users = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -51,6 +53,7 @@ const Users = () => {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [statusError, setStatusError] = useState("");
 
   const fallbackRows = useMemo(
     () => [
@@ -85,7 +88,7 @@ const Users = () => {
         registered: "2023-12-18",
       },
     ],
-    []
+    [],
   );
 
   const redirectToLogin = useCallback(() => {
@@ -96,6 +99,7 @@ const Users = () => {
     setLoading(true);
     setLoadError("");
     setDeleteError("");
+    setStatusError("");
 
     try {
       // ✅ Canonical: /api/v1/users via authRequest baseURL
@@ -162,7 +166,7 @@ const Users = () => {
       if (!id) return;
       navigate(`/users/${id}`);
     },
-    [navigate]
+    [navigate],
   );
 
   const handleEdit = useCallback(
@@ -170,7 +174,7 @@ const Users = () => {
       if (!id) return;
       navigate(`/users/${id}/edit`);
     },
-    [navigate]
+    [navigate],
   );
 
   const handleDelete = useCallback(
@@ -202,7 +206,45 @@ const Users = () => {
         setDeleteError(msg);
       }
     },
-    [redirectToLogin]
+    [redirectToLogin],
+  );
+
+  const handleStatusChange = useCallback(
+    async (id, nextStatus) => {
+      if (!id) return;
+
+      const safeNext = normalizeStatus(nextStatus);
+      setStatusError("");
+
+      // optimistic UI update
+      setRows((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: safeNext } : r)),
+      );
+
+      try {
+        await authRequest.put(`/users/${id}`, { status: safeNext });
+      } catch (err) {
+        const status = err?.response?.status;
+
+        if (status === 401 || status === 403) {
+          setStatusError("Your session has expired. Please log in again.");
+          redirectToLogin();
+          return;
+        }
+
+        const msg =
+          err?.response?.data?.message ||
+          err?.message ||
+          "Something went wrong updating the user status.";
+
+        console.error("Users status update error:", err);
+        setStatusError(msg);
+
+        // restore truth after failure
+        await fetchUsers();
+      }
+    },
+    [fetchUsers, redirectToLogin],
   );
 
   const columns = useMemo(
@@ -230,18 +272,36 @@ const Users = () => {
       {
         field: "status",
         headerName: "Status",
-        width: 150,
-        renderCell: (params) => (
-          <div className="flex items-center h-full">
-            <span
-              className={`px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
-                params.value
-              )}`}
-            >
-              {statusLabel(params.value)}
-            </span>
-          </div>
-        ),
+        width: 220,
+        renderCell: (params) => {
+          const current = normalizeStatus(params.value);
+          const userId = params.row.id;
+
+          return (
+            <div className="flex items-center h-full gap-2">
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
+                  current,
+                )}`}
+              >
+                {statusLabel(current)}
+              </span>
+
+              <select
+                value={current}
+                onChange={(e) => handleStatusChange(userId, e.target.value)}
+                className="text-xs px-2 py-1 rounded-md border border-slate-300 bg-white"
+                title="Change status"
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {statusLabel(s)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        },
       },
       { field: "registered", headerName: "Registered", width: 150 },
       {
@@ -283,7 +343,7 @@ const Users = () => {
         },
       },
     ],
-    [handleView, handleEdit, handleDelete]
+    [handleView, handleEdit, handleDelete, handleStatusChange],
   );
 
   return (
@@ -307,6 +367,12 @@ const Users = () => {
       {deleteError && (
         <div className="mb-3 px-4 py-2 rounded-md bg-red-100 text-red-800 text-sm border border-red-300">
           {deleteError}
+        </div>
+      )}
+
+      {statusError && (
+        <div className="mb-3 px-4 py-2 rounded-md bg-red-100 text-red-800 text-sm border border-red-300">
+          {statusError}
         </div>
       )}
 
@@ -334,7 +400,7 @@ const Users = () => {
 
                 <span
                   className={`shrink-0 px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
-                    row.status
+                    row.status,
                   )}`}
                 >
                   {statusLabel(row.status)}
@@ -369,6 +435,22 @@ const Users = () => {
                   <span className="text-slate-900 text-sm font-medium text-right">
                     {row.registered || "—"}
                   </span>
+                </div>
+
+                {/* ✅ Status control (mobile) */}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-slate-500 text-xs">Set Status</span>
+                  <select
+                    value={normalizeStatus(row.status)}
+                    onChange={(e) => handleStatusChange(row.id, e.target.value)}
+                    className="text-xs px-2 py-1 rounded-md border border-slate-300 bg-white"
+                  >
+                    {STATUS_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {statusLabel(s)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
