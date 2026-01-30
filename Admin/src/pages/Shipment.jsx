@@ -1433,6 +1433,35 @@ const Shipment = () => {
                     type="button"
                     onClick={() => {
                       const ok = window.confirm(
+                        "Re-open this quote? This will set status back to QUOTED so the customer can approve again.",
+                      );
+                      if (!ok) return;
+
+                      quickSetStatus("quoted", {
+                        successMsg:
+                          "Quote re-opened. Status set to QUOTED so the customer can approve again.",
+                      });
+                    }}
+                    disabled={
+                      statusActing ||
+                      bookingSending ||
+                      quoteSending ||
+                      quoteSaving ||
+                      saving ||
+                      String(form.status || "").toLowerCase() === "booked" ||
+                      String(form.status || "").toLowerCase() === "delivered" ||
+                      String(form.status || "").toLowerCase() === "cancelled"
+                    }
+                    className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-md bg-white text-[#1A2930] border border-[#1A2930]/40 hover:border-[#FFA500] hover:text-[#FFA500] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Set status back to QUOTED so the customer portal shows Approve again"
+                  >
+                    Re-open quote
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ok = window.confirm(
                         "Mark this quote as customer approved?",
                       );
                       if (!ok) return;
@@ -1441,7 +1470,16 @@ const Shipment = () => {
                           "Customer approval recorded. You can now confirm booking.",
                       });
                     }}
-                    disabled={!canMarkApproved}
+                    disabled={
+                      statusActing ||
+                      bookingSending ||
+                      quoteSending ||
+                      quoteSaving ||
+                      saving ||
+                      !["quoted", "customer_requested_changes"].includes(
+                        String(form.status || "").toLowerCase(),
+                      )
+                    }
                     className="inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                     title={
                       canMarkApproved
@@ -1763,6 +1801,35 @@ const Shipment = () => {
                     type="button"
                     onClick={() => {
                       const ok = window.confirm(
+                        "Re-open this quote? This will set status back to QUOTED so the customer can approve again.",
+                      );
+                      if (!ok) return;
+
+                      quickSetStatus("quoted", {
+                        successMsg:
+                          "Quote re-opened. Status set to QUOTED so the customer can approve again.",
+                      });
+                    }}
+                    disabled={
+                      statusActing ||
+                      bookingSending ||
+                      quoteSending ||
+                      quoteSaving ||
+                      saving ||
+                      String(form.status || "").toLowerCase() === "booked" ||
+                      String(form.status || "").toLowerCase() === "delivered" ||
+                      String(form.status || "").toLowerCase() === "cancelled"
+                    }
+                    className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-md bg-white text-[#1A2930] border border-[#1A2930]/40 hover:border-[#FFA500] hover:text-[#FFA500] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Set status back to QUOTED so the customer portal shows Approve again"
+                  >
+                    Re-open quote
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const ok = window.confirm(
                         "Mark this quote as customer approved?",
                       );
                       if (!ok) return;
@@ -1771,7 +1838,16 @@ const Shipment = () => {
                           "Customer approval recorded. You can now confirm booking.",
                       });
                     }}
-                    disabled={!canMarkApproved}
+                    disabled={
+                      statusActing ||
+                      bookingSending ||
+                      quoteSending ||
+                      quoteSaving ||
+                      saving ||
+                      !["quoted", "customer_requested_changes"].includes(
+                        String(form.status || "").toLowerCase(),
+                      )
+                    }
                     className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                     title={
                       canMarkApproved
