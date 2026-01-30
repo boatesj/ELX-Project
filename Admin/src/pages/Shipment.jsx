@@ -1213,6 +1213,18 @@ const Shipment = () => {
                 </p>
               ) : null}
 
+              {bookingError ? (
+                <p className="mt-2 text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md">
+                  {bookingError}
+                </p>
+              ) : null}
+
+              {bookingMsg ? (
+                <p className="mt-2 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-md">
+                  {bookingMsg}
+                </p>
+              ) : null}
+
               {isRequestPipeline ? (
                 <div className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700">
                   <span className="font-semibold">Next steps:</span> Email quote
@@ -1460,6 +1472,19 @@ const Shipment = () => {
                   >
                     {bookingSending ? "Sending..." : "Confirm booking"}
                   </button>
+
+                  {/* Booking feedback (NEW – safe UI only) */}
+                  {bookingError ? (
+                    <p className="mt-2 text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md">
+                      {bookingError}
+                    </p>
+                  ) : null}
+
+                  {bookingMsg ? (
+                    <p className="mt-2 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-md">
+                      {bookingMsg}
+                    </p>
+                  ) : null}
                 </div>
 
                 <p className="text-[10px] text-slate-500 mt-2">
@@ -1508,13 +1533,13 @@ const Shipment = () => {
               ) : null}
 
               {bookingError ? (
-                <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md">
+                <p className="mt-2 text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md">
                   {bookingError}
                 </p>
               ) : null}
 
               {bookingMsg ? (
-                <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-md">
+                <p className="mt-2 text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-md">
                   {bookingMsg}
                 </p>
               ) : null}
