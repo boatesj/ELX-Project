@@ -194,10 +194,13 @@ app.get("/", (req, res) => {
         update: "PUT /api/v1/content/:key (admin)",
         delete: "DELETE /api/v1/content/:key (admin)",
       },
+      // ✅ Canonical config endpoints are now under /api/v1/config/*
       config: {
-        ports: "/config/ports",
-        serviceTypes: "/config/service-types",
-        cargoCategories: "/config/cargo-categories",
+        ports: "/api/v1/config/ports",
+        serviceTypes: "/api/v1/config/service-types",
+        cargoCategories: "/api/v1/config/cargo-categories",
+        // legacy alias still available:
+        legacyPrefix: "/config/* (temporary)",
       },
       docs: "/docs",
     },
@@ -253,7 +256,11 @@ app.use("/users", userRoute);
 app.use("/shipments", shipmentRoute);
 
 // Config + Admin
+// ✅ NEW: expose config under /api/v1/config (canonical)
+app.use("/api/v1/config", configRoute);
+// Existing legacy mount (keep for now)
 app.use("/config", configRoute);
+
 app.use("/admin/settings", settingsRoute);
 app.use("/admin/backups", backupsRoute);
 app.use("/admin/analytics", analyticsRoute);

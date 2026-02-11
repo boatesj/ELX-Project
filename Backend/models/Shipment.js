@@ -30,7 +30,7 @@ const TrackingEventSchema = new mongoose.Schema(
       default: {},
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // Uploaded documents (BOL, ID, Invoice, etc.)
@@ -41,7 +41,7 @@ const DocumentSchema = new mongoose.Schema(
     uploadedAt: { type: Date, default: Date.now },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // Charge lines (optional – for invoices / cost breakdown)
@@ -55,7 +55,7 @@ const ChargeSchema = new mongoose.Schema(
       trim: true, // e.g. "freight", "local_charges", "docs"
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // Package-level details (for pallets, boxes, parcels, etc.)
@@ -69,7 +69,7 @@ const PackageSchema = new mongoose.Schema(
     quantity: { type: Number, default: 1 },
     description: { type: String, trim: true },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // ------------------ QUOTE SUBSCHEMAS ------------------
@@ -82,7 +82,7 @@ const QuoteLineSchema = new mongoose.Schema(
     amount: { type: Number, default: 0, min: 0 }, // can be computed (qty * unitPrice)
     taxRate: { type: Number, default: 0, min: 0 }, // e.g. 20 for VAT
   },
-  { _id: false }
+  { _id: false },
 );
 
 const QuoteSchema = new mongoose.Schema(
@@ -104,7 +104,7 @@ const QuoteSchema = new mongoose.Schema(
     acceptedAt: { type: Date },
     acceptedByEmail: { type: String, trim: true },
   },
-  { _id: false }
+  { _id: false },
 );
 
 // ------------------ MAIN SCHEMA ------------------
@@ -287,7 +287,30 @@ const ShipmentSchema = new mongoose.Schema(
     },
 
     // Origin and Destination ports
+    // ✅ Normalised: store Port refs + snapshots, while keeping legacy strings for backwards compatibility.
     ports: {
+      // Canonical references (preferred)
+      originPortId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Port",
+        index: true,
+      },
+      destinationPortId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Port",
+        index: true,
+      },
+
+      // Optional snapshots (helps charts + avoids extra lookups)
+      originPortCode: { type: String, trim: true, uppercase: true },
+      originPortName: { type: String, trim: true },
+      originPortCountry: { type: String, trim: true },
+
+      destinationPortCode: { type: String, trim: true, uppercase: true },
+      destinationPortName: { type: String, trim: true },
+      destinationPortCountry: { type: String, trim: true },
+
+      // Legacy display strings (keep for now so existing data/UI does not break)
       originPort: { type: String, required: true, trim: true },
       destinationPort: { type: String, required: true, trim: true },
     },
@@ -357,7 +380,7 @@ const ShipmentSchema = new mongoose.Schema(
     // Logical deletion (for soft deletes)
     isDeleted: { type: Boolean, default: false },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // ------------------ INDEXES ------------------
@@ -401,7 +424,7 @@ ShipmentSchema.pre("validate", async function (next) {
       const counter = await Counter.findOneAndUpdate(
         { key },
         { $inc: { seq: 1 } },
-        { new: true, upsert: true }
+        { new: true, upsert: true },
       );
 
       const seq = String(counter.seq).padStart(4, "0");

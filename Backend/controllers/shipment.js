@@ -2,6 +2,7 @@
 const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
 const User = require("../models/User");
+const Port = require("../models/Port");
 
 // ✅ Mail dispatcher (local util abstraction)
 // Controllers should not depend on BackgroundServices folder structure.
@@ -165,6 +166,8 @@ function buildShipmentFilter(query = {}) {
   if (customer) filter.customer = customer; // expects ObjectId string
   if (status) filter.status = status;
   if (mode) filter.mode = mode;
+
+  // NOTE: dashboard + lists currently use ports.originPort / ports.destinationPort
   if (originPort) filter["ports.originPort"] = originPort;
   if (destinationPort) filter["ports.destinationPort"] = destinationPort;
 
@@ -703,6 +706,129 @@ function sumCharges(charges) {
   return toMoney(list.reduce((sum, c) => sum + (Number(c.amount) || 0), 0));
 }
 
+/* ⬇⬇⬇ PORT NORMALISATION BLOCK ⬇⬇⬇ */
+
+// ------------------ PORT NORMALISATION ------------------
+
+function escapeRegExp(s) {
+  return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function resolvePort(input) {
+  const raw = String(input || "").trim();
+  if (!raw) return null;
+
+  const upper = raw.toUpperCase();
+
+  let port = await Port.findOne({ code: upper, isActive: true }).lean();
+  if (port) return port;
+
+  port = await Port.findOne({
+    name: { $regex: `^${escapeRegExp(raw)}$`, $options: "i" },
+    isActive: true,
+  }).lean();
+  if (port) return port;
+
+  // If input is like "GHTEM - Tema" / "GHTEM Tema", try first token as code
+  const maybeCode = upper.split(/[\s\-–—]+/)[0];
+  if (maybeCode && maybeCode.length >= 3 && maybeCode.length <= 10) {
+    port = await Port.findOne({ code: maybeCode, isActive: true }).lean();
+    if (port) return port;
+  }
+
+  return null;
+}
+
+/**
+ * Normalise incoming shipment payload ports BEFORE create.
+ *
+ * Rules:
+ * - Port model is the source of truth.
+ * - If origin/destination IDs are supplied, validate + use them.
+ * - Otherwise, resolve from code/name/legacy text.
+ * - Always keep legacy top-level strings (originPort/destinationPort).
+ * - Populate snapshot fields under payload.ports.* for charts/future.
+ * - Never crash create flow if unknown: leave legacy only.
+ */
+async function normalisePortsOnPayload(payload) {
+  if (!payload || typeof payload !== "object") return;
+
+  payload.ports = payload.ports || {};
+
+  // --- 1) ID-first (authoritative) ---
+  let origin = null;
+  let destination = null;
+
+  if (payload.ports.originPortId) {
+    origin = await Port.findOne({
+      _id: payload.ports.originPortId,
+      isActive: true,
+    }).lean();
+  }
+
+  if (payload.ports.destinationPortId) {
+    destination = await Port.findOne({
+      _id: payload.ports.destinationPortId,
+      isActive: true,
+    }).lean();
+  }
+
+  // --- 2) Fallback resolution from text/code/name (legacy compatible) ---
+  const originInput =
+    payload.ports.originPortCode ||
+    payload.ports.originPortName ||
+    payload.originPort ||
+    payload.ports.originPort ||
+    "";
+
+  const destinationInput =
+    payload.ports.destinationPortCode ||
+    payload.ports.destinationPortName ||
+    payload.destinationPort ||
+    payload.ports.destinationPort ||
+    "";
+
+  const [originResolved, destinationResolved] = await Promise.all([
+    origin ? Promise.resolve(origin) : resolvePort(originInput),
+    destination ? Promise.resolve(destination) : resolvePort(destinationInput),
+  ]);
+
+  origin = originResolved || null;
+  destination = destinationResolved || null;
+
+  // --- 3) Apply canonical snapshots + keep legacy strings ---
+  if (origin) {
+    payload.ports.originPortId = origin._id;
+    payload.ports.originPortCode = origin.code || "";
+    payload.ports.originPortName = origin.name || "";
+    payload.ports.originPortCountry = origin.country || "";
+    payload.ports.originPortType = origin.type || "";
+
+    // Keep dashboard-compatible field and legacy top-level field
+    payload.ports.originPort = origin.name || origin.code || "";
+    payload.originPort = payload.originPort || payload.ports.originPort;
+  } else {
+    // Unknown: keep legacy top-level if present; also keep ports.originPort for dashboard
+    const legacy = String(payload.originPort || "").trim();
+    if (legacy) payload.ports.originPort = legacy;
+  }
+
+  if (destination) {
+    payload.ports.destinationPortId = destination._id;
+    payload.ports.destinationPortCode = destination.code || "";
+    payload.ports.destinationPortName = destination.name || "";
+    payload.ports.destinationPortCountry = destination.country || "";
+    payload.ports.destinationPortType = destination.type || "";
+
+    payload.ports.destinationPort = destination.name || destination.code || "";
+    payload.destinationPort =
+      payload.destinationPort || payload.ports.destinationPort;
+  } else {
+    const legacy = String(payload.destinationPort || "").trim();
+    if (legacy) payload.ports.destinationPort = legacy;
+  }
+}
+
 // ---------------- CONTROLLERS ----------------
 
 /**
@@ -712,6 +838,14 @@ function sumCharges(charges) {
 async function createPublicLeadShipment(req, res) {
   try {
     const payload = { ...req.body };
+    // Legacy bridge: allow top-level originPort/destinationPort payloads
+    payload.ports = payload.ports || {};
+    if (!payload.ports.originPort && payload.originPort) {
+      payload.ports.originPort = payload.originPort;
+    }
+    if (!payload.ports.destinationPort && payload.destinationPort) {
+      payload.ports.destinationPort = payload.destinationPort;
+    }
 
     // Force-safe invariants for lead stage
     payload.isDeleted = false;
@@ -743,6 +877,7 @@ async function createPublicLeadShipment(req, res) {
       payload.status = "request_received";
     }
 
+    await normalisePortsOnPayload(payload);
     const shipment = await Shipment.create(payload);
 
     return res.status(201).json({
@@ -761,6 +896,15 @@ async function createPublicLeadShipment(req, res) {
 async function createShipment(req, res) {
   try {
     const payload = { ...req.body };
+    // Legacy bridge: allow top-level originPort/destinationPort payloads
+    payload.ports = payload.ports || {};
+    if (!payload.ports.originPort && payload.originPort) {
+      payload.ports.originPort = payload.originPort;
+    }
+    if (!payload.ports.destinationPort && payload.destinationPort) {
+      payload.ports.destinationPort = payload.destinationPort;
+    }
+
     payload.isDeleted = false;
 
     if (!req.query.keepRef) {
@@ -781,6 +925,7 @@ async function createShipment(req, res) {
 
     if (userId) payload.createdBy = userId;
 
+    await normalisePortsOnPayload(payload);
     const shipment = await Shipment.create(payload);
 
     return res.status(201).json({
