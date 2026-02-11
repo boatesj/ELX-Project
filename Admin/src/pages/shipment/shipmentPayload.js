@@ -15,10 +15,11 @@ export function buildUpdatePayload({ form, shipment, override = {} }) {
     status: form.status,
     paymentStatus: form.paymentStatus || "unpaid",
 
-    ports: {
-      originPort: form.originPort,
-      destinationPort: form.destinationPort,
-    },
+    ...(form.originPortId ? { originPortId: form.originPortId } : {}),
+
+    ...(form.destinationPortId
+      ? { destinationPortId: form.destinationPortId }
+      : {}),
 
     shipper: {
       name: form.shipperName,
