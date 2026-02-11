@@ -4,33 +4,38 @@ import { authRequest } from "../requestMethods";
 import AdminTable from "../components/AdminTable";
 
 const getStatusChipClass = (status) => {
-  switch (status) {
+  switch (String(status || "").toLowerCase()) {
     case "delivered":
-      return "bg-emerald-500/15 text-emerald-300 border border-emerald-500/60";
+      return "bg-emerald-100 text-emerald-900 border border-emerald-300";
     case "pending":
-      return "bg-amber-500/15 text-amber-300 border border-amber-500/60";
+      return "bg-amber-100 text-amber-900 border border-amber-300";
     case "booked":
+      // booked = ELX accent tier
+      return "bg-orange-100 text-orange-900 border border-orange-300";
     case "loaded":
     case "sailed":
-      return "bg-sky-500/15 text-sky-300 border border-sky-500/60";
+      return "bg-indigo-100 text-indigo-900 border border-indigo-300";
+    case "arrived":
+    case "cleared":
+      return "bg-teal-100 text-teal-900 border border-teal-300";
     case "cancelled":
-      return "bg-red-500/15 text-red-300 border border-red-500/60";
+      return "bg-red-100 text-red-900 border border-red-300";
     default:
-      return "bg-slate-500/15 text-slate-300 border border-slate-500/60";
+      return "bg-slate-100 text-slate-900 border border-slate-300";
   }
 };
 
 const getPaymentChipClass = (paymentStatus) => {
-  switch (paymentStatus) {
+  switch (String(paymentStatus || "").toLowerCase()) {
     case "paid":
-      return "bg-emerald-500/15 text-emerald-300 border border-emerald-500/60";
+      return "bg-emerald-100 text-emerald-900 border border-emerald-300";
     case "part_paid":
-      return "bg-amber-500/15 text-amber-300 border border-amber-500/60";
+      return "bg-amber-100 text-amber-900 border border-amber-300";
     case "on_account":
-      return "bg-sky-500/15 text-sky-300 border border-sky-500/60";
+      return "bg-sky-100 text-sky-900 border border-sky-300";
     case "unpaid":
     default:
-      return "bg-slate-500/15 text-slate-300 border border-slate-500/60";
+      return "bg-slate-100 text-slate-900 border border-slate-300";
   }
 };
 
@@ -195,9 +200,17 @@ const Orders = () => {
                 const value = row.original.paymentStatus;
                 return (
                   <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold ${getPaymentChipClass(
-                      value,
-                    )}`}
+                    className={`
+                      inline-flex items-center justify-center
+                      min-w-[80px]
+                      px-3 py-1
+                      rounded-full
+                      text-[11px] font-semibold
+                      leading-none
+                      whitespace-nowrap
+                      border
+                      ${getPaymentChipClass(value)}
+                    `}
                   >
                     {value.replace("_", " ")}
                   </span>
@@ -210,11 +223,19 @@ const Orders = () => {
                 const value = row.original.status;
                 return (
                   <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold capitalize ${getStatusChipClass(
-                      value,
-                    )}`}
+                    className={`
+                      inline-flex items-center justify-center
+                      min-w-[80px]
+                      px-3 py-1
+                      rounded-full
+                      text-[11px] font-semibold
+                      leading-none
+                      whitespace-nowrap
+                      border
+                      ${getStatusChipClass(value)}
+                    `}
                   >
-                    {value}
+                    {value.replace("_", " ")}
                   </span>
                 );
               },
