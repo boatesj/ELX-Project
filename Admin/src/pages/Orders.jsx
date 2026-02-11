@@ -6,43 +6,57 @@ import AdminTable from "../components/AdminTable";
 const getStatusChipClass = (status) => {
   const s = String(status || "pending").toLowerCase();
 
-  // High-contrast enterprise chips (work on light table rows)
+  const base = "border font-bold shadow-sm"; // stronger visual presence
+
   switch (s) {
     case "pending":
-      return "bg-[#D9D9D9] text-[#1A2930] border-[#9A9EAB]/70";
+      return `${base} bg-[#D9D9D9] text-[#1A2930] border-[#9A9EAB]`;
+
     case "booked":
-      return "bg-[#FFA500]/25 text-[#1A2930] border-[#FFA500]/70";
+      return `${base} bg-[#FFA500]/30 text-[#1A2930] border-[#FFA500]`;
+
     case "delivered":
-      return "bg-emerald-100 text-emerald-900 border-emerald-300";
+      return `${base} bg-emerald-200 text-emerald-900 border-emerald-400`;
+
     case "cancelled":
-      return "bg-red-100 text-red-900 border-red-300";
+      return `${base} bg-red-200 text-red-900 border-red-400`;
+
     case "request_received":
-      return "bg-slate-100 text-slate-900 border-slate-300";
+      return `${base} bg-[#EDECEC] text-[#1A2930] border-[#9A9EAB]`;
+
     case "under_review":
-      return "bg-blue-100 text-blue-900 border-blue-300";
+      return `${base} bg-blue-200 text-blue-900 border-blue-400`;
+
     case "quoted":
-      return "bg-indigo-100 text-indigo-900 border-indigo-300";
+      return `${base} bg-indigo-200 text-indigo-900 border-indigo-400`;
+
     case "customer_requested_changes":
-      return "bg-amber-100 text-amber-900 border-amber-300";
+      return `${base} bg-amber-200 text-amber-900 border-amber-400`;
+
     case "customer_approved":
-      return "bg-emerald-100 text-emerald-900 border-emerald-300";
+      return `${base} bg-emerald-200 text-emerald-900 border-emerald-400`;
+
     default:
-      return "bg-slate-100 text-slate-900 border-slate-300";
+      return `${base} bg-[#EDECEC] text-[#1A2930] border-[#9A9EAB]`;
   }
 };
 
 const getPaymentChipClass = (paymentStatus) => {
   const s = String(paymentStatus || "unpaid").toLowerCase();
 
+  const base = "border font-bold shadow-sm";
+
   switch (s) {
     case "paid":
-      return "bg-emerald-100 text-emerald-900 border-emerald-300";
+      return `${base} bg-emerald-200 text-emerald-900 border-emerald-400`;
+
     case "part_paid":
     case "partial":
-      return "bg-amber-100 text-amber-900 border-amber-300";
+      return `${base} bg-amber-200 text-amber-900 border-amber-400`;
+
     case "unpaid":
     default:
-      return "bg-slate-100 text-slate-900 border-slate-300";
+      return `${base} bg-[#EDECEC] text-[#1A2930] border-[#9A9EAB]`;
   }
 };
 
