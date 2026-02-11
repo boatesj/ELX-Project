@@ -1,11 +1,9 @@
-// Admin/src/pages/Users.jsx
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { DataGrid } from "@mui/x-data-grid";
 import { FaTrash, FaEye, FaEdit } from "react-icons/fa";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { authRequest } from "../requestMethods";
+import AdminTable from "../components/AdminTable";
 
-// Normalize status (backend tends to be "pending/active/suspended")
 const normalizeStatus = (status) => {
   const s = String(status || "pending")
     .trim()
@@ -15,10 +13,8 @@ const normalizeStatus = (status) => {
   return "pending";
 };
 
-const statusLabel = (status) => {
-  const s = normalizeStatus(status);
-  return s.replace(/^\w/, (c) => c.toUpperCase());
-};
+const statusLabel = (status) =>
+  normalizeStatus(status).replace(/^\w/, (c) => c.toUpperCase());
 
 const getStatusClasses = (status) => {
   const s = normalizeStatus(status);
@@ -34,7 +30,6 @@ const getStatusClasses = (status) => {
   }
 };
 
-// Pick array from many possible API shapes
 const pickUsersArray = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.users)) return payload.users;
@@ -44,8 +39,6 @@ const pickUsersArray = (payload) => {
 };
 
 const STATUS_OPTIONS = ["pending", "active", "suspended"];
-
-// Strict Mongo ObjectId check (24 hex chars)
 const isMongoId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ""));
 
 const Users = () => {
@@ -58,44 +51,6 @@ const Users = () => {
   const [deleteError, setDeleteError] = useState("");
   const [statusError, setStatusError] = useState("");
 
-  const fallbackRows = useMemo(
-    () => [
-      {
-        id: "demo-1",
-        realId: "",
-        name: "OceanGate Logistics Ltd",
-        email: "ops@oceangate.co.uk",
-        phone: "+44 20 8801 9900",
-        type: "Shipper",
-        accountType: "Business",
-        country: "United Kingdom",
-        city: "London",
-        postcode: "EC1A 1BB",
-        address: "1 Example Street, London",
-        notes: "Demo record",
-        status: "active",
-        registered: "2024-01-08",
-      },
-      {
-        id: "demo-2",
-        realId: "",
-        name: "Global Tech Supplies Inc.",
-        email: "contact@globaltechsupplies.com",
-        phone: "+1 415 227 9002",
-        type: "Shipper",
-        accountType: "Business",
-        country: "United States",
-        city: "San Francisco",
-        postcode: "94105",
-        address: "10 Market Street, San Francisco",
-        notes: "Demo record",
-        status: "active",
-        registered: "2023-12-18",
-      },
-    ],
-    [],
-  );
-
   const redirectToLogin = useCallback(() => {
     navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
   }, [navigate, location.pathname]);
@@ -107,21 +62,15 @@ const Users = () => {
     setStatusError("");
 
     try {
-      // ✅ Canonical: /api/v1/users via authRequest baseURL
       const res = await authRequest.get("/users");
-      const data = res?.data ?? {};
-
-      const list = pickUsersArray(data);
+      const list = pickUsersArray(res?.data ?? {});
 
       const mapped = list.map((user, index) => {
         const realId = String(user._id || user.id || "");
-        const gridId = realId || `tmp-${index + 1}`;
-        const name = user.fullname || user.name || "—";
-
         return {
-          id: gridId, // DataGrid identity (can be tmp)
-          realId, // DB identity (must exist for delete/edit/view)
-          name,
+          id: realId || `tmp-${index + 1}`,
+          realId,
+          name: user.fullname || user.name || "—",
           email: user.email || "—",
           phone: user.phone || "—",
           type: user.role || "N/A",
@@ -141,267 +90,68 @@ const Users = () => {
       setRows(mapped);
     } catch (err) {
       const status = err?.response?.status;
-
       if (status === 401 || status === 403) {
-        setLoadError("Your session has expired. Please log in again.");
+        setLoadError("Session expired.");
         redirectToLogin();
-        setLoading(false);
         return;
       }
 
-      const msg =
-        err?.response?.data?.message ||
-        err?.message ||
-        "Something went wrong loading users.";
-
-      console.error("Users fetch error:", err);
-      setLoadError(msg);
-
-      // Only use fallback if API failed (not merely empty)
-      setRows(fallbackRows);
+      setLoadError("Failed to load users.");
     } finally {
       setLoading(false);
     }
-  }, [fallbackRows, redirectToLogin]);
+  }, [redirectToLogin]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
-  const handleView = useCallback(
-    (realId) => {
-      if (!realId) return;
-      navigate(`/users/${realId}`);
-    },
-    [navigate],
-  );
+  const handleView = (realId) => {
+    if (!realId) return;
+    navigate(`/users/${realId}`);
+  };
 
-  const handleEdit = useCallback(
-    (realId) => {
-      if (!realId) return;
-      navigate(`/users/${realId}/edit`);
-    },
-    [navigate],
-  );
+  const handleEdit = (realId) => {
+    if (!realId) return;
+    navigate(`/users/${realId}/edit`);
+  };
 
-  const handleDelete = useCallback(
-    async (realId) => {
-      if (!realId) {
-        setDeleteError(
-          "This row is not a real database user (missing id). It cannot be deleted.",
-        );
-        return;
-      }
+  const handleDelete = async (realId) => {
+    if (!isMongoId(realId)) {
+      setDeleteError("Invalid user id.");
+      return;
+    }
 
-      if (!isMongoId(realId)) {
-        setDeleteError(
-          `This user id is not a valid Mongo id (${realId}). Cannot delete.`,
-        );
-        return;
-      }
+    if (!window.confirm("Delete this user?")) return;
 
-      if (!window.confirm("Are you sure you want to delete this user?")) return;
+    try {
+      setRows((prev) => prev.filter((r) => r.realId !== realId));
+      await authRequest.delete(`/users/${realId}`);
+      await fetchUsers();
+    } catch {
+      setDeleteError("Delete failed.");
+      await fetchUsers();
+    }
+  };
 
-      setDeleteError("");
+  const handleStatusChange = async (realId, nextStatus) => {
+    if (!isMongoId(realId)) {
+      setStatusError("Invalid user id.");
+      return;
+    }
 
-      try {
-        // Optimistic UI removal
-        setRows((prev) => prev.filter((row) => row.realId !== realId));
+    const safeNext = normalizeStatus(nextStatus);
+    setRows((prev) =>
+      prev.map((r) => (r.realId === realId ? { ...r, status: safeNext } : r)),
+    );
 
-        // ✅ Canonical: /api/v1/users/:id via authRequest
-        await authRequest.delete(`/users/${realId}`);
-
-        // Re-fetch to ensure list matches backend truth
-        await fetchUsers();
-      } catch (err) {
-        const status = err?.response?.status;
-
-        if (status === 401 || status === 403) {
-          setDeleteError("Your session has expired. Please log in again.");
-          redirectToLogin();
-          return;
-        }
-
-        const msg =
-          err?.response?.data?.message ||
-          err?.message ||
-          "Something went wrong deleting the user.";
-
-        console.error("Users delete error:", err);
-        setDeleteError(msg);
-
-        // Restore truth
-        await fetchUsers();
-      }
-    },
-    [fetchUsers, redirectToLogin],
-  );
-
-  const handleStatusChange = useCallback(
-    async (realId, nextStatus) => {
-      if (!realId) {
-        setStatusError(
-          "This row is not a real database user (missing id). Status cannot be changed.",
-        );
-        return;
-      }
-
-      if (!isMongoId(realId)) {
-        setStatusError(
-          `This user id is not a valid Mongo id (${realId}). Cannot update status.`,
-        );
-        return;
-      }
-
-      const safeNext = normalizeStatus(nextStatus);
-      setStatusError("");
-
-      // optimistic UI update
-      setRows((prev) =>
-        prev.map((r) => (r.realId === realId ? { ...r, status: safeNext } : r)),
-      );
-
-      try {
-        await authRequest.put(`/users/${realId}`, { status: safeNext });
-      } catch (err) {
-        const status = err?.response?.status;
-
-        if (status === 401 || status === 403) {
-          setStatusError("Your session has expired. Please log in again.");
-          redirectToLogin();
-          return;
-        }
-
-        const msg =
-          err?.response?.data?.message ||
-          err?.message ||
-          "Something went wrong updating the user status.";
-
-        console.error("Users status update error:", err);
-        setStatusError(msg);
-
-        // restore truth after failure
-        await fetchUsers();
-      }
-    },
-    [fetchUsers, redirectToLogin],
-  );
-
-  const columns = useMemo(
-    () => [
-      { field: "name", headerName: "Full Name / Company", width: 250 },
-      { field: "email", headerName: "Email", width: 240 },
-      { field: "phone", headerName: "Phone", width: 160 },
-      { field: "type", headerName: "User Type", width: 130 },
-      { field: "accountType", headerName: "Account Type", width: 140 },
-      { field: "country", headerName: "Country", width: 150 },
-      { field: "city", headerName: "City", width: 150 },
-      { field: "postcode", headerName: "Postcode", width: 120 },
-      {
-        field: "notes",
-        headerName: "Notes",
-        width: 220,
-        renderCell: (params) => (
-          <span className="text-gray-600 text-xs">
-            {params.value?.length > 40
-              ? params.value.slice(0, 40) + "..."
-              : params.value || ""}
-          </span>
-        ),
-      },
-      {
-        field: "status",
-        headerName: "Status",
-        width: 220,
-        renderCell: (params) => {
-          const current = normalizeStatus(params.value);
-          const realId = params.row.realId;
-
-          return (
-            <div className="flex items-center h-full gap-2">
-              <span
-                className={`px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
-                  current,
-                )}`}
-              >
-                {statusLabel(current)}
-              </span>
-
-              <select
-                value={current}
-                onChange={(e) => handleStatusChange(realId, e.target.value)}
-                className="text-xs px-2 py-1 rounded-md border border-slate-300 bg-white"
-                title="Change status"
-                disabled={!isMongoId(realId)}
-              >
-                {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>
-                    {statusLabel(s)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          );
-        },
-      },
-      { field: "registered", headerName: "Registered", width: 150 },
-      {
-        field: "actions",
-        headerName: "Actions",
-        width: 260,
-        sortable: false,
-        filterable: false,
-        renderCell: (params) => {
-          const realId = params.row.realId;
-          const canAct = isMongoId(realId);
-
-          return (
-            <div className="flex items-center h-full gap-2">
-              <button
-                onClick={() => handleView(realId)}
-                disabled={!canAct}
-                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition ${
-                  canAct
-                    ? "bg-[#1A2930] text-white hover:bg-[#243746]"
-                    : "bg-slate-200 text-slate-500 cursor-not-allowed"
-                }`}
-              >
-                <FaEye className={canAct ? "text-white" : "text-slate-500"} />
-                View
-              </button>
-
-              <button
-                onClick={() => handleEdit(realId)}
-                disabled={!canAct}
-                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition ${
-                  canAct
-                    ? "bg-[#FFA500] text-[#1A2930] hover:bg-[#ffb733]"
-                    : "bg-slate-200 text-slate-500 cursor-not-allowed"
-                }`}
-              >
-                <FaEdit />
-                Edit
-              </button>
-
-              <button
-                onClick={() => handleDelete(realId)}
-                disabled={!canAct}
-                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold transition ${
-                  canAct
-                    ? "bg-[#E53935] text-white hover:bg-[#c62828]"
-                    : "bg-slate-200 text-slate-500 cursor-not-allowed"
-                }`}
-              >
-                <FaTrash className={canAct ? "text-white" : "text-slate-500"} />
-                Delete
-              </button>
-            </div>
-          );
-        },
-      },
-    ],
-    [handleView, handleEdit, handleDelete, handleStatusChange],
-  );
+    try {
+      await authRequest.put(`/users/${realId}`, { status: safeNext });
+    } catch {
+      setStatusError("Status update failed.");
+      await fetchUsers();
+    }
+  };
 
   return (
     <div className="bg-[#D9D9D9] rounded-md p-3 sm:p-5 lg:p-[20px]">
@@ -416,170 +166,106 @@ const Users = () => {
       </div>
 
       {loadError && (
-        <div className="mb-3 px-4 py-2 rounded-md bg-red-100 text-red-800 text-sm border border-red-300">
-          {loadError}
-        </div>
+        <div className="mb-3 bg-red-100 p-3 text-sm">{loadError}</div>
       )}
 
       {deleteError && (
-        <div className="mb-3 px-4 py-2 rounded-md bg-red-100 text-red-800 text-sm border border-red-300">
-          {deleteError}
-        </div>
+        <div className="mb-3 bg-red-100 p-3 text-sm">{deleteError}</div>
       )}
 
       {statusError && (
-        <div className="mb-3 px-4 py-2 rounded-md bg-red-100 text-red-800 text-sm border border-red-300">
-          {statusError}
-        </div>
+        <div className="mb-3 bg-red-100 p-3 text-sm">{statusError}</div>
       )}
 
-      {/* MOBILE: Card list */}
+      {/* MOBILE preserved */}
       <div className="grid gap-3 lg:hidden">
-        {rows.length === 0 ? (
-          <div className="bg-white rounded-md p-4 shadow-md text-sm text-gray-600">
-            No users found.
-          </div>
-        ) : (
-          rows.map((row) => {
-            const canAct = isMongoId(row.realId);
-
-            return (
-              <div
-                key={row.id}
-                className="bg-white rounded-md p-4 shadow-md border border-slate-100"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-slate-900 break-words">
-                      {row.name || "—"}
-                    </div>
-                    <div className="text-xs text-slate-500 mt-1 break-words">
-                      {row.email || "—"}
-                    </div>
-                  </div>
-
-                  <span
-                    className={`shrink-0 px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
-                      row.status,
-                    )}`}
-                  >
-                    {statusLabel(row.status)}
-                  </span>
-                </div>
-
-                <div className="mt-3 grid gap-2 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500 text-xs">Phone</span>
-                    <span className="text-slate-900 text-sm font-medium text-right break-words">
-                      {row.phone || "—"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500 text-xs">Type</span>
-                    <span className="text-slate-900 text-sm font-medium text-right break-words">
-                      {row.type || "—"}{" "}
-                      {row.accountType ? `(${row.accountType})` : ""}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500 text-xs">Location</span>
-                    <span className="text-slate-900 text-sm font-medium text-right break-words">
-                      {[row.city, row.country].filter(Boolean).join(", ") ||
-                        "—"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500 text-xs">Registered</span>
-                    <span className="text-slate-900 text-sm font-medium text-right">
-                      {row.registered || "—"}
-                    </span>
-                  </div>
-
-                  {/* ✅ Status control (mobile) */}
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500 text-xs">Set Status</span>
-                    <select
-                      value={normalizeStatus(row.status)}
-                      onChange={(e) =>
-                        handleStatusChange(row.realId, e.target.value)
-                      }
-                      className="text-xs px-2 py-1 rounded-md border border-slate-300 bg-white"
-                      disabled={!canAct}
-                    >
-                      {STATUS_OPTIONS.map((s) => (
-                        <option key={s} value={s}>
-                          {statusLabel(s)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => handleView(row.realId)}
-                    disabled={!canAct}
-                    className={`flex items-center justify-center gap-1 px-2 py-2 rounded-md text-xs font-semibold transition ${
-                      canAct
-                        ? "bg-[#1A2930] text-white hover:bg-[#243746]"
-                        : "bg-slate-200 text-slate-500 cursor-not-allowed"
-                    }`}
-                  >
-                    <FaEye
-                      className={canAct ? "text-white" : "text-slate-500"}
-                    />
-                    View
-                  </button>
-
-                  <button
-                    onClick={() => handleEdit(row.realId)}
-                    disabled={!canAct}
-                    className={`flex items-center justify-center gap-1 px-2 py-2 rounded-md text-xs font-semibold transition ${
-                      canAct
-                        ? "bg-[#FFA500] text-[#1A2930] hover:bg-[#ffb733]"
-                        : "bg-slate-200 text-slate-500 cursor-not-allowed"
-                    }`}
-                  >
-                    <FaEdit />
-                    Edit
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(row.realId)}
-                    disabled={!canAct}
-                    className={`flex items-center justify-center gap-1 px-2 py-2 rounded-md text-xs font-semibold transition ${
-                      canAct
-                        ? "bg-[#E53935] text-white hover:bg-[#c62828]"
-                        : "bg-slate-200 text-slate-500 cursor-not-allowed"
-                    }`}
-                  >
-                    <FaTrash
-                      className={canAct ? "text-white" : "text-slate-500"}
-                    />
-                    Delete
-                  </button>
-                </div>
+        {rows.map((row) => (
+          <div key={row.id} className="bg-white rounded-md p-4 shadow-md">
+            <div className="flex justify-between">
+              <div>
+                <div className="font-semibold">{row.name}</div>
+                <div className="text-xs text-gray-500">{row.email}</div>
               </div>
-            );
-          })
-        )}
+
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusClasses(
+                  row.status,
+                )}`}
+              >
+                {statusLabel(row.status)}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* DESKTOP: DataGrid */}
+      {/* DESKTOP TanStack */}
       <div className="hidden lg:block bg-white rounded-md p-4 shadow-md">
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          checkboxSelection
-          autoHeight
-          loading={loading}
-          pageSizeOptions={[5, 10]}
-          initialState={{
-            pagination: { paginationModel: { pageSize: 5, page: 0 } },
-          }}
+        <AdminTable
+          data={rows}
+          pageSize={10}
+          columns={[
+            { header: "Name", accessorKey: "name" },
+            { header: "Email", accessorKey: "email" },
+            { header: "Phone", accessorKey: "phone" },
+            { header: "Type", accessorKey: "type" },
+            { header: "Country", accessorKey: "country" },
+            {
+              header: "Status",
+              cell: ({ row }) => (
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusClasses(
+                      row.original.status,
+                    )}`}
+                  >
+                    {statusLabel(row.original.status)}
+                  </span>
+
+                  <select
+                    value={row.original.status}
+                    onChange={(e) =>
+                      handleStatusChange(row.original.realId, e.target.value)
+                    }
+                    className="text-xs px-2 py-1 rounded-md border border-slate-300 bg-white"
+                  >
+                    {STATUS_OPTIONS.map((s) => (
+                      <option key={s} value={s}>
+                        {statusLabel(s)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ),
+            },
+            {
+              header: "Actions",
+              cell: ({ row }) => (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleView(row.original.realId)}
+                    className="px-2 py-1 bg-[#1A2930] text-white rounded text-xs"
+                  >
+                    <FaEye />
+                  </button>
+
+                  <button
+                    onClick={() => handleEdit(row.original.realId)}
+                    className="px-2 py-1 bg-[#FFA500] text-black rounded text-xs"
+                  >
+                    <FaEdit />
+                  </button>
+
+                  <button
+                    onClick={() => handleDelete(row.original.realId)}
+                    className="px-2 py-1 bg-red-600 text-white rounded text-xs"
+                  >
+                    <FaTrash />
+                  </button>
+                </div>
+              ),
+            },
+          ]}
         />
       </div>
     </div>
