@@ -759,16 +759,26 @@ async function normalisePortsOnPayload(payload) {
   let origin = null;
   let destination = null;
 
-  if (payload.ports.originPortId) {
-    origin = await Port.findOne({
-      _id: payload.ports.originPortId,
-      isActive: true,
-    }).lean();
+  // Accept canonical top-level ids (Admin sends these), but keep nested as primary
+  const originPortId =
+    payload?.ports?.originPortId || payload?.originPortId || null;
+  const destinationPortId =
+    payload?.ports?.destinationPortId || payload?.destinationPortId || null;
+
+  // Ensure nested ids are set so downstream logic stays consistent
+  if (!payload.ports.originPortId && originPortId)
+    payload.ports.originPortId = originPortId;
+  if (!payload.ports.destinationPortId && destinationPortId) {
+    payload.ports.destinationPortId = destinationPortId;
   }
 
-  if (payload.ports.destinationPortId) {
+  if (originPortId) {
+    origin = await Port.findOne({ _id: originPortId, isActive: true }).lean();
+  }
+
+  if (destinationPortId) {
     destination = await Port.findOne({
-      _id: payload.ports.destinationPortId,
+      _id: destinationPortId,
       isActive: true,
     }).lean();
   }
@@ -951,19 +961,30 @@ async function getAllShipments(req, res) {
 
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(
-      Math.max(parseInt(req.query.limit, 10) || 200, 1),
+      Math.max(parseInt(req.query.limit, 10) || 25, 1),
       500,
     );
     const skip = (page - 1) * limit;
 
-    const shipments = await Shipment.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .populate("customer", "fullname email country")
-      .lean();
+    const [total, shipments] = await Promise.all([
+      Shipment.countDocuments(filter),
+      Shipment.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("customer", "fullname email country")
+        .lean(),
+    ]);
 
-    return res.status(200).json(shipments);
+    const pages = Math.max(Math.ceil(total / limit), 1);
+
+    return res.status(200).json({
+      shipments,
+      total,
+      page,
+      pages,
+      limit,
+    });
   } catch (err) {
     console.error("Error fetching shipments:", err);
     return res.status(500).json({
