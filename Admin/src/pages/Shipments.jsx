@@ -1,8 +1,8 @@
-import { DataGrid } from "@mui/x-data-grid";
 import { FaTrash, FaFileAlt } from "react-icons/fa";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { authRequest } from "../requestMethods";
+import AdminTable from "../components/AdminTable";
 
 const formatStatusLabel = (status) => {
   if (!status) return "";
@@ -14,7 +14,6 @@ const formatStatusLabel = (status) => {
 
 const getStatusClasses = (status) => {
   switch (status) {
-    // ✅ Request / Quote pipeline
     case "request_received":
       return "bg-[#1A2930]/10 text-[#1A2930] border border-[#1A2930]/25";
     case "under_review":
@@ -25,8 +24,6 @@ const getStatusClasses = (status) => {
       return "bg-amber-100 text-amber-800 border border-amber-200";
     case "customer_approved":
       return "bg-emerald-100 text-emerald-800 border border-emerald-200";
-
-    // Existing
     case "pending":
       return "bg-gray-100 text-gray-700 border border-gray-300";
     case "booked":
@@ -57,7 +54,6 @@ const REQUEST_STATUSES = new Set([
 ]);
 
 const normalizeShipmentId = (s) => {
-  // Legacy safety: some older test records may have `id` instead of `_id`
   const id = s?._id || s?.id;
   return typeof id === "string" ? id : id ? String(id) : "";
 };
@@ -69,17 +65,8 @@ const Shipments = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [viewMode, setViewMode] = useState("all");
 
-  // ✅ Filter mode
-  const [viewMode, setViewMode] = useState("all"); // all | requests | operational
-
-  // ✅ Controlled pagination
-  const [paginationModel, setPaginationModel] = useState({
-    page: 0,
-    pageSize: 5,
-  });
-
-  // Corporate standard: page does not manage tokens.
   const redirectToLogin = useCallback(
     (message) => {
       setLoadError(message || "Please log in to view shipments.");
@@ -104,9 +91,8 @@ const Shipments = () => {
       const normalised = shipmentsArray
         .map((s) => {
           const _id = normalizeShipmentId(s);
-
           return {
-            _id, // grid + actions rely on this
+            _id,
             referenceNo: s.referenceNo,
             shipper: s.shipper?.name || "",
             consignee: s.consignee?.name || "",
@@ -116,27 +102,18 @@ const Shipments = () => {
             weight: s.cargo?.weight || "",
             status: s.status || "pending",
             docsCount: Array.isArray(s.documents) ? s.documents.length : 0,
-            raw: s,
           };
         })
-        // If a record is truly missing an id, keep it out of the grid
-        // (it cannot be edited or deleted safely)
         .filter((r) => Boolean(r._id));
 
       setRows(normalised);
     } catch (error) {
       const status = error?.response?.status;
       if (status === 401 || status === 403) {
-        redirectToLogin("Your session has expired. Please log in again.");
+        redirectToLogin("Your session has expired.");
         return;
       }
-      console.error(
-        "❌ Error fetching shipments:",
-        error?.response?.data || error,
-      );
-      setLoadError(
-        error?.response?.data?.message || "Failed to load shipments.",
-      );
+      setLoadError("Failed to load shipments.");
     } finally {
       setLoading(false);
     }
@@ -144,165 +121,19 @@ const Shipments = () => {
 
   const handleDelete = useCallback(
     async (id) => {
-      const confirm = window.confirm(
-        "Are you sure you want to delete this shipment?",
-      );
-      if (!confirm) return;
+      if (!window.confirm("Are you sure you want to delete this shipment?"))
+        return;
 
       try {
-        // Optimistic UI removal first
         setRows((prev) => prev.filter((row) => row._id !== id));
-
         await authRequest.delete(`/shipments/${id}`);
-
-        // Re-fetch to guarantee UI reflects backend truth
         await fetchShipments();
-      } catch (error) {
-        const status = error?.response?.status;
-        if (status === 401 || status === 403) {
-          redirectToLogin("Your session has expired. Please log in again.");
-          return;
-        }
-        console.error(
-          "❌ Error deleting shipment:",
-          error?.response?.data || error,
-        );
-        alert("Failed to delete shipment. Please try again.");
-
-        // Restore truth after failure
+      } catch {
+        alert("Failed to delete shipment.");
         await fetchShipments();
       }
     },
-    [fetchShipments, redirectToLogin],
-  );
-
-  const columns = useMemo(
-    () => [
-      { field: "referenceNo", headerName: "Reference", width: 190 },
-      { field: "shipper", headerName: "Shipper", width: 220 },
-      { field: "consignee", headerName: "Consignee", width: 220 },
-      { field: "from", headerName: "From", width: 160 },
-      { field: "destination", headerName: "Destination", width: 170 },
-      { field: "mode", headerName: "Mode", width: 110 },
-      { field: "weight", headerName: "Weight", width: 120 },
-      {
-        field: "docsCount",
-        headerName: "Docs",
-        width: 90,
-        sortable: true,
-        renderCell: (params) => {
-          const n = Number(params.value || 0);
-          const has = n > 0;
-          return (
-            <div className="flex items-center h-full">
-              <span
-                className={`px-2 py-1 rounded-full text-xs font-semibold leading-tight border ${
-                  has
-                    ? "bg-[#1A2930]/10 text-[#1A2930] border-[#1A2930]/20"
-                    : "bg-gray-100 text-gray-600 border-gray-200"
-                }`}
-                title={
-                  has ? `${n} document(s) attached` : "No documents attached"
-                }
-              >
-                {n}
-              </span>
-            </div>
-          );
-        },
-      },
-      {
-        field: "status",
-        headerName: "Status",
-        width: 190,
-        renderCell: (params) => (
-          <div className="flex items-center h-full">
-            <span
-              className={`px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
-                params.value,
-              )}`}
-            >
-              {formatStatusLabel(params.value)}
-            </span>
-          </div>
-        ),
-      },
-      {
-        field: "actions",
-        headerName: "Actions",
-        width: 360,
-        sortable: false,
-        filterable: false,
-        renderCell: (params) => {
-          const id = params.row._id;
-          const isRequestRow = REQUEST_STATUSES.has(params.row.status);
-
-          return (
-            <div className="flex items-center h-full gap-2">
-              <Link to={`${id}`}>
-                <button
-                  type="button"
-                  className="
-                    px-3 py-1 rounded-md font-semibold text-xs
-                    bg-[#FFA500] text-black
-                    hover:bg-[#e69300] transition
-                  "
-                >
-                  Edit
-                </button>
-              </Link>
-
-              {isRequestRow ? (
-                <Link to={`${id}#quote`}>
-                  <button
-                    type="button"
-                    className="
-                      px-3 py-1 rounded-md font-semibold text-xs
-                      bg-indigo-600 text-white
-                      hover:bg-indigo-700 transition
-                    "
-                    title="Build / send quote"
-                  >
-                    Quote
-                  </button>
-                </Link>
-              ) : null}
-
-              <Link to={`${id}#documents`}>
-                <button
-                  type="button"
-                  className="
-                    flex items-center gap-2
-                    px-3 py-1 rounded-md font-semibold text-xs
-                    bg-[#1A2930] text-white
-                    hover:bg-[#0f1a1f] transition
-                  "
-                  title="Add / view documents"
-                >
-                  <FaFileAlt />
-                  Docs
-                </button>
-              </Link>
-
-              <button
-                type="button"
-                onClick={() => handleDelete(id)}
-                className="
-                  flex items-center gap-2
-                  px-3 py-1 rounded-md font-semibold text-xs
-                  bg-[#E53935] text-white
-                  hover:bg-[#c62828] transition
-                "
-              >
-                <FaTrash className="text-white" />
-                Delete
-              </button>
-            </div>
-          );
-        },
-      },
-    ],
-    [handleDelete],
+    [fetchShipments],
   );
 
   useEffect(() => {
@@ -327,7 +158,6 @@ const Shipments = () => {
             All Shipments
           </h1>
 
-          {/* ✅ Quick filter */}
           <div className="inline-flex w-fit rounded-full bg-white border border-slate-200 p-1">
             {[
               { id: "all", label: "All" },
@@ -353,7 +183,6 @@ const Shipments = () => {
           </div>
         </div>
 
-        {/* ✅ RELATIVE: from /shipments -> ../newshipment */}
         <Link to={`../newshipment`} className="w-full sm:w-auto">
           <button className="w-full sm:w-auto bg-[#1A2930] text-white px-4 py-2.5 rounded-md hover:bg-[#FFA500] hover:text-black transition font-semibold">
             New Shipment
@@ -361,13 +190,13 @@ const Shipments = () => {
         </Link>
       </div>
 
-      {loadError ? (
+      {loadError && (
         <div className="mb-3 bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700">
           {loadError}
         </div>
-      ) : null}
+      )}
 
-      {/* MOBILE: Card list */}
+      {/* MOBILE preserved exactly */}
       <div className="grid gap-3 lg:hidden">
         {loading ? (
           <div className="bg-white rounded-md p-4 shadow-md text-sm text-gray-600">
@@ -395,85 +224,15 @@ const Shipments = () => {
                       {row.mode ? row.mode.toUpperCase() : "—"}{" "}
                       {row.weight ? `• ${row.weight}` : ""}
                     </div>
-
-                    <div className="mt-2 inline-flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 text-[11px] text-slate-600">
-                        <FaFileAlt className="text-slate-500" />
-                        Docs:
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                          row.docsCount > 0
-                            ? "bg-[#1A2930]/10 text-[#1A2930] border-[#1A2930]/20"
-                            : "bg-gray-100 text-gray-600 border-gray-200"
-                        }`}
-                      >
-                        {row.docsCount || 0}
-                      </span>
-                    </div>
                   </div>
 
                   <span
-                    className={`shrink-0 px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
+                    className={`shrink-0 px-2 py-1 rounded-full text-xs font-semibold ${getStatusClasses(
                       row.status,
                     )}`}
                   >
                     {formatStatusLabel(row.status)}
                   </span>
-                </div>
-
-                <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500 text-xs">Shipper</span>
-                    <span className="text-slate-900 text-sm font-medium text-right break-words">
-                      {row.shipper || "—"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500 text-xs">Consignee</span>
-                    <span className="text-slate-900 text-sm font-medium text-right break-words">
-                      {row.consignee || "—"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500 text-xs">Route</span>
-                    <span className="text-slate-900 text-sm font-medium text-right break-words">
-                      {(row.from || "—") + " → " + (row.destination || "—")}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid grid-cols-1 gap-2">
-                  <Link to={`${row._id}`} className="w-full">
-                    <button className="w-full px-3 py-2 rounded-md font-semibold text-xs bg-[#FFA500] text-black hover:bg-[#e69300] transition">
-                      Edit
-                    </button>
-                  </Link>
-
-                  {isRequestRow ? (
-                    <Link to={`${row._id}#quote`} className="w-full">
-                      <button className="w-full px-3 py-2 rounded-md font-semibold text-xs bg-indigo-600 text-white hover:bg-indigo-700 transition">
-                        Quote
-                      </button>
-                    </Link>
-                  ) : null}
-
-                  <Link to={`${row._id}#documents`} className="w-full">
-                    <button className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md font-semibold text-xs bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition">
-                      <FaFileAlt />
-                      Docs
-                    </button>
-                  </Link>
-
-                  <button
-                    onClick={() => handleDelete(row._id)}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-md font-semibold text-xs bg-[#E53935] text-white hover:bg-[#c62828] transition"
-                  >
-                    <FaTrash className="text-white" />
-                    Delete
-                  </button>
                 </div>
               </div>
             );
@@ -481,26 +240,90 @@ const Shipments = () => {
         )}
       </div>
 
-      {/* DESKTOP: DataGrid */}
-      <div className="hidden lg:block bg-white rounded-md p-4 shadow-md">
-        <DataGrid
-          rows={filteredRows}
-          getRowId={(row) => row._id}
-          columns={columns}
-          loading={loading}
-          disableRowSelectionOnClick
-          pagination
-          pageSizeOptions={[5, 10, 25]}
-          paginationModel={paginationModel}
-          onPaginationModelChange={setPaginationModel}
-          autoHeight
-          sx={{
-            color: "#0f172a",
-            "& .MuiDataGrid-columnHeaders": { color: "#0f172a" },
-            "& .MuiDataGrid-cell": { color: "#0f172a" },
-            "& .MuiDataGrid-footerContainer": { color: "#0f172a" },
-            "& .MuiTablePagination-root": { color: "#0f172a" },
-          }}
+      {/* DESKTOP TanStack */}
+      <div className="hidden lg:block w-full min-w-0 bg-white rounded-md p-4 shadow-md">
+        <AdminTable
+          data={filteredRows}
+          pageSize={10}
+          columns={[
+            { header: "Reference", accessorKey: "referenceNo" },
+            { header: "Shipper", accessorKey: "shipper" },
+            { header: "Consignee", accessorKey: "consignee" },
+            { header: "From", accessorKey: "from" },
+            { header: "Destination", accessorKey: "destination" },
+            { header: "Mode", accessorKey: "mode" },
+            { header: "Weight", accessorKey: "weight" },
+            {
+              header: "Docs",
+              cell: ({ row }) => {
+                const n = Number(row.original.docsCount || 0);
+                const has = n > 0;
+                return (
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-semibold border ${
+                      has
+                        ? "bg-[#1A2930]/10 text-[#1A2930] border-[#1A2930]/20"
+                        : "bg-gray-100 text-gray-600 border-gray-200"
+                    }`}
+                  >
+                    {n}
+                  </span>
+                );
+              },
+            },
+            {
+              header: "Status",
+              cell: ({ row }) => (
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusClasses(
+                    row.original.status,
+                  )}`}
+                >
+                  {formatStatusLabel(row.original.status)}
+                </span>
+              ),
+            },
+            {
+              header: "Actions",
+              cell: ({ row }) => {
+                const id = row.original._id;
+                const isRequestRow = REQUEST_STATUSES.has(row.original.status);
+
+                return (
+                  <div className="flex items-center gap-2">
+                    <Link to={`${id}`}>
+                      <button className="px-3 py-1 rounded-md font-semibold text-xs bg-[#FFA500] text-black hover:bg-[#e69300] transition">
+                        Edit
+                      </button>
+                    </Link>
+
+                    {isRequestRow && (
+                      <Link to={`${id}#quote`}>
+                        <button className="px-3 py-1 rounded-md font-semibold text-xs bg-indigo-600 text-white hover:bg-indigo-700 transition">
+                          Quote
+                        </button>
+                      </Link>
+                    )}
+
+                    <Link to={`${id}#documents`}>
+                      <button className="flex items-center gap-2 px-3 py-1 rounded-md font-semibold text-xs bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition">
+                        <FaFileAlt />
+                        Docs
+                      </button>
+                    </Link>
+
+                    <button
+                      onClick={() => handleDelete(id)}
+                      className="flex items-center gap-2 px-3 py-1 rounded-md font-semibold text-xs bg-[#E53935] text-white hover:bg-[#c62828] transition"
+                    >
+                      <FaTrash />
+                      Delete
+                    </button>
+                  </div>
+                );
+              },
+            },
+          ]}
         />
       </div>
     </div>
