@@ -4,38 +4,45 @@ import { authRequest } from "../requestMethods";
 import AdminTable from "../components/AdminTable";
 
 const getStatusChipClass = (status) => {
-  switch (String(status || "").toLowerCase()) {
-    case "delivered":
-      return "bg-emerald-100 text-emerald-900 border border-emerald-300";
+  const s = String(status || "pending").toLowerCase();
+
+  // High-contrast enterprise chips (work on light table rows)
+  switch (s) {
     case "pending":
-      return "bg-amber-100 text-amber-900 border border-amber-300";
+      return "bg-[#D9D9D9] text-[#1A2930] border-[#9A9EAB]/70";
     case "booked":
-      // booked = ELX accent tier
-      return "bg-orange-100 text-orange-900 border border-orange-300";
-    case "loaded":
-    case "sailed":
-      return "bg-indigo-100 text-indigo-900 border border-indigo-300";
-    case "arrived":
-    case "cleared":
-      return "bg-teal-100 text-teal-900 border border-teal-300";
+      return "bg-[#FFA500]/25 text-[#1A2930] border-[#FFA500]/70";
+    case "delivered":
+      return "bg-emerald-100 text-emerald-900 border-emerald-300";
     case "cancelled":
-      return "bg-red-100 text-red-900 border border-red-300";
+      return "bg-red-100 text-red-900 border-red-300";
+    case "request_received":
+      return "bg-slate-100 text-slate-900 border-slate-300";
+    case "under_review":
+      return "bg-blue-100 text-blue-900 border-blue-300";
+    case "quoted":
+      return "bg-indigo-100 text-indigo-900 border-indigo-300";
+    case "customer_requested_changes":
+      return "bg-amber-100 text-amber-900 border-amber-300";
+    case "customer_approved":
+      return "bg-emerald-100 text-emerald-900 border-emerald-300";
     default:
-      return "bg-slate-100 text-slate-900 border border-slate-300";
+      return "bg-slate-100 text-slate-900 border-slate-300";
   }
 };
 
 const getPaymentChipClass = (paymentStatus) => {
-  switch (String(paymentStatus || "").toLowerCase()) {
+  const s = String(paymentStatus || "unpaid").toLowerCase();
+
+  switch (s) {
     case "paid":
-      return "bg-emerald-100 text-emerald-900 border border-emerald-300";
+      return "bg-emerald-100 text-emerald-900 border-emerald-300";
     case "part_paid":
-      return "bg-amber-100 text-amber-900 border border-amber-300";
-    case "on_account":
-      return "bg-sky-100 text-sky-900 border border-sky-300";
+    case "partial":
+      return "bg-amber-100 text-amber-900 border-amber-300";
     case "unpaid":
     default:
-      return "bg-slate-100 text-slate-900 border border-slate-300";
+      return "bg-slate-100 text-slate-900 border-slate-300";
   }
 };
 
@@ -168,7 +175,7 @@ const Orders = () => {
       </div>
 
       {/* Desktop Table */}
-      <div className="bg-[#020617] rounded-2xl p-4 border border-[#1f2937]">
+      <div className="bg-[#1A2930] rounded-2xl p-4 border border-[#9A9EAB]/30">
         <AdminTable
           data={filteredRows}
           pageSize={10}
@@ -212,7 +219,7 @@ const Orders = () => {
                       ${getPaymentChipClass(value)}
                     `}
                   >
-                    {value.replace("_", " ")}
+                    {String(value || "unpaid").replaceAll("_", " ")}
                   </span>
                 );
               },
@@ -235,7 +242,7 @@ const Orders = () => {
                       ${getStatusChipClass(value)}
                     `}
                   >
-                    {value.replace("_", " ")}
+                    {String(value || "pending").replaceAll("_", " ")}
                   </span>
                 );
               },
