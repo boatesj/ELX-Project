@@ -1,272 +1,170 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { FaTrash, FaEye, FaEdit } from "react-icons/fa";
+// Admin/src/pages/Users.jsx
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { authRequest } from "../requestMethods";
-import AdminTable from "../components/AdminTable";
+import AdminTable from "../components/AdminTable.jsx";
 
 const normalizeStatus = (status) => {
   const s = String(status || "pending")
     .trim()
     .toLowerCase();
-  if (s === "active") return "active";
-  if (s === "suspended") return "suspended";
-  return "pending";
+  return s || "pending";
 };
 
-const statusLabel = (status) =>
-  normalizeStatus(status).replace(/^\w/, (c) => c.toUpperCase());
-
-const getStatusClasses = (status) => {
-  const s = normalizeStatus(status);
-  switch (s) {
-    case "active":
-      return "bg-green-100 text-green-700 border border-green-300";
-    case "pending":
-      return "bg-yellow-100 text-yellow-700 border border-yellow-300";
-    case "suspended":
-      return "bg-red-100 text-red-700 border border-red-300";
-    default:
-      return "bg-gray-100 text-gray-700 border border-gray-300";
+const toUkDateTime = (iso) => {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleString("en-GB");
+  } catch {
+    return "";
   }
 };
-
-const pickUsersArray = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.users)) return payload.users;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.results)) return payload.results;
-  return [];
-};
-
-const STATUS_OPTIONS = ["pending", "active", "suspended"];
-const isMongoId = (value) => /^[a-fA-F0-9]{24}$/.test(String(value || ""));
 
 const Users = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
   const [rows, setRows] = useState([]);
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState("");
-  const [deleteError, setDeleteError] = useState("");
-  const [statusError, setStatusError] = useState("");
-
-  const redirectToLogin = useCallback(() => {
-    navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
-  }, [navigate, location.pathname]);
-
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    setLoadError("");
-    setDeleteError("");
-    setStatusError("");
-
-    try {
-      const res = await authRequest.get("/users");
-      const list = pickUsersArray(res?.data ?? {});
-
-      const mapped = list.map((user, index) => {
-        const realId = String(user._id || user.id || "");
-        return {
-          id: realId || `tmp-${index + 1}`,
-          realId,
-          name: user.fullname || user.name || "—",
-          email: user.email || "—",
-          phone: user.phone || "—",
-          type: user.role || "N/A",
-          accountType: user.accountType || "",
-          country: user.country || "",
-          city: user.city || "",
-          postcode: user.postcode || "",
-          address: user.address || "",
-          notes: user.notes || "",
-          status: normalizeStatus(user.status),
-          registered: user.createdAt
-            ? new Date(user.createdAt).toISOString().slice(0, 10)
-            : "",
-        };
-      });
-
-      setRows(mapped);
-    } catch (err) {
-      const status = err?.response?.status;
-      if (status === 401 || status === 403) {
-        setLoadError("Session expired.");
-        redirectToLogin();
-        return;
-      }
-
-      setLoadError("Failed to load users.");
-    } finally {
-      setLoading(false);
-    }
-  }, [redirectToLogin]);
+  const [err, setErr] = useState("");
 
   useEffect(() => {
+    const fetchUsers = async () => {
+      setLoading(true);
+      setErr("");
+      try {
+        const res = await authRequest.get("/users");
+
+        const payload = res?.data;
+
+        const list = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.users)
+            ? payload.users
+            : Array.isArray(payload?.data)
+              ? payload.data
+              : Array.isArray(payload?.data?.users)
+                ? payload.data.users
+                : [];
+
+        setRows(list);
+      } catch (e) {
+        setErr(
+          e?.response?.data?.message || e?.message || "Failed to load users",
+        );
+        setRows([]); // ✅ ensure UI doesn't keep stale data
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchUsers();
-  }, [fetchUsers]);
+  }, [location.key]);
 
-  const handleView = (realId) => {
-    if (!realId) return;
-    navigate(`/users/${realId}`);
-  };
+  const filteredRows = useMemo(() => {
+    const q = String(query || "")
+      .trim()
+      .toLowerCase();
+    if (!q) return rows;
 
-  const handleEdit = (realId) => {
-    if (!realId) return;
-    navigate(`/users/${realId}/edit`);
-  };
+    return rows.filter((u) => {
+      const fullname = String(u?.fullname || "").toLowerCase();
+      const email = String(u?.email || "").toLowerCase();
+      const role = String(u?.role || "").toLowerCase();
+      const status = String(u?.status || "").toLowerCase();
+      return (
+        fullname.includes(q) ||
+        email.includes(q) ||
+        role.includes(q) ||
+        status.includes(q)
+      );
+    });
+  }, [rows, query]);
 
-  const handleDelete = async (realId) => {
-    if (!isMongoId(realId)) {
-      setDeleteError("Invalid user id.");
-      return;
-    }
-
-    if (!window.confirm("Delete this user?")) return;
-
-    try {
-      setRows((prev) => prev.filter((r) => r.realId !== realId));
-      await authRequest.delete(`/users/${realId}`);
-      await fetchUsers();
-    } catch {
-      setDeleteError("Delete failed.");
-      await fetchUsers();
-    }
-  };
-
-  const handleStatusChange = async (realId, nextStatus) => {
-    if (!isMongoId(realId)) {
-      setStatusError("Invalid user id.");
-      return;
-    }
-
-    const safeNext = normalizeStatus(nextStatus);
-    setRows((prev) =>
-      prev.map((r) => (r.realId === realId ? { ...r, status: safeNext } : r)),
-    );
-
-    try {
-      await authRequest.put(`/users/${realId}`, { status: safeNext });
-    } catch {
-      setStatusError("Status update failed.");
-      await fetchUsers();
-    }
+  const handleRowClick = (row) => {
+    const id = row?._id || row?.id;
+    if (!id) return;
+    navigate(`/users/${id}`);
   };
 
   return (
-    <div className="bg-[#D9D9D9] rounded-md p-3 sm:p-5 lg:p-[20px]">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-        <h1 className="text-[18px] sm:text-[20px] font-semibold">All Users</h1>
-
-        <Link to="/newuser" className="w-full sm:w-auto">
-          <button className="w-full sm:w-auto bg-[#1A2930] text-white px-4 py-2.5 rounded-md hover:bg-[#FFA500] hover:text-black transition font-semibold">
-            New User
-          </button>
-        </Link>
-      </div>
-
-      {loadError && (
-        <div className="mb-3 bg-red-100 p-3 text-sm">{loadError}</div>
-      )}
-
-      {deleteError && (
-        <div className="mb-3 bg-red-100 p-3 text-sm">{deleteError}</div>
-      )}
-
-      {statusError && (
-        <div className="mb-3 bg-red-100 p-3 text-sm">{statusError}</div>
-      )}
-
-      {/* MOBILE preserved */}
-      <div className="grid gap-3 lg:hidden">
-        {rows.map((row) => (
-          <div key={row.id} className="bg-white rounded-md p-4 shadow-md">
-            <div className="flex justify-between">
-              <div>
-                <div className="font-semibold">{row.name}</div>
-                <div className="text-xs text-gray-500">{row.email}</div>
-              </div>
-
-              <span
-                className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusClasses(
-                  row.status,
-                )}`}
-              >
-                {statusLabel(row.status)}
-              </span>
-            </div>
+    <div className="min-h-screen bg-[#1A2930] p-4 md:p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div>
+            <h1 className="text-[#EDECEC] text-2xl font-extrabold tracking-tight">
+              Users
+            </h1>
+            <p className="text-[#9A9EAB] text-sm mt-1">
+              Manage users and view account status.
+            </p>
           </div>
-        ))}
-      </div>
 
-      {/* DESKTOP TanStack */}
-      <div className="hidden lg:block bg-white rounded-md p-4 shadow-md">
-        <AdminTable
-          data={rows}
-          pageSize={10}
-          columns={[
-            { header: "Name", accessorKey: "name" },
-            { header: "Email", accessorKey: "email" },
-            { header: "Phone", accessorKey: "phone" },
-            { header: "Type", accessorKey: "type" },
-            { header: "Country", accessorKey: "country" },
-            {
-              header: "Status",
-              cell: ({ row }) => (
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusClasses(
-                      row.original.status,
-                    )}`}
-                  >
-                    {statusLabel(row.original.status)}
-                  </span>
+          <div className="flex items-center gap-2">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name, email, role, status…"
+              className="
+                w-full md:w-[320px]
+                rounded-xl px-3 py-2
+                bg-[#0b1220] text-[#EDECEC]
+                border border-[#334155]
+                placeholder:text-[#9A9EAB]
+                focus:outline-none focus:ring-2 focus:ring-[#FFA500]/60
+              "
+            />
 
-                  <select
-                    value={row.original.status}
-                    onChange={(e) =>
-                      handleStatusChange(row.original.realId, e.target.value)
-                    }
-                    className="text-xs px-2 py-1 rounded-md border border-slate-300 bg-white"
-                  >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {statusLabel(s)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ),
-            },
-            {
-              header: "Actions",
-              cell: ({ row }) => (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleView(row.original.realId)}
-                    className="px-2 py-1 bg-[#1A2930] text-white rounded text-xs"
-                  >
-                    <FaEye />
-                  </button>
+            <Link
+              to="/users/new"
+              className="
+                inline-flex items-center justify-center
+                rounded-xl px-4 py-2
+                bg-[#FFA500] text-black font-bold
+                hover:opacity-90 transition
+              "
+            >
+              New
+            </Link>
+          </div>
+        </div>
 
-                  <button
-                    onClick={() => handleEdit(row.original.realId)}
-                    className="px-2 py-1 bg-[#FFA500] text-black rounded text-xs"
-                  >
-                    <FaEdit />
-                  </button>
+        {err ? (
+          <div className="mb-4 p-3 rounded-xl border border-red-400/40 bg-red-500/10 text-red-200">
+            {err}
+          </div>
+        ) : null}
 
-                  <button
-                    onClick={() => handleDelete(row.original.realId)}
-                    className="px-2 py-1 bg-red-600 text-white rounded text-xs"
-                  >
-                    <FaTrash />
-                  </button>
-                </div>
-              ),
-            },
-          ]}
-        />
+        <div className="rounded-2xl border border-[#334155] bg-[#0b1220] p-4">
+          {loading ? (
+            <div className="text-[#9A9EAB]">Loading…</div>
+          ) : (
+            <AdminTable
+              data={filteredRows}
+              pageSize={10}
+              onRowClick={handleRowClick}
+              columns={[
+                { header: "Name", accessorKey: "fullname" },
+                { header: "Email", accessorKey: "email" },
+                {
+                  header: "Role",
+                  cell: ({ row }) => String(row.original?.role || "").trim(),
+                },
+                {
+                  header: "Status",
+                  cell: ({ row }) => normalizeStatus(row.original?.status),
+                },
+                {
+                  header: "Created",
+                  cell: ({ row }) => toUkDateTime(row.original?.createdAt),
+                },
+              ]}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
