@@ -1,4 +1,4 @@
-import React from "react";
+// Admin/src/components/AdminTable.jsx
 import {
   flexRender,
   getCoreRowModel,
@@ -27,9 +27,12 @@ const AdminTable = ({
   pageSize = 10,
   emptyText = "No records found.",
 }) => {
+  const safeData = Array.isArray(data) ? data : [];
+  const safeColumns = Array.isArray(columns) ? columns : [];
+
   const table = useReactTable({
-    data: Array.isArray(data) ? data : [],
-    columns: Array.isArray(columns) ? columns : [],
+    data: safeData,
+    columns: safeColumns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: {
@@ -38,6 +41,7 @@ const AdminTable = ({
   });
 
   const rows = table.getRowModel().rows;
+  const leafColumnsCount = table.getAllLeafColumns().length || 1;
 
   return (
     <div className="w-full">
@@ -53,7 +57,7 @@ const AdminTable = ({
         {/* Header strip */}
         <div className="px-4 py-3 bg-[#1A2930] flex items-center justify-between">
           <div className="text-sm font-semibold text-[#EDECEC]">
-            {Array.isArray(data) ? `${data.length} record(s)` : "0 record(s)"}
+            {`${safeData.length} record(s)`}
           </div>
 
           <div className="text-[11px] font-semibold tracking-wide uppercase text-[#EDECEC]/80">
@@ -95,15 +99,15 @@ const AdminTable = ({
               {rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={table.getAllLeafColumns().length}
-                    className="px-4 py-6 text-sm text-slate-600"
+                    colSpan={leafColumnsCount}
+                    className="px-4 py-8 text-sm text-slate-600"
                   >
                     {emptyText}
                   </td>
                 </tr>
               ) : (
                 rows.map((row, idx) => {
-                  const zebra = idx % 2 === 0 ? "bg-white" : "bg-[#D9D9D9]"; // ✅ darker zebra
+                  const zebra = idx % 2 === 0 ? "bg-white" : "bg-[#D9D9D9]"; // darker zebra
                   return (
                     <tr
                       key={row.id}
@@ -114,17 +118,24 @@ const AdminTable = ({
                         transition
                       `}
                     >
-                      {row.getVisibleCells().map((cell) => (
-                        <td
-                          key={cell.id}
-                          className="px-4 py-3 text-[13px] text-[#1A2930] align-middle"
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </td>
-                      ))}
+                      {row.getVisibleCells().map((cell) => {
+                        const hasCustomCell =
+                          typeof cell.column.columnDef.cell !== "undefined";
+
+                        return (
+                          <td
+                            key={cell.id}
+                            className="px-4 py-3 text-[13px] text-[#1A2930] align-middle whitespace-nowrap"
+                          >
+                            {hasCustomCell
+                              ? flexRender(
+                                  cell.column.columnDef.cell,
+                                  cell.getContext(),
+                                )
+                              : String(cell.getValue?.() ?? "")}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })

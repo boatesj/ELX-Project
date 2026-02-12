@@ -213,6 +213,7 @@ const Shipments = () => {
             mode: s.mode || "—",
             shipDate: s.shippingDate || null,
             status: s.status || "pending",
+            paymentStatus: s.paymentStatus || "unpaid",
             docsCount: Array.isArray(s.documents) ? s.documents.length : 0,
             raw: s,
           };
