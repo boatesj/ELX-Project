@@ -44,6 +44,13 @@ export default function EditBooking() {
     consigneeAddress: "",
     originPort: "",
     destinationPort: "",
+
+    // ✅ Missing-details fields (Job Card)
+    packagingType: "",
+    weightText: "", // keep as string to match schema cargo.weight
+    volumeCbm: "", // string in form -> converted to number on save
+    declaredValueAmount: "",
+    declaredValueCurrency: "GBP",
   });
 
   // Keep in sync if user logs in/out in another tab
@@ -91,6 +98,11 @@ export default function EditBooking() {
           status: picked?.status || "",
         });
 
+        const firstPackageType =
+          picked?.cargo?.packages?.[0]?.type ||
+          picked?.cargo?.packages?.type ||
+          "";
+
         setForm({
           shipperName: picked?.shipper?.name || "",
           shipperAddress: picked?.shipper?.address || "",
@@ -100,6 +112,19 @@ export default function EditBooking() {
           originPort: picked?.ports?.originPort || picked?.originAddress || "",
           destinationPort:
             picked?.ports?.destinationPort || picked?.destinationAddress || "",
+
+          // ✅ Missing-details fields (Job Card)
+          packagingType: firstPackageType,
+          weightText: picked?.cargo?.weight || "",
+          volumeCbm:
+            picked?.cargo?.volumeCbm === 0 || picked?.cargo?.volumeCbm
+              ? String(picked.cargo.volumeCbm)
+              : "",
+          declaredValueAmount:
+            picked?.cargoValue?.amount === 0 || picked?.cargoValue?.amount
+              ? String(picked.cargoValue.amount)
+              : "",
+          declaredValueCurrency: picked?.cargoValue?.currency || "GBP",
         });
       } catch (e) {
         if (
@@ -119,7 +144,7 @@ export default function EditBooking() {
         }
 
         setErrMsg(
-          "We couldn’t load this shipment right now. Please go back and try again."
+          "We couldn’t load this shipment right now. Please go back and try again.",
         );
         console.error("EditBooking fetch error:", e);
       } finally {
@@ -134,12 +159,12 @@ export default function EditBooking() {
     // Backend validators require these (based on your 422 output + successful create)
     return Boolean(
       form.shipperName.trim() &&
-        form.shipperAddress.trim() &&
-        form.shipperEmail.trim() &&
-        form.consigneeName.trim() &&
-        form.consigneeAddress.trim() &&
-        form.originPort.trim() &&
-        form.destinationPort.trim()
+      form.shipperAddress.trim() &&
+      form.shipperEmail.trim() &&
+      form.consigneeName.trim() &&
+      form.consigneeAddress.trim() &&
+      form.originPort.trim() &&
+      form.destinationPort.trim(),
     );
   }, [form]);
 
@@ -159,6 +184,14 @@ export default function EditBooking() {
     setOkMsg("");
 
     try {
+      const volumeNum =
+        form.volumeCbm.trim() === "" ? undefined : Number(form.volumeCbm);
+
+      const declaredNum =
+        form.declaredValueAmount.trim() === ""
+          ? undefined
+          : Number(form.declaredValueAmount);
+
       // Minimal PATCH-like PUT payload: only fields we allow customers to edit
       const payload = {
         shipper: {
@@ -174,6 +207,26 @@ export default function EditBooking() {
           originPort: form.originPort.trim(),
           destinationPort: form.destinationPort.trim(),
         },
+
+        // ✅ Missing-details fields (Job Card)
+        cargo: {
+          weight: form.weightText.trim(),
+          volumeCbm: Number.isFinite(volumeNum) ? volumeNum : undefined,
+
+          // Keep it minimal: set/update the first package type only
+          packages: form.packagingType.trim()
+            ? [{ type: form.packagingType.trim(), quantity: 1 }]
+            : undefined,
+        },
+
+        cargoValue:
+          Number.isFinite(declaredNum) && declaredNum >= 0
+            ? {
+                amount: declaredNum,
+                currency:
+                  String(form.declaredValueCurrency || "GBP").trim() || "GBP",
+              }
+            : undefined,
       };
 
       await customerAuthRequest.put(SHIPMENT_PATH(id), payload);
@@ -356,6 +409,98 @@ export default function EditBooking() {
                     placeholder="e.g. Tema"
                     required
                   />
+                </div>
+              </div>
+
+              {/* ✅ Missing-details fields (to remove Job Card warning) */}
+              <div className="mt-2 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] p-4">
+                <p className="text-sm font-semibold mb-1">Cargo basics</p>
+                <p className="text-[12px] text-slate-600 mb-4">
+                  These details help us process insurance/customs and plan
+                  handling.
+                </p>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Packaging type
+                    </label>
+                    <select
+                      value={form.packagingType}
+                      onChange={onChange("packagingType")}
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                    >
+                      <option value="">Select…</option>
+                      <option value="box">Box</option>
+                      <option value="carton">Carton</option>
+                      <option value="pallet">Pallet</option>
+                      <option value="parcel">Parcel</option>
+                      <option value="bag">Bag</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Weight{" "}
+                      <span className="text-[11px] text-slate-500 font-normal">
+                        (e.g. 1300 kg)
+                      </span>
+                    </label>
+                    <input
+                      value={form.weightText}
+                      onChange={onChange("weightText")}
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      placeholder="e.g. 75 kg"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 mt-4">
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Volume (CBM){" "}
+                      <span className="text-[11px] text-slate-500 font-normal">
+                        (optional)
+                      </span>
+                    </label>
+                    <input
+                      value={form.volumeCbm}
+                      onChange={onChange("volumeCbm")}
+                      inputMode="decimal"
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      placeholder="e.g. 1.8"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Declared value{" "}
+                      <span className="text-[11px] text-slate-500 font-normal">
+                        (insurance/customs)
+                      </span>
+                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        value={form.declaredValueCurrency}
+                        onChange={onChange("declaredValueCurrency")}
+                        className="w-28 rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      >
+                        <option value="GBP">GBP</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GHS">GHS</option>
+                      </select>
+
+                      <input
+                        value={form.declaredValueAmount}
+                        onChange={onChange("declaredValueAmount")}
+                        inputMode="decimal"
+                        className="flex-1 rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                        placeholder="e.g. 2500"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
