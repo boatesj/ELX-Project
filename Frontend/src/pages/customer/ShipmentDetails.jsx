@@ -47,7 +47,6 @@ const firstNonEmpty = (...vals) => {
 };
 
 const pick = (obj, paths = []) => {
-  // paths: ["a.b.c", "x.y"]
   for (const p of paths) {
     const parts = String(p).split(".");
     let cur = obj;
@@ -62,7 +61,6 @@ const pick = (obj, paths = []) => {
     if (ok) {
       const s = cleanStr(cur);
       if (s) return s;
-      // allow 0 to pass for numbers (handled elsewhere)
       if (typeof cur === "number" && Number.isFinite(cur)) return cur;
     }
   }
@@ -131,13 +129,9 @@ function canActOnDoc(doc) {
   return url.length > 0;
 }
 
-/**
- * Backend serves /uploads/*, so relative /uploads URLs must be prefixed.
- */
 function getDocUrl(doc) {
   const raw = String(doc?.fileUrl || "").trim();
   if (!raw) return "";
-
   if (/^https?:\/\//i.test(raw)) return raw;
   if (raw.startsWith("/uploads/")) return `${API_ROOT_URL}${raw}`;
   return raw;
@@ -154,13 +148,63 @@ function pickShipment(payload) {
 }
 
 /* -----------------------
+   Normalisers (schema-safe)
+------------------------ */
+
+function normalizePackagingType(shipment) {
+  const p = shipment?.cargo?.packages;
+
+  // ✅ schema-first: packages: [{ type, quantity }]
+  if (Array.isArray(p) && p.length) {
+    const first = p[0];
+
+    if (typeof first === "string") return cleanStr(first);
+
+    if (first && typeof first === "object") {
+      return firstNonEmpty(first.type, first.packageType, first.name);
+    }
+  }
+
+  // sometimes saved as { type: "box" }
+  if (p && typeof p === "object" && !Array.isArray(p)) {
+    return firstNonEmpty(p.type, p.packageType, p.name);
+  }
+
+  // fallbacks (flat + cargo.*)
+  return firstNonEmpty(
+    pick(shipment, [
+      "packagingType",
+      "cargo.packagingType",
+      "cargo.packaging",
+      "cargo.packages.type", // legacy non-array shape
+      "packageType",
+    ]),
+    shipment?.packaging,
+  );
+}
+
+function normalizeDeclaredCurrency(shipment) {
+  return (
+    cleanStr(shipment?.cargoValue?.currency) ||
+    cleanStr(shipment?.quote?.currency) ||
+    "GBP"
+  );
+}
+
+function parseNumberFromText(text) {
+  const m = String(text || "").match(/[\d.]+/);
+  if (!m) return null;
+  const n = Number(m[0]);
+  return Number.isFinite(n) ? n : null;
+}
+
+/* -----------------------
    Status + labels
 ------------------------ */
 
 const getStatusClasses = (status) => {
   const s = String(status || "").toLowerCase();
 
-  // Booked / operational
   if (s === "booked") {
     return "bg-[#FFA500]/15 text-[#1A2930] border border-[#FFA500]/40";
   }
@@ -178,7 +222,6 @@ const getStatusClasses = (status) => {
     return "bg-red-500/10 text-red-700 border border-red-500/25";
   }
 
-  // Quote workflow
   if (["quoted", "customer_requested_changes"].includes(s)) {
     return "bg-[#FFA500]/10 text-[#1A2930] border border-[#FFA500]/25";
   }
@@ -195,7 +238,6 @@ const getStatusClasses = (status) => {
 function formatCustomerStatusLabel(status) {
   const s = String(status || "pending").toLowerCase();
   switch (s) {
-    // Quote workflow
     case "request_received":
       return "Request received";
     case "under_review":
@@ -207,7 +249,6 @@ function formatCustomerStatusLabel(status) {
     case "customer_approved":
       return "Quotation approved";
 
-    // Operational
     case "pending":
       return "Preparing booking";
     case "booked":
@@ -464,7 +505,9 @@ const MiniField = ({ label, value, icon }) => {
         {label}
       </div>
       <div
-        className={`mt-1 text-sm font-semibold ${v ? "text-[#1A2930]" : "text-slate-400"}`}
+        className={`mt-1 text-sm font-semibold ${
+          v ? "text-[#1A2930]" : "text-slate-400"
+        }`}
       >
         {v || "Not provided yet"}
       </div>
@@ -677,6 +720,16 @@ const ShipmentDetails = () => {
     return pickShipment(payload);
   };
 
+  const refreshShipment = async () => {
+    try {
+      const picked = await fetchShipment();
+      if (picked) setShipment(picked);
+    } catch (e) {
+      // silent refresh failure (don’t replace page state)
+      console.warn("ShipmentDetails refresh skipped:", e?.message || e);
+    }
+  };
+
   useEffect(() => {
     if (!hasToken) {
       setLoading(false);
@@ -730,6 +783,25 @@ const ShipmentDetails = () => {
     return () => ac.abort();
   }, [id, navigate, hasToken]);
 
+  // ✅ Prevent “edits not retained” feeling: refresh on focus / tab return.
+  useEffect(() => {
+    if (!hasToken || !id) return;
+
+    const onFocus = () => refreshShipment();
+    const onVis = () => {
+      if (document.visibilityState === "visible") refreshShipment();
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasToken, id]);
+
   const timeline = useMemo(
     () => (shipment ? buildTimeline(shipment) : []),
     [shipment],
@@ -757,7 +829,7 @@ const ShipmentDetails = () => {
 
   const bookedAt = shipment?.createdAt ? toDisplayDate(shipment.createdAt) : "";
 
-  // Parties (support early and future shapes)
+  // Parties
   const shipperName =
     firstNonEmpty(
       pick(shipment, [
@@ -810,7 +882,7 @@ const ShipmentDetails = () => {
     shipment?.consigneeEmail,
   );
 
-  // Route / addresses / ports (many shapes)
+  // Route / addresses / ports
   const origin =
     firstNonEmpty(
       pick(shipment, [
@@ -860,7 +932,7 @@ const ShipmentDetails = () => {
     shipment?.eta,
   );
 
-  // Cargo (fallback-friendly)
+  // Cargo
   const goodsDescription = firstNonEmpty(
     pick(shipment, [
       "goodsDescription",
@@ -875,29 +947,31 @@ const ShipmentDetails = () => {
   const packagesCount = pickNum(shipment, [
     "packagesCount",
     "cargo.packagesCount",
-    "cargo.packages",
+    "cargo.packageCount",
     "pieces",
     "qty",
   ]);
-  const packagingType = firstNonEmpty(
-    pick(shipment, [
-      "packagingType",
-      "cargo.packagingType",
-      "cargo.packaging",
-      "packageType",
-    ]),
-    shipment?.packaging,
-  );
 
-  const weightKg = pickNum(shipment, [
-    "weightKg",
-    "cargo.weightKg",
-    "weight",
-    "grossWeightKg",
-  ]);
+  // ✅ FIX: packaging type reads schema-first (EditBooking writes cargo.packages[0].type)
+  const packagingType = cleanStr(normalizePackagingType(shipment));
+
+  // accept either numeric weights OR string "75 kg"
+  const weightText = firstNonEmpty(pick(shipment, ["cargo.weight", "weight"]));
+
+  const weightKg = (() => {
+    const n = pickNum(shipment, [
+      "weightKg",
+      "cargo.weightKg",
+      "grossWeightKg",
+    ]);
+    if (n !== null) return n;
+    return parseNumberFromText(weightText);
+  })();
+
   const volumeM3 = pickNum(shipment, [
     "volumeM3",
     "cargo.volumeM3",
+    "cargo.volumeCbm",
     "volume",
     "cbm",
   ]);
@@ -906,8 +980,10 @@ const ShipmentDetails = () => {
     "declaredValue",
     "cargo.declaredValue",
     "value",
-    "cargoValue",
+    "cargoValue.amount",
   ]);
+
+  const declaredCurrency = normalizeDeclaredCurrency(shipment);
 
   const customerNotes = firstNonEmpty(
     pick(shipment, [
@@ -933,7 +1009,7 @@ const ShipmentDetails = () => {
   const changesRequested =
     String(status).toLowerCase() === "customer_requested_changes";
 
-  // Missing info checklist (confidence + operations readiness)
+  // Missing info checklist
   const missing = useMemo(() => {
     const out = [];
 
@@ -948,10 +1024,14 @@ const ShipmentDetails = () => {
     if (!cleanStr(goodsDescription)) out.push("Goods description");
     if (packagesCount === null) out.push("Quantity / pieces");
     if (!cleanStr(packagingType)) out.push("Packaging type");
-    if (weightKg === null && volumeM3 === null) out.push("Weight or volume");
+
+    const hasWeightOrVolume =
+      weightKg !== null || volumeM3 !== null || cleanStr(weightText);
+    if (!hasWeightOrVolume) out.push("Weight or volume");
 
     if (!cleanStr(requestedPickupDate) && !cleanStr(shippingDate))
       out.push("Pickup / shipping date");
+
     if (declaredValue === null)
       out.push("Declared value (for insurance/customs)");
 
@@ -966,6 +1046,7 @@ const ShipmentDetails = () => {
     packagingType,
     weightKg,
     volumeM3,
+    weightText,
     requestedPickupDate,
     shippingDate,
     declaredValue,
@@ -994,8 +1075,7 @@ const ShipmentDetails = () => {
       setQuoteActionMsg(
         "Thank you — your approval has been sent to Ellcworth.",
       );
-      const refreshed = await fetchShipment();
-      if (refreshed) setShipment(refreshed);
+      await refreshShipment();
     } catch (e) {
       const msg =
         e?.response?.data?.message ||
@@ -1027,8 +1107,7 @@ const ShipmentDetails = () => {
         "Thanks — your change request has been sent to Ellcworth.",
       );
       setQuoteMsg("");
-      const refreshed = await fetchShipment();
-      if (refreshed) setShipment(refreshed);
+      await refreshShipment();
     } catch (e) {
       const msg =
         e?.response?.data?.message ||
@@ -1149,13 +1228,11 @@ const ShipmentDetails = () => {
 
           {/* Content */}
           <div className="px-5 py-6 space-y-6 bg-[#F9FAFB]">
-            {/* Customer assurance callout */}
             <InfoCallout
               title="Confirm your delivery brief"
               text="Please review the details below. If anything is missing or incorrect, use “Edit booking” or send a message in “Request changes”."
             />
 
-            {/* Missing checklist */}
             {missing.length ? (
               <InfoCallout
                 variant="warn"
@@ -1189,7 +1266,6 @@ const ShipmentDetails = () => {
               </div>
 
               <div className="mt-4 grid gap-4 md:grid-cols-2">
-                {/* Parties */}
                 <div className="rounded-2xl border border-[#E5E7EB] bg-[#F9FAFB] p-4">
                   <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500 flex items-center gap-2">
                     <FaUser className="text-[#9A9EAB]" />
@@ -1245,7 +1321,6 @@ const ShipmentDetails = () => {
                 </div>
               </div>
 
-              {/* Route + cargo + dates */}
               <div className="mt-4 grid gap-3 md:grid-cols-3">
                 <MiniField
                   label="Service"
@@ -1319,11 +1394,15 @@ const ShipmentDetails = () => {
                       Declared value (insurance/customs)
                     </div>
                     <div
-                      className={`mt-1 text-sm font-semibold ${declaredValue === null ? "text-slate-400" : "text-[#1A2930]"}`}
+                      className={`mt-1 text-sm font-semibold ${
+                        declaredValue === null
+                          ? "text-slate-400"
+                          : "text-[#1A2930]"
+                      }`}
                     >
                       {declaredValue === null
                         ? "Not provided yet"
-                        : formatCurrency(declaredValue, "GBP")}
+                        : formatCurrency(declaredValue, declaredCurrency)}
                     </div>
                   </div>
                 </div>
@@ -1349,10 +1428,23 @@ const ShipmentDetails = () => {
                       Need to correct the brief?
                     </div>
                     <div className="mt-1 text-xs text-slate-700">
-                      Use <span className="font-semibold">Edit booking</span>{" "}
-                      for direct changes, or use{" "}
-                      <span className="font-semibold">Request changes</span>{" "}
-                      below to message Operations.
+                      Use <span className="font-semibold">Edit booking</span> to
+                      update addresses, dates, and cargo details. If something
+                      urgent can’t be edited, contact Ellcworth Operations with
+                      your reference:{" "}
+                      <span className="font-semibold">{reference}</span>.
+                    </div>
+
+                    <div className="mt-3">
+                      <Link to={`/shipmentedit/${id}`}>
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-full text-[12px] font-semibold bg-[#1A2930] text-white hover:bg-[#0f1a1f] transition"
+                        >
+                          <FaEdit />
+                          Edit booking
+                        </button>
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -1728,7 +1820,6 @@ const ShipmentDetails = () => {
               </div>
             </div>
 
-            {/* Feedback */}
             <ShipmentFeedback reference={reference} />
           </div>
         </div>
