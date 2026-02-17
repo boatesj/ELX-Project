@@ -90,6 +90,18 @@ const Shipment = () => {
   const [openServices, setOpenServices] = useState(false);
   const [openQuote, setOpenQuote] = useState(false);
 
+  // Port List
+  const [portsList, setPortsList] = useState([]);
+  const originPorts = (portsList || []).filter(
+    (p) => p.isActive && p.type === "origin",
+  );
+
+  const destinationPorts = (portsList || []).filter(
+    (p) => p.isActive && p.type === "destination",
+  );
+
+  const [portsLoading, setPortsLoading] = useState(false);
+
   const [form, setForm] = useState({
     // Core identifiers
     referenceNo: "",
@@ -98,8 +110,8 @@ const Shipment = () => {
     mode: "roro",
 
     // Route & schedule
-    originPort: "",
-    destinationPort: "",
+    originPortId: "",
+    destinationPortId: "",
     status: "pending",
     paymentStatus: "unpaid",
     shippingDate: "",
@@ -231,8 +243,8 @@ const Shipment = () => {
           serviceType: inferredServiceType,
           mode: uiMode,
 
-          originPort: s.ports?.originPort || "",
-          destinationPort: s.ports?.destinationPort || "",
+          originPortId: s.originPortId || "",
+          destinationPortId: s.destinationPortId || "",
           status: s.status || "pending",
           paymentStatus: s.paymentStatus || "unpaid",
           shippingDate: s.shippingDate
@@ -326,6 +338,29 @@ const Shipment = () => {
 
     if (shipmentId) fetchShipment();
   }, [shipmentId]);
+
+  useEffect(() => {
+    let alive = true;
+
+    const loadPorts = async () => {
+      try {
+        setPortsLoading(true);
+        const res = await authRequest.get("/config/ports");
+        const list = Array.isArray(res?.data) ? res.data : [];
+        if (alive) setPortsList(list);
+      } catch (e) {
+        // Silent fail is OK; we still show legacy values as disabled fallback
+        if (alive) setPortsList([]);
+      } finally {
+        if (alive) setPortsLoading(false);
+      }
+    };
+
+    loadPorts();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // ---------------- SAVE / UPDATE BOOKING ----------------
   const handleSubmit = async (e) => {
@@ -894,28 +929,57 @@ const Shipment = () => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                <Field
-                  label={isSea ? "Origin port" : "Origin airport / location"}
-                >
-                  <Input
-                    type="text"
-                    value={form.originPort}
-                    onChange={handleChange("originPort")}
-                    placeholder={isSea ? "Southampton" : "Heathrow (LHR)"}
-                  />
-                </Field>
-                <Field
-                  label={
-                    isSea ? "Destination port" : "Destination airport / city"
+                <label className="block text-sm font-medium text-gray-700">
+                  Origin port
+                </label>
+                <select
+                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-elx-accent"
+                  value={form.originPortId}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      originPortId: e.target.value,
+                    }))
                   }
                 >
-                  <Input
-                    type="text"
-                    value={form.destinationPort}
-                    onChange={handleChange("destinationPort")}
-                    placeholder={isSea ? "Tema" : "Accra (ACC)"}
-                  />
-                </Field>
+                  <option value="">
+                    {portsLoading
+                      ? "Loading ports..."
+                      : "Select origin port..."}
+                  </option>
+
+                  {originPorts.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+
+                <label className="block text-sm font-medium text-gray-700">
+                  Destination port
+                </label>
+                <select
+                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-elx-accent"
+                  value={form.destinationPortId}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      destinationPortId: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">
+                    {portsLoading
+                      ? "Loading ports..."
+                      : "Select destination port..."}
+                  </option>
+
+                  {destinationPorts.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
@@ -1005,28 +1069,166 @@ const Shipment = () => {
                   </Select>
                 </Field>
               </div>
+              {/* ✅ Customer Requested (Immutable) — snapshot from customer portal */}
+              {shipment?.customerRequest ? (
+                <div className="mt-4 rounded-xl border border-[#9A9EAB]/30 bg-white p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-extrabold text-[#1A2930]">
+                        Customer Requested (Immutable)
+                      </div>
+                      <div className="mt-1 text-xs text-slate-600">
+                        Captured from the customer request. Ops ports below
+                        should align with this route.
+                      </div>
+                    </div>
+
+                    {(() => {
+                      const reqO = String(
+                        shipment?.customerRequest?.route?.originPort ||
+                          shipment?.customerRequest?.route?.origin ||
+                          "",
+                      ).trim();
+                      const reqD = String(
+                        shipment?.customerRequest?.route?.destinationPort ||
+                          shipment?.customerRequest?.route?.destination ||
+                          "",
+                      ).trim();
+
+                      const opsO = String(
+                        shipment?.ports?.originPort || "",
+                      ).trim();
+                      const opsD = String(
+                        shipment?.ports?.destinationPort || "",
+                      ).trim();
+
+                      const mismatch =
+                        (reqO &&
+                          opsO &&
+                          reqO.toLowerCase() !== opsO.toLowerCase()) ||
+                        (reqD &&
+                          opsD &&
+                          reqD.toLowerCase() !== opsD.toLowerCase());
+
+                      return mismatch ? (
+                        <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                          ⚠️ Ops route differs from customer request —
+                          double-check before quoting.
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                        Requested Origin
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-[#1A2930]">
+                        {shipment.customerRequest.route?.origin || "—"}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-600">
+                        Port:{" "}
+                        {shipment.customerRequest.route?.originPort || "—"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                        Requested Destination
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-[#1A2930]">
+                        {shipment.customerRequest.route?.destination || "—"}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-600">
+                        Port:{" "}
+                        {shipment.customerRequest.route?.destinationPort || "—"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                        Cargo Summary
+                      </div>
+                      <div className="mt-1 text-sm text-slate-800">
+                        {shipment.customerRequest.cargo?.description || "—"}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-600">
+                        Packages:{" "}
+                        {shipment.customerRequest.cargo?.packageCount ?? "—"}
+                        {" · "}
+                        Weight:{" "}
+                        {shipment.customerRequest.cargo?.weightText || "—"}
+                        {" · "}
+                        Volume (CBM):{" "}
+                        {shipment.customerRequest.cargo?.volumeCbm ?? "—"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                        Customer Notes
+                      </div>
+                      <div className="mt-1 text-sm text-slate-800">
+                        {shipment.customerRequest.notes?.customerNotes || "—"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-2 gap-4 mt-3">
-                <Field
-                  label={isSea ? "Origin port" : "Origin airport / location"}
-                >
-                  <Input
-                    value={form.originPort}
-                    onChange={handleChange("originPort")}
-                    placeholder={isSea ? "Southampton" : "Heathrow (LHR)"}
-                  />
-                </Field>
-                <Field
-                  label={
-                    isSea ? "Destination port" : "Destination airport / city"
+                <label className="block text-sm font-medium text-gray-700">
+                  Origin port
+                </label>
+                <select
+                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-elx-accent"
+                  value={form.originPortId}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      originPortId: e.target.value,
+                    }))
                   }
                 >
-                  <Input
-                    value={form.destinationPort}
-                    onChange={handleChange("destinationPort")}
-                    placeholder={isSea ? "Tema" : "Accra (ACC)"}
-                  />
-                </Field>
+                  <option value="">
+                    {portsLoading
+                      ? "Loading ports..."
+                      : "Select origin port..."}
+                  </option>
+
+                  {originPorts.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+
+                <label className="block text-sm font-medium text-gray-700">
+                  Destination port
+                </label>
+                <select
+                  className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-elx-accent"
+                  value={form.destinationPortId}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      destinationPortId: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">
+                    {portsLoading
+                      ? "Loading ports..."
+                      : "Select destination port..."}
+                  </option>
+
+                  {destinationPorts.map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mt-2">
