@@ -256,6 +256,109 @@ function sanitizeUpdatesForRole(req, updates) {
   return clean;
 }
 
+// ------------------ IMMUTABLE CUSTOMER REQUEST SNAPSHOT ------------------
+
+function s(v) {
+  return String(v ?? "").trim();
+}
+
+function first(...vals) {
+  for (const v of vals) {
+    const t = s(v);
+    if (t) return t;
+  }
+  return "";
+}
+
+function n(v) {
+  const num = Number(v);
+  return Number.isFinite(num) ? num : null;
+}
+
+/**
+ * Builds/refreshes shipment.customerRequest based on what the CUSTOMER asked for.
+ * This is an immutable intent snapshot for Admin UI reference.
+ */
+function buildCustomerRequestSnapshot(shipment) {
+  const origin = first(
+    shipment?.originAddress,
+    shipment?.ports?.originPort,
+    shipment?.shipper?.address,
+  );
+
+  const destination = first(
+    shipment?.destinationAddress,
+    shipment?.ports?.destinationPort,
+    shipment?.consignee?.address,
+  );
+
+  const weightText = first(shipment?.cargo?.weight);
+  const weightKg = (() => {
+    const m = String(weightText || "").match(/[\d.]+/);
+    if (!m) return null;
+    const parsed = Number(m[0]);
+    return Number.isFinite(parsed) ? parsed : null;
+  })();
+
+  const declaredValue = n(shipment?.cargoValue?.amount) ?? null;
+
+  const packagingType = (() => {
+    const p = shipment?.cargo?.packages;
+    if (Array.isArray(p) && p.length) {
+      const firstPkg = p[0];
+      if (typeof firstPkg === "string") return s(firstPkg);
+      if (firstPkg && typeof firstPkg === "object") {
+        return first(firstPkg.type, firstPkg.packageType, firstPkg.name);
+      }
+    }
+    return "";
+  })();
+
+  return {
+    capturedAt: new Date(),
+    route: {
+      origin,
+      destination,
+      originPort: first(shipment?.ports?.originPort),
+      destinationPort: first(shipment?.ports?.destinationPort),
+    },
+    parties: {
+      shipper: {
+        name: first(shipment?.shipper?.name),
+        email: first(shipment?.shipper?.email),
+        phone: first(shipment?.shipper?.phone),
+        address: first(shipment?.shipper?.address, shipment?.originAddress),
+      },
+      consignee: {
+        name: first(shipment?.consignee?.name),
+        email: first(shipment?.consignee?.email),
+        phone: first(shipment?.consignee?.phone),
+        address: first(
+          shipment?.consignee?.address,
+          shipment?.destinationAddress,
+        ),
+      },
+    },
+    cargo: {
+      description: first(shipment?.cargo?.description),
+      packageCount: n(shipment?.cargo?.packageCount),
+      packagingType,
+      weightText: weightText || "",
+      weightKg,
+      volumeCbm: n(shipment?.cargo?.volumeCbm),
+      declaredValue,
+      declaredCurrency: first(shipment?.cargoValue?.currency, "GBP"),
+    },
+    dates: {
+      shippingDate: shipment?.shippingDate || null,
+      eta: shipment?.eta || null,
+    },
+    notes: {
+      customerNotes: first(shipment?.customerNotes),
+    },
+  };
+}
+
 // ---------------- QUOTE HELPERS (email formatting, etc.) ----------------
 
 function toMoney(n) {
@@ -1133,7 +1236,30 @@ async function updateShipment(req, res) {
       return res.status(404).json({ message: error });
 
     const updates = sanitizeUpdatesForRole(req, req.body || {});
+
+    // ✅ Admin must never overwrite customerRequest
+    if (isAdmin(req) && updates && typeof updates === "object") {
+      if ("customerRequest" in updates) delete updates.customerRequest;
+    }
+
     Object.assign(shipment, updates);
+
+    // ✅ Customer edits refresh immutable snapshot
+    if (!isAdmin(req)) {
+      shipment.customerRequest = buildCustomerRequestSnapshot(shipment);
+
+      shipment.trackingEvents.push({
+        status: "update",
+        event:
+          "Customer updated booking details (immutable request snapshot updated)",
+        location: "",
+        date: new Date(),
+        meta: {
+          source: "customer_portal_update_shipment",
+          customerId: req?.user?.id || null,
+        },
+      });
+    }
 
     await shipment.save();
 
