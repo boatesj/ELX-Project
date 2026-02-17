@@ -72,6 +72,39 @@ const PackageSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// ------------------ CUSTOMER IMMUTABLE SNAPSHOT ------------------
+// Captures what the customer originally requested (intent) and is NOT meant
+// to be overwritten by admin operational edits.
+const CustomerRequestSchema = new mongoose.Schema(
+  {
+    capturedAt: { type: Date, default: Date.now },
+
+    route: {
+      origin: { type: String, trim: true, default: "" },
+      destination: { type: String, trim: true, default: "" },
+    },
+
+    // Keep as strings to avoid timezone/local parsing issues from UI inputs
+    dates: {
+      requestedPickupDate: { type: String, trim: true, default: "" },
+      shippingDate: { type: String, trim: true, default: "" },
+      eta: { type: String, trim: true, default: "" },
+    },
+
+    cargo: {
+      goodsDescription: { type: String, trim: true, default: "" },
+      pieces: { type: Number },
+      packagingType: { type: String, trim: true, default: "" },
+      weightKg: { type: Number },
+      volumeM3: { type: Number },
+      declaredValue: { type: Number },
+      declaredCurrency: { type: String, trim: true, default: "GBP" },
+      notes: { type: String, trim: true, default: "" },
+    },
+  },
+  { _id: false },
+);
+
 // ------------------ QUOTE SUBSCHEMAS ------------------
 const QuoteLineSchema = new mongoose.Schema(
   {
@@ -165,6 +198,13 @@ const ShipmentSchema = new mongoose.Schema(
     meta: {
       type: Object,
       default: {},
+    },
+
+    // ✅ Immutable customer intent snapshot
+    // This is the "customer requested" truth for Admin quoting sanity.
+    customerRequest: {
+      type: CustomerRequestSchema,
+      default: undefined,
     },
 
     // ✅ Quote object (admin pricing + customer-facing quote)
