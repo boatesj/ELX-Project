@@ -973,6 +973,41 @@ async function createPublicLeadShipment(req, res) {
     delete payload.customer;
     delete payload.createdBy;
 
+    // ✅ Immutable customer intent snapshot (only set once)
+    if (!payload.customerRequest) {
+      const requestedOrigin = String(
+        payload?.customerRequest?.origin ||
+          payload?.ports?.originPort ||
+          payload?.originPort ||
+          payload?.ports?.originPortName ||
+          payload?.ports?.originPortCode ||
+          "",
+      ).trim();
+
+      const requestedDestination = String(
+        payload?.customerRequest?.destination ||
+          payload?.ports?.destinationPort ||
+          payload?.destinationPort ||
+          payload?.ports?.destinationPortName ||
+          payload?.ports?.destinationPortCode ||
+          "",
+      ).trim();
+
+      payload.customerRequest = {
+        origin: requestedOrigin,
+        destination: requestedDestination,
+        mode: payload?.mode || "",
+        serviceType: payload?.serviceType || "",
+        cargoType: payload?.cargoType || "",
+        serviceLevel: payload?.serviceLevel || "",
+        notes: String(payload?.customerNotes || "").trim(),
+        services: payload?.services || {},
+        requestedAt: new Date(),
+        requestedBy: null, // public lead
+        channel: "web_portal",
+      };
+    }
+
     // Ensure "requestor snapshot" exists (MODEL DOES NOT HAVE requestor)
     // Store snapshot in meta.requestor so it persists.
     const shipperName = String(payload?.shipper?.name || "").trim();
@@ -1040,6 +1075,39 @@ async function createShipment(req, res) {
     }
 
     if (userId) payload.createdBy = userId;
+
+    // ✅ Immutable customer intent snapshot (only set once)
+    if (!payload.customerRequest) {
+      const requestedOrigin = String(
+        payload?.ports?.originPort ||
+          payload?.originPort ||
+          payload?.ports?.originPortName ||
+          payload?.ports?.originPortCode ||
+          "",
+      ).trim();
+
+      const requestedDestination = String(
+        payload?.ports?.destinationPort ||
+          payload?.destinationPort ||
+          payload?.ports?.destinationPortName ||
+          payload?.ports?.destinationPortCode ||
+          "",
+      ).trim();
+
+      payload.customerRequest = {
+        origin: requestedOrigin,
+        destination: requestedDestination,
+        mode: payload?.mode || "",
+        serviceType: payload?.serviceType || "",
+        cargoType: payload?.cargoType || "",
+        serviceLevel: payload?.serviceLevel || "",
+        notes: String(payload?.customerNotes || "").trim(),
+        services: payload?.services || {},
+        requestedAt: new Date(),
+        requestedBy: userId || null,
+        channel: admin ? "admin_panel" : "web_portal",
+      };
+    }
 
     await normalisePortsOnPayload(payload);
     const shipment = await Shipment.create(payload);
