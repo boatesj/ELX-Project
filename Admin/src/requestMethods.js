@@ -4,23 +4,34 @@ import axios from "axios";
 export const API_V1_PREFIX = "/api/v1";
 export const ADMIN_API_PREFIX = "/admin";
 
+// -----------------------------
+// API ROOT (shared)
+// -----------------------------
 const API_ROOT_URL_RAW =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 // Normalise to prevent double slashes in composed URLs
 export const API_ROOT_URL = String(API_ROOT_URL_RAW || "").replace(/\/+$/, "");
 
+// Canonical v1 base
 export const API_V1_BASE_URL = `${API_ROOT_URL}${API_V1_PREFIX}`;
 
-const ADMIN_API_BASE_URL_RAW =
-  import.meta.env.VITE_ADMIN_API_BASE_URL ||
-  `${API_ROOT_URL}${ADMIN_API_PREFIX}`;
+// -----------------------------
+// ADMIN ROOT + ADMIN BASE
+// IMPORTANT: VITE_ADMIN_API_BASE_URL should be the backend root (NO /admin)
+// Example: http://localhost:8000
+// -----------------------------
+const ADMIN_ROOT_RAW = import.meta.env.VITE_ADMIN_API_BASE_URL || API_ROOT_URL;
+export const ADMIN_ROOT_URL = String(ADMIN_ROOT_RAW || "")
+  .replace(/\/+$/, "")
+  .replace(/(\/admin)+$/i, "");
 
-// Normalise too (covers env values like http://localhost:8000/admin/)
-export const ADMIN_API_BASE_URL = String(ADMIN_API_BASE_URL_RAW || "").replace(
-  /\/+$/,
-  "",
-);
+// Final admin base (exactly one /admin)
+export const ADMIN_API_BASE_URL = `${ADMIN_ROOT_URL}${ADMIN_API_PREFIX}`;
+
+// -----------------------------
+// AUTH STORAGE KEYS
+// -----------------------------
 
 // ✅ Admin-scoped keys (preferred)
 export const ADMIN_TOKEN_KEY = "elx_admin_token";
@@ -78,6 +89,10 @@ export function clearAdminAuth() {
   }
 }
 
+// -----------------------------
+// AXIOS CLIENTS
+// -----------------------------
+
 /**
  * ✅ ROOT axios client
  * Use for:
@@ -110,12 +125,19 @@ export const authRequest = axios.create({
 });
 
 /**
- * ✅ Admin-only endpoints (system ops already live under /admin/*)
+ * ✅ Admin-only endpoints (system ops live under /admin/*)
+ * Examples:
+ * - GET  /admin/settings
+ * - PUT  /admin/settings
+ * - POST /admin/settings/test-email
  */
 export const adminRequest = axios.create({
   baseURL: ADMIN_API_BASE_URL,
 });
 
+// -----------------------------
+// INTERCEPTORS
+// -----------------------------
 const attachToken = (config) => {
   const token = getAuthToken();
   if (token) {

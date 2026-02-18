@@ -90,7 +90,7 @@ function RequireNoAuth({ children }) {
 
   const params = useMemo(
     () => new URLSearchParams(location.search),
-    [location.search]
+    [location.search],
   );
   const redirect = params.get("redirect") || "/";
 
@@ -279,9 +279,13 @@ function Layout() {
         )}
 
         {/* Main content */}
-        <main className="flex-1 min-w-0">
-          <div className="mx-auto w-full max-w-7xl px-3 sm:px-6 lg:px-8 py-4 text-slate-900">
-            <Outlet />
+        <main className="flex-1 w-full min-w-0">
+          {/* IMPORTANT: min-w-0 + w-full prevents DataGrid parent width from collapsing */}
+          <div className="w-full min-w-0 px-3 sm:px-6 lg:px-8 py-4">
+            {/* keep the max width wrapper, but make sure it can still measure */}
+            <div className="mx-auto w-full min-w-0 max-w-7xl text-slate-900">
+              <Outlet />
+            </div>
           </div>
         </main>
       </div>

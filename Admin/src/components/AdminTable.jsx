@@ -1,4 +1,4 @@
-// Admin/src/components/AdminTable.jsx
+import React from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -19,6 +19,9 @@ import {
  * - pageSize?: number (default 10)
  * - emptyText?: string
  * - title?: string
+ * - onRowClick?: (rowOriginal) => void
+ * - rowHref?: (rowOriginal) => string (optional: enables "open in new tab")
+ * - getRowDisabled?: (rowOriginal) => boolean (optional)
  */
 const AdminTable = ({
   title,
@@ -26,6 +29,9 @@ const AdminTable = ({
   data,
   pageSize = 10,
   emptyText = "No records found.",
+  onRowClick,
+  rowHref,
+  getRowDisabled,
 }) => {
   const safeData = Array.isArray(data) ? data : [];
   const safeColumns = Array.isArray(columns) ? columns : [];
@@ -35,13 +41,39 @@ const AdminTable = ({
     columns: safeColumns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: { pageIndex: 0, pageSize },
-    },
+    initialState: { pagination: { pageIndex: 0, pageSize } },
   });
 
   const rows = table.getRowModel().rows;
-  const leafColumnsCount = table.getAllLeafColumns().length || 1;
+  const leafColumnsCount =
+    table.getAllLeafColumns?.()?.length || safeColumns.length || 1;
+
+  const isRowClickable = typeof onRowClick === "function" || !!rowHref;
+
+  const handleRowActivate = (rowOriginal, e) => {
+    // Don’t hijack clicks on interactive controls inside the row
+    const t = e?.target;
+    const interactive = t?.closest?.(
+      "a,button,input,select,textarea,label,[role='button']",
+    );
+    if (interactive) return;
+
+    // Disabled row?
+    if (typeof getRowDisabled === "function" && getRowDisabled(rowOriginal))
+      return;
+
+    // Preferred: onRowClick callback
+    if (typeof onRowClick === "function") {
+      onRowClick(rowOriginal);
+      return;
+    }
+
+    // Fallback: rowHref opens in same tab (unless user ctrl/cmd-clicks link inside)
+    if (typeof rowHref === "function") {
+      const href = rowHref(rowOriginal);
+      if (href) window.location.assign(href);
+    }
+  };
 
   return (
     <div className="w-full">
@@ -107,16 +139,32 @@ const AdminTable = ({
                 </tr>
               ) : (
                 rows.map((row, idx) => {
-                  const zebra = idx % 2 === 0 ? "bg-white" : "bg-[#D9D9D9]"; // darker zebra
+                  const zebra = idx % 2 === 0 ? "bg-white" : "bg-[#D9D9D9]";
+                  const rowOriginal = row.original;
+
+                  const disabled =
+                    typeof getRowDisabled === "function"
+                      ? !!getRowDisabled(rowOriginal)
+                      : false;
+
                   return (
                     <tr
                       key={row.id}
+                      onClick={
+                        disabled || !isRowClickable
+                          ? undefined
+                          : (e) => handleRowActivate(rowOriginal, e)
+                      }
                       className={`
                         ${zebra}
                         border-b border-[#9A9EAB]/25
-                        hover:bg-[#FFA500]/10
                         transition
+                        ${disabled ? "opacity-60" : "hover:bg-[#FFA500]/10"}
+                        ${isRowClickable && !disabled ? "cursor-pointer" : ""}
                       `}
+                      title={
+                        isRowClickable && !disabled ? "Open details" : undefined
+                      }
                     >
                       {row.getVisibleCells().map((cell) => {
                         const hasCustomCell =
