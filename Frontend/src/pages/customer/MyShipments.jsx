@@ -57,13 +57,39 @@ function readCustomerAuth() {
   return { token: token || null, user };
 }
 
-function pickArray(payload) {
-  // supports: { ok:true, data: [...] } OR just [...]
+/**
+ * ✅ Ultra-tolerant picker:
+ * Supports:
+ * - [...]
+ * - { data: [...] }
+ * - { shipments: [...] }
+ * - { data: { shipments: [...] } }
+ * - { data: { data: [...] } }
+ * - { shipment: {...} }  (single)
+ * - { data: {...} }      (single)
+ */
+function pickShipments(payload) {
+  // direct array
   if (Array.isArray(payload)) return payload;
-  if (payload && Array.isArray(payload.data)) return payload.data;
-  if (payload && Array.isArray(payload.shipments)) return payload.shipments;
-  if (payload && payload.data && Array.isArray(payload.data.shipments))
-    return payload.data.shipments;
+
+  // common wrappers
+  const d = payload?.data;
+  if (Array.isArray(d)) return d;
+
+  if (Array.isArray(payload?.shipments)) return payload.shipments;
+  if (Array.isArray(payload?.items)) return payload.items;
+
+  // nested wrappers
+  if (Array.isArray(d?.shipments)) return d.shipments;
+  if (Array.isArray(d?.items)) return d.items;
+  if (Array.isArray(d?.data)) return d.data;
+
+  // single shipment object
+  if (payload && typeof payload === "object" && payload._id) return [payload];
+  if (payload?.shipment && typeof payload.shipment === "object")
+    return payload.shipment?._id ? [payload.shipment] : [];
+  if (d && typeof d === "object" && d._id) return [d];
+
   return [];
 }
 
@@ -111,7 +137,6 @@ const MyShipments = () => {
       setLoading(false);
       setItems([]);
       setErrMsg("");
-      // Route guard usually handles this, but be safe.
       navigate("/login", { replace: true });
       return;
     }
@@ -123,17 +148,23 @@ const MyShipments = () => {
       setErrMsg("");
 
       try {
-        // ✅ Using Frontend/src/requestMethods.js (axios instance)
-        // Token is attached by interceptor (customerAuthRequest)
-        const resp = await customerAuthRequest.get(MY_SHIPMENTS_PATH, {
+        // ✅ cache-bust to avoid 304 Not Modified blocking UI refresh
+        const ts = Date.now();
+        const url = `${MY_SHIPMENTS_PATH}?_ts=${ts}`;
+
+        const resp = await customerAuthRequest.get(url, {
           signal: ac.signal,
+          headers: {
+            // extra belt-and-braces: tell intermediaries not to cache
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
         });
 
-        const payload = resp?.data ?? {};
-        const arr = pickArray(payload);
+        const payload = resp?.data ?? null;
+        const arr = pickShipments(payload);
         setItems(arr);
       } catch (e) {
-        // axios cancel types differ by version
         if (
           e?.name === "CanceledError" ||
           e?.name === "AbortError" ||
@@ -153,7 +184,7 @@ const MyShipments = () => {
 
         setItems([]);
         setErrMsg(
-          "We couldn’t load your shipments right now. Please refresh and try again."
+          "We couldn’t load your shipments right now. Please refresh and try again.",
         );
         console.error("MyShipments fetch error:", e);
       } finally {
@@ -178,10 +209,10 @@ const MyShipments = () => {
     const arr = Array.isArray(items) ? items : [];
     return [...arr].sort((a, b) => {
       const ad = new Date(
-        a?.createdAt || a?.bookingDate || a?.date || 0
+        a?.createdAt || a?.bookingDate || a?.date || 0,
       ).getTime();
       const bd = new Date(
-        b?.createdAt || b?.bookingDate || b?.date || 0
+        b?.createdAt || b?.bookingDate || b?.date || 0,
       ).getTime();
       return bd - ad;
     });
@@ -232,6 +263,7 @@ const MyShipments = () => {
           <div className="space-y-4">
             {myShipments.map((shipment) => {
               const id = shipment?._id || shipment?.id;
+
               const reference =
                 shipment?.referenceNo ||
                 shipment?.reference ||
@@ -239,17 +271,21 @@ const MyShipments = () => {
                 "—";
 
               const origin =
+                shipment?.originAddress ||
+                shipment?.pickupAddress ||
                 shipment?.origin ||
                 shipment?.from ||
-                shipment?.pickupAddress ||
                 shipment?.pickupCity ||
+                shipment?.ports?.originPort ||
                 "—";
 
               const destination =
+                shipment?.destinationAddress ||
+                shipment?.deliveryAddress ||
                 shipment?.destination ||
                 shipment?.to ||
-                shipment?.deliveryAddress ||
                 shipment?.deliveryCity ||
+                shipment?.ports?.destinationPort ||
                 "—";
 
               const bookedAt =
@@ -268,6 +304,7 @@ const MyShipments = () => {
 
               const weight =
                 shipment?.weightKg ||
+                shipment?.cargo?.weightKg ||
                 shipment?.weight ||
                 shipment?.grossWeight ||
                 "";
@@ -313,7 +350,7 @@ const MyShipments = () => {
                       {weight !== "" ? (
                         <p>
                           <span className="text-slate-400">Weight:&nbsp;</span>
-                          {weight} kg
+                          {weight} {String(weight).includes("kg") ? "" : "kg"}
                         </p>
                       ) : null}
 

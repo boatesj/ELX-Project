@@ -15,6 +15,65 @@ function pickShipment(payload) {
   return null;
 }
 
+const cleanStr = (v) => String(v ?? "").trim();
+
+const firstNonEmpty = (...vals) => {
+  for (const v of vals) {
+    const s = cleanStr(v);
+    if (s) return s;
+  }
+  return "";
+};
+
+const pick = (obj, paths = []) => {
+  for (const p of paths) {
+    const parts = String(p).split(".");
+    let cur = obj;
+    let ok = true;
+    for (const part of parts) {
+      if (!cur || typeof cur !== "object" || !(part in cur)) {
+        ok = false;
+        break;
+      }
+      cur = cur[part];
+    }
+    if (ok) {
+      const s = cleanStr(cur);
+      if (s) return s;
+      if (typeof cur === "number" && Number.isFinite(cur)) return cur;
+    }
+  }
+  return "";
+};
+
+const pickNum = (obj, paths = []) => {
+  for (const p of paths) {
+    const parts = String(p).split(".");
+    let cur = obj;
+    let ok = true;
+    for (const part of parts) {
+      if (!cur || typeof cur !== "object" || !(part in cur)) {
+        ok = false;
+        break;
+      }
+      cur = cur[part];
+    }
+    if (ok) {
+      const n = Number(cur);
+      if (Number.isFinite(n) && n !== 0) return n;
+      if (Number.isFinite(n) && n === 0) return 0;
+    }
+  }
+  return null;
+};
+
+const toNumOrNull = (s) => {
+  const t = String(s ?? "").trim();
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+};
+
 export default function EditBooking() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -36,24 +95,38 @@ export default function EditBooking() {
     status: "",
   });
 
+  // ✅ Form now covers ALL editable fields ShipmentDetails reads
   const [form, setForm] = useState({
     shipperName: "",
     shipperAddress: "",
     shipperEmail: "",
+    shipperPhone: "",
+
     consigneeName: "",
     consigneeAddress: "",
-    originPort: "",
-    destinationPort: "",
+    consigneeEmail: "",
+    consigneePhone: "",
 
-    // ✅ Missing-details fields (Job Card)
-    packagingType: "",
-    weightText: "", // keep as string to match schema cargo.weight
-    volumeCbm: "", // string in form -> converted to number on save
-    declaredValueAmount: "",
+    originAddress: "",
+    destinationAddress: "",
+
+    requestedPickupDate: "", // pickupDate / requestedPickupDate / dates.pickup
+    shippingDate: "", // shippingDate / shipDate / dates.shipping
+    eta: "", // eta / dates.eta
+
+    goodsDescription: "", // goodsDescription / cargo.description
+    pieces: "", // packagesCount / pieces / qty / cargo.packagesCount
+    packagingType: "", // packagingType / cargo.packagingType
+
+    weightKg: "", // weightKg / cargo.weightKg
+    volumeM3: "", // volumeM3 / cargo.volumeM3
+
+    declaredValueAmount: "", // declaredValue / cargo.declaredValue
     declaredValueCurrency: "GBP",
+
+    customerNotes: "", // notes / customerNotes / instructions / cargo.notes
   });
 
-  // Keep in sync if user logs in/out in another tab
   useEffect(() => {
     const onStorage = () => {
       const local = localStorage.getItem(CUSTOMER_TOKEN_KEY);
@@ -98,33 +171,159 @@ export default function EditBooking() {
           status: picked?.status || "",
         });
 
+        // Packaging: support current + older shapes
         const firstPackageType =
           picked?.cargo?.packages?.[0]?.type ||
           picked?.cargo?.packages?.type ||
+          pick(picked, [
+            "packagingType",
+            "cargo.packagingType",
+            "packageType",
+          ]) ||
           "";
 
-        setForm({
-          shipperName: picked?.shipper?.name || "",
-          shipperAddress: picked?.shipper?.address || "",
-          shipperEmail: picked?.shipper?.email || "",
-          consigneeName: picked?.consignee?.name || "",
-          consigneeAddress: picked?.consignee?.address || "",
-          originPort: picked?.ports?.originPort || picked?.originAddress || "",
-          destinationPort:
-            picked?.ports?.destinationPort || picked?.destinationAddress || "",
+        // Origin/destination: mirror ShipmentDetails pick order
+        const origin = firstNonEmpty(
+          pick(picked, [
+            "originAddress",
+            "pickupAddress",
+            "addresses.origin",
+            "addresses.pickup",
+            "ports.originPort",
+          ]),
+          picked?.origin,
+        );
 
-          // ✅ Missing-details fields (Job Card)
-          packagingType: firstPackageType,
-          weightText: picked?.cargo?.weight || "",
-          volumeCbm:
-            picked?.cargo?.volumeCbm === 0 || picked?.cargo?.volumeCbm
-              ? String(picked.cargo.volumeCbm)
-              : "",
+        const destination = firstNonEmpty(
+          pick(picked, [
+            "destinationAddress",
+            "deliveryAddress",
+            "addresses.destination",
+            "addresses.delivery",
+            "ports.destinationPort",
+          ]),
+          picked?.destination,
+        );
+
+        // Dates: mirror ShipmentDetails pick order
+        const requestedPickupDate = firstNonEmpty(
+          pick(picked, ["pickupDate", "dates.pickup", "requestedPickupDate"]),
+          picked?.pickupDate,
+        );
+
+        const shippingDate = firstNonEmpty(
+          pick(picked, [
+            "shippingDate",
+            "shipDate",
+            "dates.shipping",
+            "dates.ship",
+          ]),
+          picked?.shippingDate,
+        );
+
+        const eta = firstNonEmpty(
+          pick(picked, [
+            "eta",
+            "estimatedDeliveryDate",
+            "dates.eta",
+            "dates.deliveryEta",
+          ]),
+          picked?.eta,
+        );
+
+        // Cargo values: mirror ShipmentDetails pickers
+        const goodsDescription = firstNonEmpty(
+          pick(picked, [
+            "goodsDescription",
+            "cargo.description",
+            "cargo.goodsDescription",
+            "cargo.goods",
+            "itemsSummary",
+          ]),
+          picked?.description,
+        );
+
+        const packagesCount = pickNum(picked, [
+          "packagesCount",
+          "cargo.packagesCount",
+          "pieces",
+          "qty",
+        ]);
+
+        const weightKg = pickNum(picked, [
+          "weightKg",
+          "cargo.weightKg",
+          "weight",
+          "grossWeightKg",
+        ]);
+
+        const volumeM3 = pickNum(picked, [
+          "volumeM3",
+          "cargo.volumeM3",
+          "volume",
+          "cbm",
+        ]);
+
+        const declaredValue = pickNum(picked, [
+          "declaredValue",
+          "cargo.declaredValue",
+          "value",
+        ]);
+
+        const notes = firstNonEmpty(
+          pick(picked, [
+            "notes",
+            "customerNotes",
+            "instructions",
+            "specialInstructions",
+            "cargo.notes",
+          ]),
+        );
+
+        setForm({
+          shipperName: pick(picked, ["shipper.name"]) || "",
+          shipperAddress: pick(picked, ["shipper.address"]) || "",
+          shipperEmail: pick(picked, ["shipper.email"]) || "",
+          shipperPhone:
+            pick(picked, [
+              "shipper.phone",
+              "shipper.mobile",
+              "shipper.tel",
+              "shipper.contactPhone",
+            ]) || "",
+
+          consigneeName: pick(picked, ["consignee.name"]) || "",
+          consigneeAddress: pick(picked, ["consignee.address"]) || "",
+          consigneeEmail:
+            pick(picked, ["consignee.email", "consignee.contactEmail"]) || "",
+          consigneePhone:
+            pick(picked, [
+              "consignee.phone",
+              "consignee.mobile",
+              "consignee.tel",
+              "consignee.contactPhone",
+            ]) || "",
+
+          originAddress: origin || "",
+          destinationAddress: destination || "",
+
+          requestedPickupDate: requestedPickupDate || "",
+          shippingDate: shippingDate || "",
+          eta: eta || "",
+
+          goodsDescription: goodsDescription || "",
+          pieces: packagesCount === null ? "" : String(packagesCount),
+          packagingType: firstPackageType || "",
+
+          weightKg: weightKg === null ? "" : String(weightKg),
+          volumeM3: volumeM3 === null ? "" : String(volumeM3),
+
           declaredValueAmount:
-            picked?.cargoValue?.amount === 0 || picked?.cargoValue?.amount
-              ? String(picked.cargoValue.amount)
-              : "",
-          declaredValueCurrency: picked?.cargoValue?.currency || "GBP",
+            declaredValue === null ? "" : String(declaredValue),
+          declaredValueCurrency:
+            picked?.cargoValue?.currency || picked?.quote?.currency || "GBP",
+
+          customerNotes: notes || "",
         });
       } catch (e) {
         if (
@@ -136,7 +335,6 @@ export default function EditBooking() {
 
         const status = e?.response?.status;
 
-        // 401/403 handled by interceptor (auto-logout + redirect)
         if (status === 404) {
           setErrMsg("Shipment not found.");
           setLoading(false);
@@ -156,15 +354,13 @@ export default function EditBooking() {
   }, [id, navigate, hasToken]);
 
   const canSave = useMemo(() => {
-    // Backend validators require these (based on your 422 output + successful create)
+    // Core required to avoid breaking saves
     return Boolean(
-      form.shipperName.trim() &&
-      form.shipperAddress.trim() &&
-      form.shipperEmail.trim() &&
-      form.consigneeName.trim() &&
-      form.consigneeAddress.trim() &&
-      form.originPort.trim() &&
-      form.destinationPort.trim(),
+      cleanStr(form.shipperName) &&
+      cleanStr(form.shipperEmail) &&
+      cleanStr(form.originAddress) &&
+      cleanStr(form.consigneeName) &&
+      cleanStr(form.destinationAddress),
     );
   }, [form]);
 
@@ -184,50 +380,121 @@ export default function EditBooking() {
     setOkMsg("");
 
     try {
-      const volumeNum =
-        form.volumeCbm.trim() === "" ? undefined : Number(form.volumeCbm);
+      const piecesNum = toNumOrNull(form.pieces);
+      const weightNum = toNumOrNull(form.weightKg);
+      const volumeNum = toNumOrNull(form.volumeM3);
+      const declaredNum = toNumOrNull(form.declaredValueAmount);
 
-      const declaredNum =
-        form.declaredValueAmount.trim() === ""
-          ? undefined
-          : Number(form.declaredValueAmount);
+      const origin = cleanStr(form.originAddress);
+      const destination = cleanStr(form.destinationAddress);
 
-      // Minimal PATCH-like PUT payload: only fields we allow customers to edit
+      // ✅ Multi-write payload so ShipmentDetails will re-read everything
       const payload = {
         shipper: {
-          name: form.shipperName.trim(),
-          address: form.shipperAddress.trim(),
-          email: form.shipperEmail.trim(),
+          name: cleanStr(form.shipperName),
+          address: cleanStr(form.shipperAddress),
+          email: cleanStr(form.shipperEmail),
+          phone: cleanStr(form.shipperPhone),
         },
         consignee: {
-          name: form.consigneeName.trim(),
-          address: form.consigneeAddress.trim(),
+          name: cleanStr(form.consigneeName),
+          address: cleanStr(form.consigneeAddress),
+          email: cleanStr(form.consigneeEmail),
+          phone: cleanStr(form.consigneePhone),
+        },
+
+        // Addresses / ports (all shapes ShipmentDetails checks)
+        originAddress: origin,
+        destinationAddress: destination,
+        pickupAddress: origin,
+        deliveryAddress: destination,
+        addresses: {
+          origin,
+          pickup: origin,
+          destination,
+          delivery: destination,
         },
         ports: {
-          originPort: form.originPort.trim(),
-          destinationPort: form.destinationPort.trim(),
+          originPort: origin,
+          destinationPort: destination,
         },
 
-        // ✅ Missing-details fields (Job Card)
-        cargo: {
-          weight: form.weightText.trim(),
-          volumeCbm: Number.isFinite(volumeNum) ? volumeNum : undefined,
-
-          // Keep it minimal: set/update the first package type only
-          packages: form.packagingType.trim()
-            ? [{ type: form.packagingType.trim(), quantity: 1 }]
-            : undefined,
+        // Dates (all shapes ShipmentDetails checks)
+        pickupDate: cleanStr(form.requestedPickupDate),
+        requestedPickupDate: cleanStr(form.requestedPickupDate),
+        shippingDate: cleanStr(form.shippingDate),
+        shipDate: cleanStr(form.shippingDate),
+        eta: cleanStr(form.eta),
+        estimatedDeliveryDate: cleanStr(form.eta),
+        dates: {
+          pickup: cleanStr(form.requestedPickupDate),
+          shipping: cleanStr(form.shippingDate),
+          ship: cleanStr(form.shippingDate),
+          eta: cleanStr(form.eta),
+          deliveryEta: cleanStr(form.eta),
         },
 
-        cargoValue:
-          Number.isFinite(declaredNum) && declaredNum >= 0
-            ? {
-                amount: declaredNum,
-                currency:
-                  String(form.declaredValueCurrency || "GBP").trim() || "GBP",
-              }
-            : undefined,
+        // Cargo fields (both “flat” + cargo.* paths ShipmentDetails checks)
+        goodsDescription: cleanStr(form.goodsDescription),
+        packagingType: cleanStr(form.packagingType),
+        pieces: Number.isFinite(piecesNum) ? piecesNum : undefined,
+        qty: Number.isFinite(piecesNum) ? piecesNum : undefined,
+        packagesCount: Number.isFinite(piecesNum) ? piecesNum : undefined,
+
+        weightKg: Number.isFinite(weightNum) ? weightNum : undefined,
+        volumeM3: Number.isFinite(volumeNum) ? volumeNum : undefined,
+
+        declaredValue: Number.isFinite(declaredNum) ? declaredNum : undefined,
+        value: Number.isFinite(declaredNum) ? declaredNum : undefined,
+
+        // Notes (all shapes ShipmentDetails checks)
+        notes: cleanStr(form.customerNotes),
+        customerNotes: cleanStr(form.customerNotes),
+        instructions: cleanStr(form.customerNotes),
+        specialInstructions: cleanStr(form.customerNotes),
       };
+
+      // cargo object mirrors + preserves your current schema usage too
+      const cargo = {
+        description: cleanStr(form.goodsDescription),
+        goodsDescription: cleanStr(form.goodsDescription),
+        packagingType: cleanStr(form.packagingType),
+        packaging: cleanStr(form.packagingType),
+
+        packagesCount: Number.isFinite(piecesNum) ? piecesNum : undefined,
+        packageCount: Number.isFinite(piecesNum) ? piecesNum : undefined,
+
+        // Make ShipmentDetails happy (numeric pickNum)
+        weightKg: Number.isFinite(weightNum) ? weightNum : undefined,
+        volumeM3: Number.isFinite(volumeNum) ? volumeNum : undefined,
+        declaredValue: Number.isFinite(declaredNum) ? declaredNum : undefined,
+
+        // Keep your existing schema fields too (harmless if backend ignores extras)
+        weight: cleanStr(form.weightKg) ? `${cleanStr(form.weightKg)} kg` : "",
+        volumeCbm: Number.isFinite(volumeNum) ? volumeNum : undefined,
+
+        notes: cleanStr(form.customerNotes),
+      };
+
+      // packages array (keep prior behaviour, but also keep packagingType flat)
+      if (cleanStr(form.packagingType)) {
+        cargo.packages = [{ type: cleanStr(form.packagingType), quantity: 1 }];
+      }
+
+      payload.cargo = cargo;
+
+      // cargoValue object (for systems that use it)
+      if (Number.isFinite(declaredNum) && declaredNum >= 0) {
+        payload.cargoValue = {
+          amount: declaredNum,
+          currency: cleanStr(form.declaredValueCurrency) || "GBP",
+        };
+      }
+
+      // Clean undefined keys at top-level (avoid sending junk)
+      Object.keys(payload).forEach((k) => {
+        if (payload[k] === undefined) delete payload[k];
+      });
 
       await customerAuthRequest.put(SHIPMENT_PATH(id), payload);
 
@@ -236,15 +503,15 @@ export default function EditBooking() {
       setTimeout(() => {
         navigate(`/shipmentdetails/${id}`, { replace: true });
       }, 350);
-    } catch (e) {
+    } catch (e2) {
       const msg =
-        e?.response?.data?.message ||
-        e?.response?.data?.error ||
-        e?.message ||
+        e2?.response?.data?.message ||
+        e2?.response?.data?.error ||
+        e2?.message ||
         "We couldn’t save your changes. Please try again.";
 
       setErrMsg(msg);
-      console.error("EditBooking save error:", e);
+      console.error("EditBooking save error:", e2);
     } finally {
       setSaving(false);
     }
@@ -287,8 +554,8 @@ export default function EditBooking() {
               {shipmentMeta.referenceNo}
             </h1>
             <p className="text-sm text-slate-600 mt-2">
-              Update key booking details. Milestones and documents are managed
-              by Ellcworth Operations.
+              Update your delivery brief details. Milestones and documents are
+              managed by Ellcworth Operations.
             </p>
             <div className="mt-2 text-[11px] text-slate-500">
               Mode:{" "}
@@ -313,145 +580,32 @@ export default function EditBooking() {
               </div>
             ) : null}
 
-            <form onSubmit={onSubmit} className="space-y-5">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="text-sm font-semibold block mb-2">
-                    Shipper name
-                  </label>
-                  <input
-                    value={form.shipperName}
-                    onChange={onChange("shipperName")}
-                    className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
-                    placeholder="e.g. Jake Boateng"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold block mb-2">
-                    Shipper email
-                  </label>
-                  <input
-                    value={form.shipperEmail}
-                    onChange={onChange("shipperEmail")}
-                    type="email"
-                    className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
-                    placeholder="e.g. jake@example.com"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-semibold block mb-2">
-                  Shipper address
-                </label>
-                <input
-                  value={form.shipperAddress}
-                  onChange={onChange("shipperAddress")}
-                  className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
-                  placeholder="e.g. London, UK"
-                  required
-                />
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="text-sm font-semibold block mb-2">
-                    Consignee name
-                  </label>
-                  <input
-                    value={form.consigneeName}
-                    onChange={onChange("consigneeName")}
-                    className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
-                    placeholder="e.g. Kofi Mensah"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold block mb-2">
-                    Consignee address
-                  </label>
-                  <input
-                    value={form.consigneeAddress}
-                    onChange={onChange("consigneeAddress")}
-                    className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
-                    placeholder="e.g. Tema, Ghana"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="text-sm font-semibold block mb-2">
-                    Origin port / city
-                  </label>
-                  <input
-                    value={form.originPort}
-                    onChange={onChange("originPort")}
-                    className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
-                    placeholder="e.g. London"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-semibold block mb-2">
-                    Destination port / city
-                  </label>
-                  <input
-                    value={form.destinationPort}
-                    onChange={onChange("destinationPort")}
-                    className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
-                    placeholder="e.g. Tema"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* ✅ Missing-details fields (to remove Job Card warning) */}
-              <div className="mt-2 rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] p-4">
-                <p className="text-sm font-semibold mb-1">Cargo basics</p>
-                <p className="text-[12px] text-slate-600 mb-4">
-                  These details help us process insurance/customs and plan
-                  handling.
-                </p>
-
+            <form onSubmit={onSubmit} className="space-y-6">
+              {/* Parties */}
+              <div className="rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] p-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="text-sm font-semibold block mb-2">
-                      Packaging type
+                      Shipper name
                     </label>
-                    <select
-                      value={form.packagingType}
-                      onChange={onChange("packagingType")}
+                    <input
+                      value={form.shipperName}
+                      onChange={onChange("shipperName")}
                       className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
-                    >
-                      <option value="">Select…</option>
-                      <option value="box">Box</option>
-                      <option value="carton">Carton</option>
-                      <option value="pallet">Pallet</option>
-                      <option value="parcel">Parcel</option>
-                      <option value="bag">Bag</option>
-                      <option value="other">Other</option>
-                    </select>
+                      required
+                    />
                   </div>
 
                   <div>
                     <label className="text-sm font-semibold block mb-2">
-                      Weight{" "}
-                      <span className="text-[11px] text-slate-500 font-normal">
-                        (e.g. 1300 kg)
-                      </span>
+                      Shipper email
                     </label>
                     <input
-                      value={form.weightText}
-                      onChange={onChange("weightText")}
+                      value={form.shipperEmail}
+                      onChange={onChange("shipperEmail")}
+                      type="email"
                       className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
-                      placeholder="e.g. 75 kg"
+                      required
                     />
                   </div>
                 </div>
@@ -459,26 +613,238 @@ export default function EditBooking() {
                 <div className="grid gap-4 md:grid-cols-2 mt-4">
                   <div>
                     <label className="text-sm font-semibold block mb-2">
-                      Volume (CBM){" "}
-                      <span className="text-[11px] text-slate-500 font-normal">
-                        (optional)
-                      </span>
+                      Shipper phone (optional)
                     </label>
                     <input
-                      value={form.volumeCbm}
-                      onChange={onChange("volumeCbm")}
-                      inputMode="decimal"
+                      value={form.shipperPhone}
+                      onChange={onChange("shipperPhone")}
                       className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
-                      placeholder="e.g. 1.8"
+                      placeholder="e.g. +44 7..."
                     />
                   </div>
 
                   <div>
                     <label className="text-sm font-semibold block mb-2">
-                      Declared value{" "}
-                      <span className="text-[11px] text-slate-500 font-normal">
-                        (insurance/customs)
-                      </span>
+                      Shipper address (optional)
+                    </label>
+                    <input
+                      value={form.shipperAddress}
+                      onChange={onChange("shipperAddress")}
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      placeholder="e.g. Romford, UK"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] p-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Consignee name
+                    </label>
+                    <input
+                      value={form.consigneeName}
+                      onChange={onChange("consigneeName")}
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Consignee email (optional)
+                    </label>
+                    <input
+                      value={form.consigneeEmail}
+                      onChange={onChange("consigneeEmail")}
+                      type="email"
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      placeholder="e.g. consignee@example.com"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 mt-4">
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Consignee phone (optional)
+                    </label>
+                    <input
+                      value={form.consigneePhone}
+                      onChange={onChange("consigneePhone")}
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      placeholder="e.g. +233 ..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Consignee address (optional)
+                    </label>
+                    <input
+                      value={form.consigneeAddress}
+                      onChange={onChange("consigneeAddress")}
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      placeholder="e.g. Tema, Ghana"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Route */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-semibold block mb-2">
+                    Origin / pickup address
+                  </label>
+                  <input
+                    value={form.originAddress}
+                    onChange={onChange("originAddress")}
+                    className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold block mb-2">
+                    Destination / delivery address
+                  </label>
+                  <input
+                    value={form.destinationAddress}
+                    onChange={onChange("destinationAddress")}
+                    className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] p-4">
+                <p className="text-sm font-semibold mb-1">Dates</p>
+                <p className="text-[12px] text-slate-600 mb-4">
+                  Provide what you know — Operations will confirm the final
+                  schedule.
+                </p>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Requested pickup date
+                    </label>
+                    <input
+                      value={form.requestedPickupDate}
+                      onChange={onChange("requestedPickupDate")}
+                      type="datetime-local"
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Shipping date
+                    </label>
+                    <input
+                      value={form.shippingDate}
+                      onChange={onChange("shippingDate")}
+                      type="datetime-local"
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      ETA / estimated delivery
+                    </label>
+                    <input
+                      value={form.eta}
+                      onChange={onChange("eta")}
+                      type="datetime-local"
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Cargo */}
+              <div className="rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] p-4">
+                <p className="text-sm font-semibold mb-1">Cargo & handling</p>
+                <p className="text-[12px] text-slate-600 mb-4">
+                  These fields directly feed the “Delivery brief” view and the
+                  missing checklist.
+                </p>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-semibold block mb-2">
+                      Goods description
+                    </label>
+                    <input
+                      value={form.goodsDescription}
+                      onChange={onChange("goodsDescription")}
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      placeholder="e.g. household items / cartons of books"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Quantity / pieces
+                    </label>
+                    <input
+                      value={form.pieces}
+                      onChange={onChange("pieces")}
+                      inputMode="numeric"
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      placeholder="e.g. 12"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Packaging type
+                    </label>
+                    <input
+                      value={form.packagingType}
+                      onChange={onChange("packagingType")}
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      placeholder="e.g. carton / box / pallet"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 mt-4">
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Weight (kg)
+                    </label>
+                    <input
+                      value={form.weightKg}
+                      onChange={onChange("weightKg")}
+                      inputMode="decimal"
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      placeholder="e.g. 75"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold block mb-2">
+                      Volume (m³)
+                    </label>
+                    <input
+                      value={form.volumeM3}
+                      onChange={onChange("volumeM3")}
+                      inputMode="decimal"
+                      className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                      placeholder="e.g. 1.8"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 mt-4">
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-semibold block mb-2">
+                      Declared value (insurance/customs)
                     </label>
                     <div className="flex gap-2">
                       <select
@@ -504,9 +870,25 @@ export default function EditBooking() {
                 </div>
               </div>
 
+              {/* Notes */}
+              <div>
+                <label className="text-sm font-semibold block mb-2">
+                  Instructions & notes (optional)
+                </label>
+                <textarea
+                  value={form.customerNotes}
+                  onChange={onChange("customerNotes")}
+                  rows={4}
+                  maxLength={1000}
+                  className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
+                  placeholder="Any special instructions for pickup, delivery, contact, documents, timing..."
+                />
+              </div>
+
               <div className="flex items-center justify-between gap-3 pt-2">
                 <p className="text-[11px] text-slate-500">
-                  For security, customers can only edit core booking details.
+                  You can edit your delivery brief fields here. Quote pricing
+                  and milestones are managed by Operations.
                 </p>
 
                 <button
@@ -531,8 +913,8 @@ export default function EditBooking() {
         </div>
 
         <div className="mt-6 text-[11px] text-white/50">
-          If the backend rejects any field, we’ll follow the error message and
-          add only what’s mandatory — nothing extra.
+          If the backend rejects any field, the UI will show the error message —
+          we’ll only remove fields that the backend explicitly disallows.
         </div>
       </div>
     </div>
