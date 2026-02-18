@@ -55,8 +55,8 @@ const Button = ({ variant = "primary", ...props }) => {
     variant === "primary"
       ? "bg-[#FFA500] text-[#0B1118] hover:brightness-110 shadow-[0_10px_30px_rgba(255,165,0,0.18)]"
       : variant === "ghost"
-      ? "bg-white/5 text-gray-100 hover:bg-white/10 border border-white/10"
-      : "bg-red-500/10 text-red-200 hover:bg-red-500/15 border border-red-500/20";
+        ? "bg-white/5 text-gray-100 hover:bg-white/10 border border-white/10"
+        : "bg-red-500/10 text-red-200 hover:bg-red-500/15 border border-red-500/20";
 
   return (
     <button
@@ -76,7 +76,7 @@ export default function Settings() {
       { key: "notifications", label: "Notifications" },
       { key: "integrations", label: "Integrations" },
     ],
-    []
+    [],
   );
 
   const [active, setActive] = useState("company");
@@ -179,15 +179,15 @@ export default function Settings() {
       requireMfaRef.current.value = s?.security?.requireMfa ?? "recommended";
     if (sessionTimeoutRef.current)
       sessionTimeoutRef.current.value = String(
-        s?.security?.sessionTimeoutMinutes ?? 60
+        s?.security?.sessionTimeoutMinutes ?? 60,
       );
     if (passwordMinLengthRef.current)
       passwordMinLengthRef.current.value = String(
-        s?.security?.passwordMinLength ?? 10
+        s?.security?.passwordMinLength ?? 10,
       );
     if (lockoutThresholdRef.current)
       lockoutThresholdRef.current.value = String(
-        s?.security?.lockoutThreshold ?? 5
+        s?.security?.lockoutThreshold ?? 5,
       );
 
     // Notifications
@@ -199,7 +199,7 @@ export default function Settings() {
         s?.notifications?.replyTo ?? "support@ellcworth.com";
     if (overdueHoursRef.current)
       overdueHoursRef.current.value = String(
-        s?.notifications?.overdueHours ?? 48
+        s?.notifications?.overdueHours ?? 48,
       );
     if (digestTimeRef.current)
       digestTimeRef.current.value = s?.notifications?.digestTime ?? "08:30";
@@ -242,7 +242,7 @@ export default function Settings() {
         showBanner(
           "error",
           err?.response?.data?.message ||
-            "Failed to load settings (are you logged in as admin?)"
+            "Failed to load settings (are you logged in as admin?)",
         );
       }
     })();
@@ -339,7 +339,7 @@ export default function Settings() {
     } catch (err) {
       showBanner(
         "error",
-        err?.response?.data?.message || "Save failed. Please try again."
+        err?.response?.data?.message || "Save failed. Please try again.",
       );
     } finally {
       setBusyKey("");
@@ -373,7 +373,7 @@ export default function Settings() {
     } catch (err) {
       showBanner(
         "error",
-        err?.response?.data?.message || "Failed to send test email"
+        err?.response?.data?.message || "Failed to send test email",
       );
     } finally {
       setBusyKey("");
@@ -619,7 +619,7 @@ export default function Settings() {
                     <Select
                       ref={sessionTimeoutRef}
                       defaultValue={String(
-                        loaded?.security?.sessionTimeoutMinutes ?? 60
+                        loaded?.security?.sessionTimeoutMinutes ?? 60,
                       )}
                     >
                       <option value="15">15 minutes</option>
@@ -821,7 +821,7 @@ export default function Settings() {
                     <Select
                       ref={overdueHoursRef}
                       defaultValue={String(
-                        loaded?.notifications?.overdueHours ?? 48
+                        loaded?.notifications?.overdueHours ?? 48,
                       )}
                     >
                       <option value="24">After 24 hours</option>

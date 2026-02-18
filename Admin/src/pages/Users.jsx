@@ -147,18 +147,29 @@ const Users = () => {
               pageSize={10}
               onRowClick={handleRowClick}
               columns={[
-                { header: "Name", accessorKey: "fullname" },
-                { header: "Email", accessorKey: "email" },
+                {
+                  header: "Name",
+                  accessorKey: "fullname",
+                  cell: ({ getValue }) => String(getValue() || "—"),
+                },
+                {
+                  header: "Email",
+                  accessorKey: "email",
+                  cell: ({ getValue }) => String(getValue() || "—"),
+                },
                 {
                   header: "Role",
-                  cell: ({ row }) => String(row.original?.role || "").trim(),
+                  accessorFn: (row) => String(row?.role || "").trim(),
+                  cell: ({ getValue }) => String(getValue() || "—"),
                 },
                 {
                   header: "Status",
-                  cell: ({ row }) => normalizeStatus(row.original?.status),
+                  accessorFn: (row) => normalizeStatus(row?.status),
+                  cell: ({ getValue }) => String(getValue() || "pending"),
                 },
                 {
                   header: "Created",
+                  accessorKey: "createdAt",
                   cell: ({ row }) => toUkDateTime(row.original?.createdAt),
                 },
               ]}

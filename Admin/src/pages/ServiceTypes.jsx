@@ -9,6 +9,37 @@ const initialForm = {
   isActive: true,
 };
 
+// ✅ pick list from multiple possible response shapes
+function pickArray(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.serviceTypes)) return payload.serviceTypes;
+  if (Array.isArray(payload?.results)) return payload.results;
+  return [];
+}
+
+// ✅ pick single object from multiple possible response shapes
+function pickObject(payload) {
+  if (payload && typeof payload === "object") {
+    if (payload.data && typeof payload.data === "object") return payload.data;
+    if (payload.serviceType && typeof payload.serviceType === "object")
+      return payload.serviceType;
+    if (payload.item && typeof payload.item === "object") return payload.item;
+  }
+  // Sometimes backend returns the object directly
+  return payload && typeof payload === "object" ? payload : null;
+}
+
+function friendlyError(err, fallback) {
+  const status = err?.response?.status;
+  const msg =
+    err?.response?.data?.message ||
+    err?.message ||
+    fallback ||
+    "Something went wrong. Please try again.";
+  return status ? `${msg} (HTTP ${status})` : msg;
+}
+
 function ServiceTypes() {
   const [serviceTypes, setServiceTypes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -23,10 +54,15 @@ function ServiceTypes() {
       setLoading(true);
       setError("");
       const res = await authRequest.get("/config/service-types");
-      setServiceTypes(res.data || []);
+
+      const list = pickArray(res?.data);
+      setServiceTypes(list);
     } catch (err) {
-      console.error(err);
-      setError("Unable to load service types. Please try again.");
+      console.error("ServiceTypes fetch error:", err);
+      setError(
+        friendlyError(err, "Unable to load service types. Please try again."),
+      );
+      setServiceTypes([]); // safe empty
     } finally {
       setLoading(false);
     }
@@ -59,24 +95,37 @@ function ServiceTypes() {
       if (editingId) {
         const res = await authRequest.put(
           `/config/service-types/${editingId}`,
-          form
+          form,
         );
-        const updated = res.data;
+
+        const updated = pickObject(res?.data);
+        if (!updated || !updated._id) {
+          throw new Error("Unexpected update response from server.");
+        }
+
         setServiceTypes((prev) =>
-          prev.map((st) => (st._id === editingId ? updated : st))
+          prev.map((st) => (st._id === editingId ? updated : st)),
         );
         setSuccess("Service type updated successfully.");
       } else {
         const res = await authRequest.post("/config/service-types", form);
-        const created = res.data;
+
+        const created = pickObject(res?.data);
+        if (!created || !created._id) {
+          throw new Error("Unexpected create response from server.");
+        }
+
         setServiceTypes((prev) => [...prev, created]);
         setSuccess("Service type added successfully.");
       }
       resetForm();
     } catch (err) {
-      console.error(err);
+      console.error("ServiceTypes save error:", err);
       setError(
-        "Could not save service type. Please check details and try again."
+        friendlyError(
+          err,
+          "Could not save service type. Please check details and try again.",
+        ),
       );
     } finally {
       setSaving(false);
@@ -104,34 +153,45 @@ function ServiceTypes() {
 
   const handleToggleActive = async (item) => {
     try {
+      setError("");
+      setSuccess("");
+
       const updatedData = { ...item, isActive: !item.isActive };
       const res = await authRequest.put(
         `/config/service-types/${item._id}`,
-        updatedData
+        updatedData,
       );
-      const updated = res.data;
+
+      const updated = pickObject(res?.data);
+      if (!updated || !updated._id) {
+        throw new Error("Unexpected update response from server.");
+      }
+
       setServiceTypes((prev) =>
-        prev.map((st) => (st._id === item._id ? updated : st))
+        prev.map((st) => (st._id === item._id ? updated : st)),
       );
     } catch (err) {
-      console.error(err);
-      setError("Could not update service type status.");
+      console.error("ServiceTypes toggle error:", err);
+      setError(friendlyError(err, "Could not update service type status."));
     }
   };
 
   const handleDelete = async (item) => {
     const confirmDelete = window.confirm(
-      `Delete service type "${item.label}"? This cannot be undone.`
+      `Delete service type "${item.label}"? This cannot be undone.`,
     );
     if (!confirmDelete) return;
 
     try {
+      setError("");
+      setSuccess("");
+
       await authRequest.delete(`/config/service-types/${item._id}`);
       setServiceTypes((prev) => prev.filter((st) => st._id !== item._id));
       setSuccess("Service type deleted.");
     } catch (err) {
-      console.error(err);
-      setError("Could not delete service type.");
+      console.error("ServiceTypes delete error:", err);
+      setError(friendlyError(err, "Could not delete service type."));
     }
   };
 
@@ -245,8 +305,8 @@ function ServiceTypes() {
                   ? "Updating..."
                   : "Saving..."
                 : editingId
-                ? "Update"
-                : "Add"}
+                  ? "Update"
+                  : "Add"}
             </button>
           </div>
         </form>

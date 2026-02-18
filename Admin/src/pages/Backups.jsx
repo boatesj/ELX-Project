@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PageShell from "../components/PageShell";
+import { adminRequest } from "../requestMethods";
 
 const Pill = ({ children }) => (
   <span className="text-[11px] px-3 py-1 rounded-full bg-[#FFA500]/10 text-[#FFA500] border border-[#FFA500]/25">
@@ -39,46 +40,148 @@ const Button = ({ variant = "primary", ...props }) => {
 
 export default function Backups() {
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [backups, setBackups] = useState([]);
 
-  const backups = useMemo(
-    () => [
-      {
-        id: "b1",
-        createdAt: "2025-12-14 23:05",
-        size: "48.2 MB",
-        type: "Auto",
-        status: "Success",
-      },
-      {
-        id: "b2",
-        createdAt: "2025-12-13 23:05",
-        size: "47.9 MB",
-        type: "Auto",
-        status: "Success",
-      },
-      {
-        id: "b3",
-        createdAt: "2025-12-12 23:05",
-        size: "47.6 MB",
-        type: "Auto",
-        status: "Success",
-      },
-      {
-        id: "b4",
-        createdAt: "2025-12-12 10:21",
-        size: "47.6 MB",
-        type: "Manual",
-        status: "Success",
-      },
-    ],
-    []
-  );
+  const pickList = (payload) => {
+    // Accept multiple response shapes without breaking
+    if (Array.isArray(payload)) return payload;
+    if (payload?.data && Array.isArray(payload.data)) return payload.data;
+    if (payload?.backups && Array.isArray(payload.backups))
+      return payload.backups;
+    return [];
+  };
+
+  const formatGbDateTime = (val) => {
+    if (!val) return "—";
+    try {
+      const d = new Date(val);
+      if (Number.isNaN(d.getTime())) return String(val);
+      return d.toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return String(val);
+    }
+  };
+
+  const formatSize = (bytesOrText) => {
+    // If API already returns "48.2 MB", keep it
+    if (typeof bytesOrText === "string") return bytesOrText;
+
+    const n = Number(bytesOrText || 0);
+    if (!Number.isFinite(n) || n <= 0) return "—";
+
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let i = 0;
+    let v = n;
+    while (v >= 1024 && i < units.length - 1) {
+      v = v / 1024;
+      i += 1;
+    }
+    return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+  };
+
+  const normaliseBackup = (b) => {
+    const id = b?._id || b?.id || b?.backupId || b?.key;
+    return {
+      id,
+      createdAt: b?.createdAt || b?.created_at || b?.timestamp || b?.time,
+      size: b?.size || b?.sizeText || b?.sizeBytes || b?.bytes,
+      type: b?.type || b?.kind || b?.mode || "—",
+      status: b?.status || b?.state || "—",
+    };
+  };
+
+  const fetchBackups = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      // Backend mounts backups at /admin/backups, and adminRequest baseURL includes /admin
+      const res = await adminRequest.get("/backups");
+      const list = pickList(res?.data);
+      setBackups(list.map(normaliseBackup).filter((b) => b.id));
+    } catch (e) {
+      console.error("Backups fetch failed:", e);
+      setError("Unable to load backups. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBackups();
+  }, []);
 
   const runBackup = async () => {
+    if (busy) return;
     setBusy(true);
-    // hook this to your API later
-    setTimeout(() => setBusy(false), 900);
+    setError("");
+    setSuccess("");
+
+    try {
+      await adminRequest.post("/backups/run", {});
+      setSuccess("Backup started successfully.");
+      await fetchBackups();
+    } catch (e) {
+      console.error("Run backup failed:", e);
+      setError("Could not run backup. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const downloadBackup = async (backup) => {
+    const id = backup?.id;
+    if (!id) return;
+
+    setError("");
+    setSuccess("");
+
+    try {
+      const res = await adminRequest.get(`/backups/${id}/download`, {
+        responseType: "blob",
+      });
+
+      const blob = new Blob([res.data], {
+        type: res.headers?.["content-type"] || "application/octet-stream",
+      });
+
+      // Try to read filename from Content-Disposition
+      const cd = res.headers?.["content-disposition"] || "";
+      const match = /filename="?([^"]+)"?/i.exec(cd);
+      const filename = match?.[1] || `backup-${id}.zip`;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Download backup failed:", e);
+      setError("Could not download backup. Please try again.");
+    }
+  };
+
+  const latestBackup = useMemo(() => {
+    if (!backups.length) return null;
+    // Sort newest first using createdAt when possible
+    const sorted = [...backups].sort((a, b) => {
+      const ad = new Date(a.createdAt || 0).getTime();
+      const bd = new Date(b.createdAt || 0).getTime();
+      return bd - ad;
+    });
+    return sorted[0];
+  }, [backups]);
 
   return (
     <div className="min-h-[calc(100dvh-64px)] bg-[#0B1118]">
@@ -87,6 +190,24 @@ export default function Backups() {
         subtitle="Protect your data. Export snapshots and keep recovery clean."
         right={<Pill>Encrypted</Pill>}
       >
+        {error ? (
+          <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-[13px] text-red-200">
+            {error}
+          </div>
+        ) : null}
+
+        {success ? (
+          <div className="mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-[13px] text-emerald-200">
+            {success}
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-[13px] text-gray-200">
+            Loading backups…
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <Card
             title="Backup health"
@@ -97,7 +218,9 @@ export default function Backups() {
               <div className="flex items-center justify-between text-[13px]">
                 <span className="text-gray-400">Last backup</span>
                 <span className="text-gray-100 font-semibold">
-                  2025-12-14 23:05
+                  {latestBackup
+                    ? formatGbDateTime(latestBackup.createdAt)
+                    : "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between text-[13px]">
@@ -113,7 +236,14 @@ export default function Backups() {
                 <Button onClick={runBackup} disabled={busy}>
                   {busy ? "Running backup..." : "Run manual backup"}
                 </Button>
-                <Button variant="ghost">Download latest snapshot</Button>
+
+                <Button
+                  variant="ghost"
+                  disabled={!latestBackup}
+                  onClick={() => latestBackup && downloadBackup(latestBackup)}
+                >
+                  Download latest snapshot
+                </Button>
               </div>
             </div>
           </Card>
@@ -121,7 +251,7 @@ export default function Backups() {
           <div className="lg:col-span-2">
             <Card
               title="Backup history"
-              subtitle="Recent snapshots (hook to your API later)"
+              subtitle="Recent snapshots"
               right={<Button variant="ghost">Export CSV</Button>}
             >
               <div className="overflow-x-auto">
@@ -135,14 +265,17 @@ export default function Backups() {
                       <th className="py-3">Actions</th>
                     </tr>
                   </thead>
+
                   <tbody className="text-[13px]">
                     {backups.map((b) => (
                       <tr key={b.id} className="border-t border-white/5">
                         <td className="py-3 pr-4 text-gray-100">
-                          {b.createdAt}
+                          {formatGbDateTime(b.createdAt)}
                         </td>
                         <td className="py-3 pr-4 text-gray-300">{b.type}</td>
-                        <td className="py-3 pr-4 text-gray-300">{b.size}</td>
+                        <td className="py-3 pr-4 text-gray-300">
+                          {formatSize(b.size)}
+                        </td>
                         <td className="py-3 pr-4">
                           <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-200 text-[12px]">
                             {b.status}
@@ -150,12 +283,35 @@ export default function Backups() {
                         </td>
                         <td className="py-3">
                           <div className="flex gap-2">
-                            <Button variant="ghost">Download</Button>
-                            <Button variant="ghost">Restore</Button>
+                            <Button
+                              variant="ghost"
+                              onClick={() => downloadBackup(b)}
+                            >
+                              Download
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              disabled
+                              title="Restore is not implemented in the backend yet."
+                            >
+                              Restore
+                            </Button>
                           </div>
                         </td>
                       </tr>
                     ))}
+
+                    {!loading && backups.length === 0 ? (
+                      <tr className="border-t border-white/5">
+                        <td
+                          colSpan={5}
+                          className="py-6 text-center text-gray-400 text-[13px]"
+                        >
+                          No backups yet.
+                        </td>
+                      </tr>
+                    ) : null}
                   </tbody>
                 </table>
               </div>

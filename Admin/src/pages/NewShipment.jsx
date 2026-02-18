@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authRequest } from "../requestMethods";
 
@@ -53,6 +53,8 @@ const NewShipment = () => {
 
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [portsList, setPortsList] = useState([]);
+  const [portsLoading, setPortsLoading] = useState(false);
 
   const [form, setForm] = useState({
     // What are we creating?
@@ -62,9 +64,9 @@ const NewShipment = () => {
     serviceType: "sea_freight",
     mode: "roro",
 
-    // Route
-    origin: "",
-    destination: "",
+    /// Route (ports) — canonical ids
+    originPortId: "",
+    destinationPortId: "",
 
     // Parties
     shipperName: "",
@@ -98,9 +100,39 @@ const NewShipment = () => {
     });
   };
 
+  useEffect(() => {
+    let alive = true;
+
+    const loadPorts = async () => {
+      try {
+        setPortsLoading(true);
+        const res = await authRequest.get("/config/ports");
+        const list = Array.isArray(res?.data) ? res.data : [];
+        if (alive) setPortsList(list);
+      } catch (e) {
+        if (alive) setPortsList([]);
+      } finally {
+        if (alive) setPortsLoading(false);
+      }
+    };
+
+    loadPorts();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const originPorts = (portsList || []).filter(
+    (p) => p.isActive && p.type === "origin",
+  );
+
+  const destinationPorts = (portsList || []).filter(
+    (p) => p.isActive && p.type === "destination",
+  );
+
   const currentModeOptions = useMemo(
     () => MODE_OPTIONS[form.serviceType] || [],
-    [form.serviceType]
+    [form.serviceType],
   );
 
   // Map UI mode → backend Shipment.mode enum
@@ -131,8 +163,8 @@ const NewShipment = () => {
   const submitLabel = saving
     ? "Creating..."
     : form.recordType === "quote"
-    ? "Create quote & open booking"
-    : "Create shipment & open booking";
+      ? "Create quote & open booking"
+      : "Create shipment & open booking";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -186,10 +218,8 @@ const NewShipment = () => {
         },
 
         // Route (ports)
-        ports: {
-          originPort: form.origin,
-          destinationPort: form.destination,
-        },
+        originPortId: form.originPortId || "",
+        destinationPortId: form.destinationPortId || "",
 
         // Cargo
         cargo: {
@@ -226,7 +256,7 @@ const NewShipment = () => {
     } catch (error) {
       console.error(
         "❌ Error creating shipment:",
-        error.response?.data || error
+        error.response?.data || error,
       );
 
       if (error.response?.status === 422) {
@@ -241,7 +271,7 @@ const NewShipment = () => {
       } else {
         setErrorMsg(
           error.response?.data?.message ||
-            "We couldn’t create this shipment. Please try again."
+            "We couldn’t create this shipment. Please try again.",
         );
       }
     } finally {
@@ -363,33 +393,47 @@ const NewShipment = () => {
                   <label className="text-xs font-medium text-gray-700">
                     Origin
                   </label>
-                  <input
-                    type="text"
-                    value={form.origin}
-                    onChange={handleChange("origin")}
-                    className="border border-gray-300 rounded px-3 py-2 text-sm"
-                    placeholder={
-                      form.serviceType === "sea_freight"
-                        ? "Southampton, UK"
-                        : "Heathrow (LHR)"
-                    }
-                  />
+
+                  <select
+                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-elx-accent"
+                    value={form.originPortId}
+                    onChange={handleChange("originPortId")}
+                  >
+                    <option value="">
+                      {portsLoading
+                        ? "Loading origin ports..."
+                        : "Select origin port..."}
+                    </option>
+
+                    {originPorts.map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-medium text-gray-700">
                     Destination
                   </label>
-                  <input
-                    type="text"
-                    value={form.destination}
-                    onChange={handleChange("destination")}
-                    className="border border-gray-300 rounded px-3 py-2 text-sm"
-                    placeholder={
-                      form.serviceType === "sea_freight"
-                        ? "Tema, Ghana"
-                        : "Accra (ACC)"
-                    }
-                  />
+
+                  <select
+                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-elx-accent"
+                    value={form.destinationPortId}
+                    onChange={handleChange("destinationPortId")}
+                  >
+                    <option value="">
+                      {portsLoading
+                        ? "Loading destination ports..."
+                        : "Select destination port..."}
+                    </option>
+
+                    {destinationPorts.map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </Section>

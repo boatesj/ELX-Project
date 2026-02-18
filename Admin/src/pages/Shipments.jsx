@@ -393,7 +393,6 @@ const Shipments = () => {
     ],
     [handleDelete],
   );
-
   return (
     <div className="min-h-screen bg-[#1A2930] p-4 sm:p-6">
       <div className="max-w-[1400px] mx-auto">
@@ -453,11 +452,9 @@ const Shipments = () => {
           </div>
         ) : (
           <AdminTable
-            title={null}
-            columns={columns}
             data={filteredRows}
-            pageSize={10}
-            emptyText="No shipments found."
+            columns={columns}
+            onRowClick={(row) => handleRowClick(row)}
           />
         )}
       </div>
