@@ -1230,7 +1230,7 @@ const ShipmentDetails = () => {
           <div className="px-5 py-6 space-y-6 bg-[#F9FAFB]">
             <InfoCallout
               title="Confirm your delivery brief"
-              text="Please review the details below. If anything is missing or incorrect, use “Edit booking” or send a message in “Request changes”."
+              text="Please review the details below. If anything is missing or incorrect, use “Edit booking”. For urgent corrections that can’t be edited, contact Ellcworth Operations and quote your reference."
             />
 
             {missing.length ? (
