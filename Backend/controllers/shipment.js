@@ -234,6 +234,9 @@ function sanitizeUpdatesForRole(req, updates) {
   // Reference number should not be mutated via update route
   delete clean.referenceNo;
 
+  // ✅ Immutable customer intent snapshot must never be mutated via update route
+  delete clean.customerRequest;
+
   // These should never be client-controlled:
   delete clean.createdBy;
 
