@@ -223,17 +223,28 @@ const validateShipmentCreate = [
     .trim()
     .withMessage("Notify phone must be a string"),
 
-  // Ports (required)
+  // Ports (canonical ids)
+  body("originPortId")
+    .optional({ checkFalsy: true, nullable: true })
+    .isMongoId()
+    .withMessage("Invalid originPortId"),
+
+  body("destinationPortId")
+    .optional({ checkFalsy: true, nullable: true })
+    .isMongoId()
+    .withMessage("Invalid destinationPortId"),
+
+  // Legacy ports (optional for backwards compatibility)
   body("ports.originPort")
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
-    .notEmpty()
-    .withMessage("Origin port is required"),
+    .withMessage("Origin port must be a string"),
   body("ports.destinationPort")
+    .optional({ checkFalsy: true, nullable: true })
     .isString()
     .trim()
-    .notEmpty()
-    .withMessage("Destination port is required"),
+    .withMessage("Destination port must be a string"),
 
   // Mode & status
   body("mode")
@@ -265,7 +276,7 @@ const validateShipmentCreate = [
     .optional({ checkFalsy: true, nullable: true })
     .isIn(PAYMENT_STATUSES)
     .withMessage(
-      `Payment status must be one of: ${PAYMENT_STATUSES.join(", ")}`
+      `Payment status must be one of: ${PAYMENT_STATUSES.join(", ")}`,
     ),
 
   // ✅ Corporate: accept null/"" for date fields at request stage

@@ -377,12 +377,15 @@ router.post(
 
 /**
  * @route   POST /shipments/:id/quote/approve
- * @access  Customer
+ * @access  Customer portal (Shipper/Customer) — must own shipment
+ *
+ * NOTE:
+ * We do NOT hard-require role === "customer" here because your customer portal
+ * users are stored as role "Shipper". Ownership is enforced in controller.
  */
 router.post(
   "/:id/quote/approve",
   requireAuth,
-  requireRole("customer"),
   validateObjectIdParam("id"),
   handleValidation,
   approveQuoteAsCustomer,
@@ -390,12 +393,14 @@ router.post(
 
 /**
  * @route   POST /shipments/:id/quote/request-changes
- * @access  Customer
+ * @access  Customer portal (Shipper/Customer) — must own shipment
+ *
+ * NOTE:
+ * Role enforcement is handled by ownership checks in controller.
  */
 router.post(
   "/:id/quote/request-changes",
   requireAuth,
-  requireRole("customer"),
   validateObjectIdParam("id"),
   handleValidation,
   requestQuoteChangesAsCustomer,

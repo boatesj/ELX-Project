@@ -121,22 +121,32 @@ export async function normalisePortsOnPayload(payload) {
     snapName: payload.ports.destinationPortName || payload.destinationPortName,
   });
 
-  if (destinationPort) {
-    payload.ports.destinationPortId = destinationPort._id;
+      if (originPort) {
+    payload.ports.originPortId = originPort._id;
 
-    payload.ports.destinationPortCode = destinationPort.code || "";
-    payload.ports.destinationPortName = destinationPort.name || "";
-    payload.ports.destinationPortCountry = destinationPort.country || "";
-    payload.ports.destinationPortType = destinationPort.type || "";
+    // Canonical snapshots from Port model (source of truth)
+    payload.ports.originPortCode = originPort.code || "";
+    payload.ports.originPortName = originPort.name || "";
+    payload.ports.originPortCountry = originPort.country || "";
+    payload.ports.originPortType = originPort.type || "";
 
-    payload.destinationPort =
-      payload.destinationPort ||
-      destinationPort.name ||
-      destinationPort.code ||
-      "";
+    // Top-level legacy (kept)
+    payload.originPort =
+      payload.originPort || originPort.name || originPort.code || "";
+
+    // ✅ Nested legacy (schema/dashboard requires this)
+    payload.ports.originPort =
+      payload.ports.originPort || originPort.name || originPort.code || "";
   } else {
-    payload.ports.destinationPortId = null;
-    payload.destinationPort =
-      payload.destinationPort || destinationLegacy || "";
+    // Could not resolve: keep legacy text, leave IDs null
+    payload.ports.originPortId = null;
+
+    // Top-level legacy (kept)
+    payload.originPort = payload.originPort || originLegacy || "";
+
+    // ✅ Nested legacy (schema/dashboard requires this)
+    payload.ports.originPort =
+      payload.ports.originPort || payload.originPort || "";
   }
-}
+
+
