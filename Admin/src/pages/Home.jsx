@@ -26,6 +26,7 @@ const formatIsoDate = (iso) =>
 
 const formatStatusLabel = (status) =>
   (status || "pending").toString().trim().toLowerCase().replace(/_/g, " ");
+const pickObjectId = (v) => String(v ?? "").match(/[a-f0-9]{24}/i)?.[0] || "";
 
 // Responsive element size hook
 const useElementSize = () => {
@@ -65,22 +66,22 @@ const MetricCard = ({
     accent === "teal"
       ? "focus:ring-sky-400/30"
       : accent === "green"
-      ? "focus:ring-emerald-400/30"
-      : "focus:ring-[#FFA500]/30";
+        ? "focus:ring-emerald-400/30"
+        : "focus:ring-[#FFA500]/30";
 
   const accentBar =
     accent === "teal"
       ? "from-sky-400/70 to-sky-400/0"
       : accent === "green"
-      ? "from-emerald-400/70 to-emerald-400/0"
-      : "from-[#FFA500]/70 to-[#FFA500]/0";
+        ? "from-emerald-400/70 to-emerald-400/0"
+        : "from-[#FFA500]/70 to-[#FFA500]/0";
 
   const accentGlow =
     accent === "teal"
       ? "bg-sky-500/20"
       : accent === "green"
-      ? "bg-emerald-500/20"
-      : "bg-[#FFA500]/20";
+        ? "bg-emerald-500/20"
+        : "bg-[#FFA500]/20";
 
   return (
     <button
@@ -176,8 +177,8 @@ const PillLink = ({ label, onClick, tone = "orange" }) => {
     tone === "teal"
       ? "hover:text-sky-300"
       : tone === "green"
-      ? "hover:text-emerald-300"
-      : "hover:text-[#FFA500]";
+        ? "hover:text-emerald-300"
+        : "hover:text-[#FFA500]";
   return (
     <button
       type="button"
@@ -313,7 +314,7 @@ const Home = () => {
         setLoadError(
           err?.response?.data?.message ||
             err?.message ||
-            "Failed to load dashboard analytics."
+            "Failed to load dashboard analytics.",
         );
       } finally {
         setLoading(false);
@@ -573,10 +574,10 @@ const Home = () => {
                         const [origin, destination] = raw.split(" → ");
                         navigate(
                           `/shipments?origin=${encodeURIComponent(
-                            origin || ""
+                            origin || "",
                           )}&destination=${encodeURIComponent(
-                            destination || ""
-                          )}`
+                            destination || "",
+                          )}`,
                         );
                       }}
                     >
@@ -642,7 +643,11 @@ const Home = () => {
                         <tr
                           key={s._id}
                           className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition"
-                          onClick={() => navigate(`/shipments/${s._id}`)}
+                          onClick={() => {
+                            const shipmentId = pickObjectId(s?._id);
+                            if (shipmentId)
+                              navigate(`/shipments/${shipmentId}`);
+                          }}
                         >
                           <td className="py-3 px-4 text-[#FFA500] font-semibold">
                             {s.referenceNo || "—"}
