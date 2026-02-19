@@ -693,6 +693,39 @@ const ShipmentDetails = () => {
     shipment?.ports?.destinationPortName ||
     "—";
 
+  // --- Ops vs Customer Requested route mismatch (Phase 5 sanity) ---
+  const norm = (v) =>
+    String(v ?? "")
+      .trim()
+      .toLowerCase();
+
+  // Ops (operational truth)
+  const opsOriginPort = shipment?.ports?.originPort || "";
+  const opsDestinationPort = shipment?.ports?.destinationPort || "";
+
+  // Customer Requested (immutable snapshot intent) — supports new + legacy shapes
+  const reqOriginPort =
+    shipment?.customerRequest?.route?.originPort ||
+    shipment?.customerRequest?.originPort ||
+    shipment?.customerRequest?.route?.origin ||
+    shipment?.customerRequest?.origin ||
+    "";
+
+  const reqDestinationPort =
+    shipment?.customerRequest?.route?.destinationPort ||
+    shipment?.customerRequest?.destinationPort ||
+    shipment?.customerRequest?.route?.destination ||
+    shipment?.customerRequest?.destination ||
+    "";
+
+  const showRouteMismatchBanner =
+    norm(reqOriginPort) &&
+    norm(reqDestinationPort) &&
+    norm(opsOriginPort) &&
+    norm(opsDestinationPort) &&
+    (norm(reqOriginPort) !== norm(opsOriginPort) ||
+      norm(reqDestinationPort) !== norm(opsDestinationPort));
+
   const shipperName =
     shipment?.shipper?.name || shipment?.customer?.fullname || "—";
   const consigneeName = shipment?.consignee?.name || "—";
@@ -825,6 +858,28 @@ const ShipmentDetails = () => {
   return (
     <div className="min-h-[60vh] bg-[#1A2930] py-8">
       <div className="max-w-6xl mx-auto px-4 md:px-8 space-y-5">
+        {showRouteMismatchBanner && (
+          <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+            <p className="text-xs font-semibold text-amber-900">
+              Route mismatch (Ops vs Customer Requested)
+            </p>
+
+            <p className="mt-2 text-xs text-amber-900">
+              <span className="font-semibold">Customer Requested:</span>{" "}
+              {reqOriginPort || "—"} → {reqDestinationPort || "—"}
+            </p>
+
+            <p className="mt-1 text-xs text-amber-900">
+              <span className="font-semibold">Ops Route:</span>{" "}
+              {opsOriginPort || "—"} → {opsDestinationPort || "—"}
+            </p>
+
+            <p className="mt-2 text-[11px] text-amber-900/80">
+              If the Ops route is intentional, proceed. Otherwise align Ops
+              ports with the customer’s requested route before quoting/booking.
+            </p>
+          </div>
+        )}
         {/* Top bar */}
         <div className="flex items-center justify-between gap-3">
           <Link to="/myshipments">
