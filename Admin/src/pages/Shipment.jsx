@@ -405,13 +405,9 @@ const Shipment = () => {
       // Keep form in sync immediately (UI feedback)
       setForm((p) => ({ ...p, status: nextStatus }));
 
-      const payload = buildUpdatePayload({
-        form,
-        shipment,
-        override: { status: nextStatus },
+      const res = await authRequest.put(`/shipments/${shipmentId}`, {
+        status: nextStatus,
       });
-
-      const res = await authRequest.put(`/shipments/${shipmentId}`, payload);
       const updated = extractShipmentFromResponse(res);
 
       if (updated) {
@@ -1004,7 +1000,7 @@ const Shipment = () => {
           </div>
 
           {/* Desktop cards (left) */}
-          <div className="hidden xl:block space-y-4">
+          <div className="block space-y-4">
             <Card title="Service, route & status">
               <div className="grid grid-cols-3 gap-4">
                 <Field label="Service type">
@@ -1150,28 +1146,95 @@ const Shipment = () => {
                       <div className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
                         Cargo Summary
                       </div>
-                      <div className="mt-1 text-sm text-slate-800">
-                        {shipment.customerRequest.cargo?.description || "—"}
-                      </div>
-                      <div className="mt-1 text-xs text-slate-600">
-                        Packages:{" "}
-                        {shipment.customerRequest.cargo?.packageCount ?? "—"}
-                        {" · "}
-                        Weight:{" "}
-                        {shipment.customerRequest.cargo?.weightText || "—"}
-                        {" · "}
-                        Volume (CBM):{" "}
-                        {shipment.customerRequest.cargo?.volumeCbm ?? "—"}
-                      </div>
+
+                      {(() => {
+                        const cr = shipment?.customerRequest || {};
+                        const c = cr?.cargo || {};
+
+                        const goods =
+                          String(
+                            c.goodsDescription ??
+                              c.description ??
+                              shipment?.cargo?.description ??
+                              "",
+                          ).trim() || "—";
+
+                        const piecesRaw =
+                          c.pieces ??
+                          c.packageCount ??
+                          shipment?.cargo?.packageCount ??
+                          null;
+                        const pieces =
+                          piecesRaw === null ||
+                          piecesRaw === undefined ||
+                          piecesRaw === ""
+                            ? "—"
+                            : Number(piecesRaw);
+
+                        const weightKgRaw = c.weightKg ?? null;
+                        const weightKg =
+                          weightKgRaw === null ||
+                          weightKgRaw === undefined ||
+                          weightKgRaw === ""
+                            ? null
+                            : Number(weightKgRaw);
+
+                        const weightText =
+                          weightKg !== null && !Number.isNaN(weightKg)
+                            ? `${weightKg} kg`
+                            : String(shipment?.cargo?.weight || "").trim() ||
+                              "—";
+
+                        const volumeRaw =
+                          c.volumeM3 ??
+                          c.volumeCbm ??
+                          shipment?.cargo?.volumeCbm ??
+                          null;
+                        const volume =
+                          volumeRaw === null ||
+                          volumeRaw === undefined ||
+                          volumeRaw === ""
+                            ? "—"
+                            : Number(volumeRaw);
+
+                        return (
+                          <>
+                            <div className="mt-1 text-sm text-slate-800">
+                              {goods}
+                            </div>
+                            <div className="mt-1 text-xs text-slate-600">
+                              Packages: {pieces}
+                              {" · "}
+                              Weight: {weightText}
+                              {" · "}
+                              Volume (CBM): {volume}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                       <div className="text-[11px] font-bold uppercase tracking-wide text-slate-600">
                         Customer Notes
                       </div>
-                      <div className="mt-1 text-sm text-slate-800">
-                        {shipment.customerRequest.notes?.customerNotes || "—"}
-                      </div>
+
+                      {(() => {
+                        const c = shipment?.customerRequest?.cargo || {};
+                        const notes =
+                          String(
+                            c.notes ??
+                              shipment?.customerRequest?.notes?.customerNotes ??
+                              shipment?.customerNotes ??
+                              "",
+                          ).trim() || "—";
+
+                        return (
+                          <div className="mt-1 text-sm text-slate-800">
+                            {notes}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
