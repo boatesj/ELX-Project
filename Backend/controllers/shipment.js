@@ -267,7 +267,10 @@ function s(v) {
 
 function first(...vals) {
   for (const v of vals) {
-    const t = s(v);
+    // allow 0 as a valid value
+    if (typeof v === "number" && Number.isFinite(v)) return String(v);
+
+    const t = String(v ?? "").trim();
     if (t) return t;
   }
   return "";
@@ -282,20 +285,119 @@ function n(v) {
  * Builds/refreshes shipment.customerRequest based on what the CUSTOMER asked for.
  * This is an immutable intent snapshot for Admin UI reference.
  */
+function isBlankCustomerRequest(cr) {
+  if (!cr || typeof cr !== "object") return true;
+
+  const origin = String(cr?.route?.origin || "").trim();
+  const destination = String(cr?.route?.destination || "").trim();
+
+  return !origin && !destination;
+}
+
 function buildCustomerRequestSnapshot(shipment) {
+  // Turn address objects into a readable location string
+  const addressToText = (addr) => {
+    if (!addr) return "";
+    if (typeof addr === "string") return s(addr);
+
+    if (typeof addr === "object") {
+      const line1 = first(
+        addr.line1,
+        addr.address1,
+        addr.street1,
+        addr.street,
+        addr.addressLine1,
+      );
+      const city = first(addr.city, addr.town, addr.locality);
+      const region = first(addr.county, addr.state, addr.province, addr.region);
+      const postcode = first(addr.postcode, addr.zip, addr.zipCode);
+      const country = first(addr.country, addr.countryName, addr.countryCode);
+
+      // Prefer "City, Country" when present
+      const cityCountry = [city, country].filter(Boolean).join(", ");
+      if (cityCountry) return s(cityCountry);
+
+      // Otherwise build a compact address string
+      return s(
+        [line1, city, region, postcode, country].filter(Boolean).join(", "),
+      );
+    }
+
+    return "";
+  };
+
+  // Turn port objects into a readable port string
+  const portToText = (port) => {
+    if (!port) return "";
+    if (typeof port === "string") return s(port);
+
+    if (typeof port === "object") {
+      return first(
+        port.name,
+        port.portName,
+        port.unlocode,
+        port.locode,
+        port.code,
+      );
+    }
+
+    return "";
+  };
+
+  const intake = shipment?.meta?.intake || {};
+  const intakeRoute = intake?.route || {};
+
+  // ROUTE (priority order: meta.intake -> addresses -> ports -> parties)
   const origin = first(
-    shipment?.originAddress,
-    shipment?.ports?.originPort,
-    shipment?.shipper?.address,
+    intake.origin,
+    intakeRoute.origin,
+    addressToText(shipment?.originAddress),
+    portToText(shipment?.ports?.originPort),
+    addressToText(shipment?.shipper?.address),
+    shipment?.customerRequest?.route?.origin, // keep existing last
   );
 
   const destination = first(
-    shipment?.destinationAddress,
-    shipment?.ports?.destinationPort,
-    shipment?.consignee?.address,
+    intake.destination,
+    intakeRoute.destination,
+    addressToText(shipment?.destinationAddress),
+    portToText(shipment?.ports?.destinationPort),
+    addressToText(shipment?.consignee?.address),
+    shipment?.customerRequest?.route?.destination, // keep existing last
   );
 
-  const weightText = first(shipment?.cargo?.weight);
+  const originPort = portToText(
+    first(
+      intake.originPort,
+      intake.loadPort,
+      intake.portOfLoading,
+      intakeRoute.originPort,
+      intakeRoute.loadPort,
+      shipment?.ports?.originPort,
+      shipment?.ports?.origin,
+      shipment?.ports?.loadPort,
+      shipment?.ports?.portOfLoading,
+      shipment?.customerRequest?.route?.originPort,
+    ),
+  );
+
+  const destinationPort = portToText(
+    first(
+      intake.destinationPort,
+      intake.dischargePort,
+      intake.portOfDischarge,
+      intakeRoute.destinationPort,
+      intakeRoute.dischargePort,
+      shipment?.ports?.destinationPort,
+      shipment?.ports?.destination,
+      shipment?.ports?.dischargePort,
+      shipment?.ports?.portOfDischarge,
+      shipment?.customerRequest?.route?.destinationPort,
+    ),
+  );
+
+  // CARGO (add meta.intake fallbacks)
+  const weightText = first(intake.weight, shipment?.cargo?.weight);
   const weightKg = (() => {
     const m = String(weightText || "").match(/[\d.]+/);
     if (!m) return null;
@@ -303,7 +405,8 @@ function buildCustomerRequestSnapshot(shipment) {
     return Number.isFinite(parsed) ? parsed : null;
   })();
 
-  const declaredValue = n(shipment?.cargoValue?.amount) ?? null;
+  const declaredValue =
+    n(first(intake.declaredValue, shipment?.cargoValue?.amount)) ?? null;
 
   const packagingType = (() => {
     const p = shipment?.cargo?.packages;
@@ -314,7 +417,7 @@ function buildCustomerRequestSnapshot(shipment) {
         return first(firstPkg.type, firstPkg.packageType, firstPkg.name);
       }
     }
-    return "";
+    return first(intake.packagingType, "");
   })();
 
   return {
@@ -322,42 +425,64 @@ function buildCustomerRequestSnapshot(shipment) {
     route: {
       origin,
       destination,
-      originPort: first(shipment?.ports?.originPort),
-      destinationPort: first(shipment?.ports?.destinationPort),
+      originPort,
+      destinationPort,
     },
     parties: {
       shipper: {
         name: first(shipment?.shipper?.name),
         email: first(shipment?.shipper?.email),
         phone: first(shipment?.shipper?.phone),
-        address: first(shipment?.shipper?.address, shipment?.originAddress),
+        address: first(
+          addressToText(shipment?.shipper?.address),
+          addressToText(shipment?.originAddress),
+        ),
       },
       consignee: {
         name: first(shipment?.consignee?.name),
         email: first(shipment?.consignee?.email),
         phone: first(shipment?.consignee?.phone),
         address: first(
-          shipment?.consignee?.address,
-          shipment?.destinationAddress,
+          addressToText(shipment?.consignee?.address),
+          addressToText(shipment?.destinationAddress),
         ),
       },
     },
     cargo: {
-      description: first(shipment?.cargo?.description),
-      packageCount: n(shipment?.cargo?.packageCount),
+      // ✅ Schema-aligned keys (CustomerRequestSchema.cargo.*)
+      goodsDescription: first(
+        intake.cargoDescription,
+        intake.goodsDescription,
+        shipment?.cargo?.description,
+      ),
+
+      // packages/pieces count
+      pieces: n(first(intake.packageCount, shipment?.cargo?.packageCount)),
+
       packagingType,
-      weightText: weightText || "",
+
+      // Schema expects numeric kg (we already parsed weightKg above)
       weightKg,
-      volumeCbm: n(shipment?.cargo?.volumeCbm),
+
+      // Schema uses volumeM3; shipment uses volumeCbm (same unit)
+      volumeM3: n(
+        first(intake.volumeM3, intake.volumeCbm, shipment?.cargo?.volumeCbm),
+      ),
+
       declaredValue,
-      declaredCurrency: first(shipment?.cargoValue?.currency, "GBP"),
+      declaredCurrency: first(
+        intake.declaredCurrency,
+        shipment?.cargoValue?.currency,
+        "GBP",
+      ),
+
+      // ✅ Customer notes belong here in schema
+      notes: first(intake.customerNotes, intake.notes, shipment?.customerNotes),
     },
     dates: {
-      shippingDate: shipment?.shippingDate || null,
-      eta: shipment?.eta || null,
-    },
-    notes: {
-      customerNotes: first(shipment?.customerNotes),
+      // Schema uses strings; builder can keep string values safely
+      shippingDate: first(intake.shippingDate, shipment?.shippingDate) || null,
+      eta: first(intake.eta, shipment?.eta) || null,
     },
   };
 }
@@ -1315,14 +1440,15 @@ async function updateShipment(req, res) {
 
     Object.assign(shipment, updates);
 
-    // ✅ Customer edits refresh immutable snapshot
-    if (!isAdmin(req)) {
+    // ✅ Never rewrite immutable customerRequest snapshot.
+    // Backfill once for legacy shipments that have no snapshot yet.
+    if (!isAdmin(req) && isBlankCustomerRequest(shipment.customerRequest)) {
       shipment.customerRequest = buildCustomerRequestSnapshot(shipment);
 
       shipment.trackingEvents.push({
         status: "update",
         event:
-          "Customer updated booking details (immutable request snapshot updated)",
+          "Customer updated booking details (customerRequest snapshot backfilled for legacy shipment)",
         location: "",
         date: new Date(),
         meta: {
@@ -2371,4 +2497,7 @@ module.exports = {
 
   // ✅ NEW (PUBLIC)
   createPublicLeadShipment,
+
+  // ✅ Snapshot builder (for backfill script)
+  buildCustomerRequestSnapshot,
 };
