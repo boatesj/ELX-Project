@@ -71,7 +71,7 @@ const UserDetails = () => {
 
   const statusLabel = useMemo(
     () => getStatusLabel(user?.status),
-    [user?.status]
+    [user?.status],
   );
 
   const redirectToLogin = useCallback(() => {
@@ -119,6 +119,12 @@ const UserDetails = () => {
   const title = user?.fullname || user?.name || "Customer Profile";
   const userId = user?._id || id;
 
+  const isAdminUser = String(user?.role || "")
+    .toLowerCase()
+    .includes("admin");
+
+  const editLabel = isAdminUser ? "Edit Profile" : "Edit Customer";
+
   return (
     <div className="m-4 sm:m-[30px] bg-[#D9D9D9] p-4 sm:p-[20px] rounded-md">
       {/* Header bar — mobile-first */}
@@ -146,7 +152,7 @@ const UserDetails = () => {
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
             <span
               className={`px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getUserStatusClasses(
-                user.status
+                user.status,
               )}`}
             >
               {statusLabel}
@@ -154,7 +160,7 @@ const UserDetails = () => {
 
             <Link to={`/users/${userId}/edit`}>
               <button className="bg-[#1A2930] text-white px-4 py-2 rounded-md hover:bg-[#FFA500] hover:text-black transition text-xs font-semibold w-full sm:w-auto">
-                Edit Customer
+                {editLabel}
               </button>
             </Link>
           </div>
@@ -289,7 +295,7 @@ const UserDetails = () => {
                   type="button"
                   className="w-full sm:w-auto bg-[#1A2930] text-white px-4 py-2 rounded-md hover:bg-[#FFA500] hover:text-black transition text-xs font-semibold"
                 >
-                  Edit Customer
+                  {editLabel}
                 </button>
               </Link>
             </div>
