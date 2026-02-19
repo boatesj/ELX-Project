@@ -1433,6 +1433,33 @@ async function updateShipment(req, res) {
 
     const updates = sanitizeUpdatesForRole(req, req.body || {});
 
+    // ✅ Go-live safety: prevent accidental wiping of nested objects from Admin PUT payloads
+    if (isAdmin(req) && updates && typeof updates === "object") {
+      // never allow snapshot overwrite (already handled elsewhere, keep it here too)
+      if ("customerRequest" in updates) delete updates.customerRequest;
+
+      // if payload includes empty objects, drop them (prevents wiping existing data)
+      const isEmptyObj = (v) =>
+        v &&
+        typeof v === "object" &&
+        !Array.isArray(v) &&
+        Object.keys(v).length === 0;
+
+      if (isEmptyObj(updates.cargo)) delete updates.cargo;
+      if (isEmptyObj(updates.meta)) delete updates.meta;
+      if (updates.meta && isEmptyObj(updates.meta.intake))
+        delete updates.meta.intake;
+
+      // ports should merge, not replace
+      if (
+        updates.ports &&
+        shipment.ports &&
+        typeof updates.ports === "object"
+      ) {
+        updates.ports = { ...(shipment.ports || {}), ...(updates.ports || {}) };
+      }
+    }
+
     // ✅ Admin must never overwrite customerRequest
     if (isAdmin(req) && updates && typeof updates === "object") {
       if ("customerRequest" in updates) delete updates.customerRequest;
