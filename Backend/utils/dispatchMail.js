@@ -1,6 +1,8 @@
 // Backend/utils/dispatchMail.js
 const nodemailer = require("nodemailer");
 
+let DID_LOG_MAIL_BOOT = false;
+
 function pickFromAddress(env) {
   return (
     env.EMAIL_FROM ||
@@ -9,6 +11,31 @@ function pickFromAddress(env) {
     env.SMTP_USER || // sensible fallback
     ""
   );
+}
+
+function logMailBootOnce() {
+  if (DID_LOG_MAIL_BOOT) return;
+  DID_LOG_MAIL_BOOT = true;
+
+  const env = process.env;
+  const transportMode =
+    String(env.MAIL_TRANSPORT || "").toLowerCase() || "smtp";
+
+  const hasSmtpHost = !!String(env.SMTP_HOST || "").trim();
+  const hasSmtpPort = !!String(env.SMTP_PORT || "").trim();
+  const hasSmtpUser = !!String(env.SMTP_USER || "").trim();
+  const hasSmtpPass = !!String(env.SMTP_PASS || "").trim();
+  const resolvedFrom = String(pickFromAddress(env) || "").trim();
+
+  console.log("✉️ Mail boot config:", {
+    MAIL_TRANSPORT: transportMode,
+    smtpConfigured: hasSmtpHost && hasSmtpPort && hasSmtpUser && hasSmtpPass,
+    hasSmtpHost,
+    hasSmtpPort,
+    hasSmtpUser,
+    hasSmtpPass,
+    fromResolved: resolvedFrom || "(empty)",
+  });
 }
 
 function requireEnv(env, keys) {
@@ -25,7 +52,7 @@ function requireEnv(env, keys) {
     ].join(" | ");
 
     const err = new Error(
-      `SMTP not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (and optionally EMAIL_FROM). ${detail}`
+      `SMTP not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (and optionally EMAIL_FROM). ${detail}`,
     );
     err.code = "SMTP_NOT_CONFIGURED";
     throw err;
@@ -116,12 +143,14 @@ function buildTransport() {
  * }
  */
 async function dispatchMail({ to, subject, html, text, from }) {
+  logMailBootOnce();
+
   const env = process.env;
 
   const resolvedFrom = String(from || pickFromAddress(env) || "").trim();
   if (!resolvedFrom) {
     throw new Error(
-      "Email FROM address missing. Set EMAIL_FROM (or SMTP_FROM) in Backend/.env."
+      "Email FROM address missing. Set EMAIL_FROM (or SMTP_FROM) in Backend/.env.",
     );
   }
 
@@ -150,7 +179,7 @@ async function dispatchMail({ to, subject, html, text, from }) {
   // ✅ if the server rejected the recipient, treat as failure
   if (Array.isArray(info?.rejected) && info.rejected.length > 0) {
     const err = new Error(
-      `SMTP rejected recipient(s): ${info.rejected.join(", ")}`
+      `SMTP rejected recipient(s): ${info.rejected.join(", ")}`,
     );
     err.code = "SMTP_RECIPIENT_REJECTED";
     err.details = {

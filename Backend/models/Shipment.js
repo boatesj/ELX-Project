@@ -82,6 +82,11 @@ const CustomerRequestSchema = new mongoose.Schema(
     route: {
       origin: { type: String, trim: true, default: "" },
       destination: { type: String, trim: true, default: "" },
+
+      // ✅ Snapshot ports (immutable intent)
+      // Stored as strings so they survive legacy/test data and admin edits.
+      originPort: { type: String, trim: true, default: "" },
+      destinationPort: { type: String, trim: true, default: "" },
     },
 
     // Keep as strings to avoid timezone/local parsing issues from UI inputs
