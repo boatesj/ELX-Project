@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
 const User = require("../models/User");
 const Port = require("../models/Port");
+const crypto = require("crypto");
+const jwt = require("jsonwebtoken");
 
 // ✅ Mail dispatcher (local util abstraction)
 // Controllers should not depend on BackgroundServices folder structure.
@@ -1070,6 +1072,178 @@ async function normalisePortsOnPayload(payload) {
   }
 }
 
+// ---------------- PUBLIC LEAD INVITE (GO-LIVE) ----------------
+
+function pickFrontendBaseUrl() {
+  return (
+    process.env.FRONTEND_URL ||
+    process.env.CLIENT_URL ||
+    process.env.APP_URL ||
+    "http://localhost:5173"
+  );
+}
+
+function signInviteToken(userId) {
+  const secret = process.env.JWT_SECRET || process.env.JWT_SEC;
+  if (!secret)
+    throw new Error("JWT secret not configured (JWT_SECRET/JWT_SEC)");
+
+  // Short-lived token for onboarding
+  const expiresIn = process.env.INVITE_TOKEN_EXPIRES || "48h";
+
+  return jwt.sign({ id: String(userId) }, secret, { expiresIn });
+}
+
+function buildInviteEmailHtml({ inviteUrl, name }) {
+  const safeName = escapeHtml(name || "there");
+  const safeUrl = escapeHtml(inviteUrl);
+
+  return `
+    <div style="font-family:Arial,Helvetica,sans-serif;background:${BRAND.colours.bg};padding:24px;">
+      <div style="max-width:720px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid ${BRAND.colours.cardBorder};">
+        ${brandHeaderHtml({ title: "Complete your registration", reference: "—" })}
+
+        <div style="padding:18px 22px;">
+          <p style="margin:0 0 12px 0;font-size:14px;color:${BRAND.colours.text};">Hello ${safeName},</p>
+
+          <p style="margin:0 0 14px 0;font-size:14px;color:#334155;line-height:1.7;">
+            Thank you for requesting a quote from <strong>${escapeHtml(BRAND.name)}</strong>.
+            To view updates and continue your booking, please set your password using the button below.
+          </p>
+
+          <div style="margin:18px 0;">
+            <a href="${safeUrl}"
+              style="display:inline-block;background:${BRAND.colours.accent};color:#111827;padding:12px 16px;border-radius:10px;font-weight:800;text-decoration:none;">
+              Set my password
+            </a>
+          </div>
+
+          <p style="margin:0 0 8px 0;font-size:13px;color:#334155;line-height:1.6;">
+            If the button doesn’t work, copy and paste this link into your browser:
+          </p>
+
+          <div style="margin:10px 0 0 0;padding:10px 12px;background:#fff;border:1px solid ${BRAND.colours.cardBorder};border-radius:8px;font-family:monospace;font-size:12px;word-break:break-all;">
+            ${safeUrl}
+          </div>
+
+          <div style="margin-top:18px;color:${BRAND.colours.muted};font-size:12px;line-height:1.6;">
+            Kind regards,<br/>
+            <strong>${escapeHtml(BRAND.name)} Team</strong><br/>
+            ${escapeHtml(BRAND.tagline)}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function buildInviteEmailText({ inviteUrl }) {
+  return [
+    `${BRAND.name} — Complete your registration`,
+    "",
+    "Thank you for requesting a quote.",
+    "To continue, set your password using this link:",
+    inviteUrl,
+    "",
+    BRAND.tagline,
+  ].join("\n");
+}
+
+async function createOrFindCustomerAndSendInvite({ traceId, shipment }) {
+  const shipperName = String(shipment?.shipper?.name || "").trim();
+  const shipperEmail = String(shipment?.shipper?.email || "").trim();
+  const shipperPhone = String(shipment?.shipper?.phone || "").trim();
+
+  if (!shipperEmail) {
+    return { ok: false, reason: "missing_shipper_email" };
+  }
+
+  // 1) Find existing user (CRM identity) or create a new pending user (no password yet)
+  const normalizedEmail = shipperEmail.toLowerCase();
+  let user = await User.findOne({ email: normalizedEmail, isDeleted: false });
+
+  if (!user) {
+    // User schema requires phone, country, address — so we supply safe placeholders
+    user = await User.create({
+      fullname: shipperName || "Customer",
+      email: normalizedEmail,
+      phone: shipperPhone || "N/A",
+      country: "N/A",
+      address: "N/A",
+      role: "user",
+      status: "pending",
+      welcomeMailSent: false,
+    });
+
+    console.log(`[LEAD][${traceId}] user_created`, {
+      userId: String(user._id),
+      email: normalizedEmail,
+    });
+  } else {
+    console.log(`[LEAD][${traceId}] user_found`, {
+      userId: String(user._id),
+      email: normalizedEmail,
+      status: user.status,
+      welcomeMailSent: user.welcomeMailSent,
+    });
+  }
+
+  // 2) Attach shipment ownership if not already set (required for customer portal visibility)
+  // NOTE: lead requests must not set createdBy, but customer ownership is OK for access.
+  if (!shipment.customer) {
+    shipment.customer = user._id;
+    await shipment.save();
+    console.log(`[LEAD][${traceId}] shipment_customer_attached`, {
+      shipmentId: String(shipment._id),
+      customerId: String(user._id),
+    });
+  }
+
+  // 3) If already active+welcomeMailSent, do NOT re-send invite
+  if (user.status === "active" && user.welcomeMailSent === true) {
+    return {
+      ok: true,
+      skipped: true,
+      reason: "already_onboarded",
+      userId: user._id,
+    };
+  }
+
+  // 4) Create invite token + URL
+  const token = signInviteToken(user._id);
+  const base = pickFrontendBaseUrl().replace(/\/$/, "");
+  const inviteUrl = `${base}/auth/reset-password/${token}`;
+
+  const html = buildInviteEmailHtml({
+    inviteUrl,
+    name: shipperName || user.fullname,
+  });
+  const text = buildInviteEmailText({ inviteUrl });
+
+  // 5) Send email
+  const mail = await dispatchMail({
+    to: normalizedEmail,
+    subject: `${BRAND.name} — Complete your registration`,
+    html,
+    text,
+  });
+
+  // 6) Mark welcomeMailSent when SMTP confirms OR in console mode
+  // (console mode is your dev sim; we still mark it to avoid spam)
+  const mode = String(mail?.mode || "").toLowerCase();
+  if (mode === "console" || mail?.messageId) {
+    user.welcomeMailSent = true;
+    await user.save();
+  }
+
+  return {
+    ok: true,
+    userId: user._id,
+    inviteUrl,
+    mail,
+  };
+}
+
 // ---------------- CONTROLLERS ----------------
 
 /**
@@ -1077,7 +1251,19 @@ async function normalisePortsOnPayload(payload) {
  * POST /api/v1/shipments/public-request
  */
 async function createPublicLeadShipment(req, res) {
+  const traceId =
+    (crypto.randomUUID && crypto.randomUUID()) ||
+    `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
   try {
+    console.log(`[LEAD][${traceId}] createPublicLeadShipment:start`, {
+      keys: req?.body ? Object.keys(req.body) : [],
+      shipperEmail: req?.body?.shipper?.email || null,
+      shipperName: req?.body?.shipper?.name || null,
+      mode: req?.body?.mode || null,
+      serviceType: req?.body?.serviceType || null,
+    });
+
     const payload = { ...req.body };
     // Legacy bridge: allow top-level originPort/destinationPort payloads
     payload.ports = payload.ports || {};
@@ -1098,39 +1284,15 @@ async function createPublicLeadShipment(req, res) {
     delete payload.customer;
     delete payload.createdBy;
 
-    // ✅ Immutable customer intent snapshot (only set once)
-    if (!payload.customerRequest) {
-      const requestedOrigin = String(
-        payload?.customerRequest?.origin ||
-          payload?.ports?.originPort ||
-          payload?.originPort ||
-          payload?.ports?.originPortName ||
-          payload?.ports?.originPortCode ||
-          "",
-      ).trim();
-
-      const requestedDestination = String(
-        payload?.customerRequest?.destination ||
-          payload?.ports?.destinationPort ||
-          payload?.destinationPort ||
-          payload?.ports?.destinationPortName ||
-          payload?.ports?.destinationPortCode ||
-          "",
-      ).trim();
-
-      payload.customerRequest = {
-        origin: requestedOrigin,
-        destination: requestedDestination,
-        mode: payload?.mode || "",
-        serviceType: payload?.serviceType || "",
-        cargoType: payload?.cargoType || "",
-        serviceLevel: payload?.serviceLevel || "",
-        notes: String(payload?.customerNotes || "").trim(),
-        services: payload?.services || {},
-        requestedAt: new Date(),
-        requestedBy: null, // public lead
-        channel: "web_portal",
-      };
+    // ✅ Immutable customer intent snapshot (schema-aligned)
+    // IMPORTANT: must match Shipment.js CustomerRequestSchema shape
+    // We build it AFTER ports normalisation so route ports are correct.
+    if (
+      !payload.customerRequest ||
+      isBlankCustomerRequest(payload.customerRequest)
+    ) {
+      // temporary stub — we'll overwrite after normalisePortsOnPayload
+      payload.customerRequest = payload.customerRequest || {};
     }
 
     // Ensure "requestor snapshot" exists (MODEL DOES NOT HAVE requestor)
@@ -1154,11 +1316,55 @@ async function createPublicLeadShipment(req, res) {
     }
 
     await normalisePortsOnPayload(payload);
+
+    // ✅ Build the customerRequest snapshot AFTER ports are normalised
+    if (
+      !payload.customerRequest ||
+      isBlankCustomerRequest(payload.customerRequest)
+    ) {
+      // buildCustomerRequestSnapshot expects a shipment-like object
+      // payload already contains shipper/consignee/ports/meta/etc, so it's safe.
+      payload.customerRequest = buildCustomerRequestSnapshot(payload);
+    }
+
+    // 🔒 LOCK (GO-LIVE): customerRequest must be built AFTER port normalisation.
+    // Do not replace with manual payload.customerRequest = {...} blocks.
+    if (
+      !payload.customerRequest?.route?.originPort ||
+      !payload.customerRequest?.route?.destinationPort
+    ) {
+      console.warn(`[LEAD][${traceId}] customerRequest_route_missing`, {
+        originPort: payload?.ports?.originPort,
+        destinationPort: payload?.ports?.destinationPort,
+      });
+    }
+
+    // 🔒 GO-LIVE LOCK: lead snapshots must contain ports
+    if (
+      !payload.customerRequest?.route?.originPort ||
+      !payload.customerRequest?.route?.destinationPort
+    ) {
+      console.warn(`[LEAD][${traceId}] snapshot_missing_ports`, {
+        ports: payload?.ports,
+        customerRequest: payload?.customerRequest,
+      });
+    }
+
     const shipment = await Shipment.create(payload);
+
+    // ✅ MS1: create/find user + send invite mail (do not block lead creation if mail fails)
+    let invite = null;
+    try {
+      invite = await createOrFindCustomerAndSendInvite({ traceId, shipment });
+    } catch (e) {
+      console.warn(`[LEAD][${traceId}] invite_failed`, { error: e.message });
+      invite = { ok: false, reason: "invite_failed", error: e.message };
+    }
 
     return res.status(201).json({
       message: "Lead request created successfully.",
       shipment,
+      invite,
     });
   } catch (err) {
     console.error("Error creating public lead shipment:", err);
@@ -1201,41 +1407,18 @@ async function createShipment(req, res) {
 
     if (userId) payload.createdBy = userId;
 
-    // ✅ Immutable customer intent snapshot (only set once)
-    if (!payload.customerRequest) {
-      const requestedOrigin = String(
-        payload?.ports?.originPort ||
-          payload?.originPort ||
-          payload?.ports?.originPortName ||
-          payload?.ports?.originPortCode ||
-          "",
-      ).trim();
-
-      const requestedDestination = String(
-        payload?.ports?.destinationPort ||
-          payload?.destinationPort ||
-          payload?.ports?.destinationPortName ||
-          payload?.ports?.destinationPortCode ||
-          "",
-      ).trim();
-
-      payload.customerRequest = {
-        origin: requestedOrigin,
-        destination: requestedDestination,
-        mode: payload?.mode || "",
-        serviceType: payload?.serviceType || "",
-        cargoType: payload?.cargoType || "",
-        serviceLevel: payload?.serviceLevel || "",
-        notes: String(payload?.customerNotes || "").trim(),
-        services: payload?.services || {},
-        requestedAt: new Date(),
-        requestedBy: userId || null,
-        channel: admin ? "admin_panel" : "web_portal",
-      };
-    }
-
     await normalisePortsOnPayload(payload);
+
     const shipment = await Shipment.create(payload);
+
+    // ✅ LOCKED: schema-aligned immutable snapshot (set once, never overwrite)
+    if (
+      !shipment.customerRequest ||
+      isBlankCustomerRequest(shipment.customerRequest)
+    ) {
+      shipment.customerRequest = buildCustomerRequestSnapshot(shipment);
+      await shipment.save();
+    }
 
     return res.status(201).json({
       message: "Shipment created successfully.",
@@ -1850,10 +2033,13 @@ async function saveQuote(req, res) {
       ? incoming.lineItems
       : [];
 
-    // Must have at least one labelled line
-    const hasAnyLabel = incomingLineItems.some((li) =>
+    // ✅ Go-live stabilisation: remove empty rows that would fail schema validation
+    const filteredLineItems = incomingLineItems.filter((li) =>
       String(li?.label || "").trim(),
     );
+
+    // Must have at least one labelled line
+    const hasAnyLabel = filteredLineItems.length > 0;
     if (!hasAnyLabel) {
       return res.status(400).json({
         ok: false,
@@ -1863,7 +2049,7 @@ async function saveQuote(req, res) {
 
     // Totals + cleaned items
     const { clean, subtotal, taxTotal, total } =
-      computeQuoteTotals(incomingLineItems);
+      computeQuoteTotals(filteredLineItems);
 
     // Update quote object (schema fields only)
     const prevVersion = toNumber(shipment?.quote?.version, 0);
