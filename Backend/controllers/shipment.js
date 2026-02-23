@@ -1212,7 +1212,7 @@ async function createOrFindCustomerAndSendInvite({ traceId, shipment }) {
   // 4) Create invite token + URL
   const token = signInviteToken(user._id);
   const base = pickFrontendBaseUrl().replace(/\/$/, "");
-  const inviteUrl = `${base}/auth/reset-password/${token}`;
+  const inviteUrl = `${base}/#/auth/reset-password/${token}`;
 
   const html = buildInviteEmailHtml({
     inviteUrl,
