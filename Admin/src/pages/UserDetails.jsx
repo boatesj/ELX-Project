@@ -125,6 +125,23 @@ const UserDetails = () => {
 
   const editLabel = isAdminUser ? "Edit Profile" : "Edit Customer";
 
+  const handleDelete = async () => {
+    const ok = window.confirm("Delete this user? This cannot be undone.");
+    if (!ok) return;
+
+    try {
+      await authRequest.delete(`/users/${userId}`);
+      navigate("/users");
+    } catch (err) {
+      console.error("Delete user failed:", err);
+      alert(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to delete user. Check server logs.",
+      );
+    }
+  };
+
   return (
     <div className="m-4 sm:m-[30px] bg-[#D9D9D9] p-4 sm:p-[20px] rounded-md">
       {/* Header bar — mobile-first */}
@@ -288,6 +305,14 @@ const UserDetails = () => {
                 className="w-full sm:w-auto px-4 py-2 rounded-md text-xs font-semibold border border-gray-300 bg-white hover:bg-gray-50 transition"
               >
                 Back to Users
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="w-full sm:w-auto px-4 py-2 rounded-md text-xs font-semibold border border-red-300 bg-white text-red-700 hover:bg-red-50 transition"
+              >
+                Delete user
               </button>
 
               <Link to={`/users/${userId}/edit`} className="w-full sm:w-auto">
