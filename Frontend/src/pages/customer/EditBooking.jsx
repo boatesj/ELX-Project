@@ -439,9 +439,14 @@ export default function EditBooking() {
         packagingType: cleanStr(form.packagingType),
         pieces: Number.isFinite(piecesNum) ? piecesNum : undefined,
         qty: Number.isFinite(piecesNum) ? piecesNum : undefined,
-        packagesCount: Number.isFinite(piecesNum) ? piecesNum : undefined,
 
+        // Cargo fields (flat) — align with Admin immutable card fallbacks
+        packageCount: Number.isFinite(piecesNum) ? piecesNum : undefined,
         weightKg: Number.isFinite(weightNum) ? weightNum : undefined,
+        volumeCbm: Number.isFinite(volumeNum) ? volumeNum : undefined,
+
+        // legacy/compat (keep for older reads)
+        packagesCount: Number.isFinite(piecesNum) ? piecesNum : undefined,
         volumeM3: Number.isFinite(volumeNum) ? volumeNum : undefined,
 
         declaredValue: Number.isFinite(declaredNum) ? declaredNum : undefined,
@@ -466,12 +471,12 @@ export default function EditBooking() {
 
         // Make ShipmentDetails happy (numeric pickNum)
         weightKg: Number.isFinite(weightNum) ? weightNum : undefined,
-        volumeM3: Number.isFinite(volumeNum) ? volumeNum : undefined,
-        declaredValue: Number.isFinite(declaredNum) ? declaredNum : undefined,
 
-        // Keep your existing schema fields too (harmless if backend ignores extras)
-        weight: cleanStr(form.weightKg) ? `${cleanStr(form.weightKg)} kg` : "",
+        // ✅ Admin immutable card + ShipmentDetails both
         volumeCbm: Number.isFinite(volumeNum) ? volumeNum : undefined,
+        volumeM3: Number.isFinite(volumeNum) ? volumeNum : undefined,
+
+        declaredValue: Number.isFinite(declaredNum) ? declaredNum : undefined,
 
         notes: cleanStr(form.customerNotes),
       };
