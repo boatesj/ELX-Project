@@ -735,7 +735,7 @@ export default function EditBooking() {
                     <input
                       value={form.requestedPickupDate}
                       onChange={onChange("requestedPickupDate")}
-                      type="datetime-local"
+                      type="date"
                       className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
                     />
                   </div>
@@ -747,7 +747,7 @@ export default function EditBooking() {
                     <input
                       value={form.shippingDate}
                       onChange={onChange("shippingDate")}
-                      type="datetime-local"
+                      type="date"
                       className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
                     />
                   </div>
@@ -759,7 +759,7 @@ export default function EditBooking() {
                     <input
                       value={form.eta}
                       onChange={onChange("eta")}
-                      type="datetime-local"
+                      type="date"
                       className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
                     />
                   </div>
