@@ -230,11 +230,18 @@ export default function EditBooking() {
           ]) ||
           "";
 
-        // Origin/destination: mirror ShipmentDetails pick order
+        // Origin/destination: prefer canonical customerRequest snapshot first
         const origin = firstNonEmpty(
           pick(picked, [
+            // 🔹 Canonical snapshot (post-update truth)
+            "customerRequest.route.origin",
+            "customerRequest.route.originPort",
+
+            // 🔹 Flat fields
             "originAddress",
             "pickupAddress",
+
+            // 🔹 Nested legacy shapes
             "addresses.origin",
             "addresses.pickup",
             "ports.originPort",
@@ -244,8 +251,15 @@ export default function EditBooking() {
 
         const destination = firstNonEmpty(
           pick(picked, [
+            // 🔹 Canonical snapshot (post-update truth)
+            "customerRequest.route.destination",
+            "customerRequest.route.destinationPort",
+
+            // 🔹 Flat fields
             "destinationAddress",
             "deliveryAddress",
+
+            // 🔹 Nested legacy shapes
             "addresses.destination",
             "addresses.delivery",
             "ports.destinationPort",
@@ -253,14 +267,29 @@ export default function EditBooking() {
           picked?.destination,
         );
 
-        // Dates: mirror ShipmentDetails pick order
+        // Dates: prefer canonical customerRequest snapshot first
         const requestedPickupDate = firstNonEmpty(
-          pick(picked, ["pickupDate", "dates.pickup", "requestedPickupDate"]),
+          pick(picked, [
+            // 🔹 Canonical snapshot
+            "customerRequest.dates.requestedPickupDate",
+            "customerRequest.dates.pickup",
+
+            // 🔹 Flat/legacy shapes
+            "pickupDate",
+            "requestedPickupDate",
+            "dates.pickup",
+          ]),
           picked?.pickupDate,
         );
 
         const shippingDate = firstNonEmpty(
           pick(picked, [
+            // 🔹 Canonical snapshot
+            "customerRequest.dates.shippingDate",
+            "customerRequest.dates.shipping",
+            "customerRequest.dates.ship",
+
+            // 🔹 Flat/legacy shapes
             "shippingDate",
             "shipDate",
             "dates.shipping",
@@ -271,6 +300,11 @@ export default function EditBooking() {
 
         const eta = firstNonEmpty(
           pick(picked, [
+            // 🔹 Canonical snapshot
+            "customerRequest.dates.eta",
+            "customerRequest.dates.deliveryEta",
+
+            // 🔹 Flat/legacy shapes
             "eta",
             "estimatedDeliveryDate",
             "dates.eta",
@@ -292,6 +326,8 @@ export default function EditBooking() {
         );
 
         const packagesCount = pickNum(picked, [
+          "customerRequest.cargo.pieces",
+          "cargo.packageCount",
           "packagesCount",
           "cargo.packagesCount",
           "pieces",
@@ -306,6 +342,8 @@ export default function EditBooking() {
         ]);
 
         const volumeM3 = pickNum(picked, [
+          "customerRequest.cargo.volumeM3",
+          "cargo.volumeCbm",
           "volumeM3",
           "cargo.volumeM3",
           "volume",
@@ -313,6 +351,8 @@ export default function EditBooking() {
         ]);
 
         const declaredValue = pickNum(picked, [
+          "customerRequest.cargo.declaredValue",
+          "cargoValue.amount",
           "declaredValue",
           "cargo.declaredValue",
           "value",
