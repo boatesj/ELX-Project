@@ -1,3 +1,5 @@
+// Frontend/src/pages/customer/EditBooking.jsx
+
 import { useEffect, useMemo, useState } from "react";
 import { FaArrowLeft, FaSave } from "react-icons/fa";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -74,6 +76,52 @@ const toNumOrNull = (s) => {
   return Number.isFinite(n) ? n : null;
 };
 
+/**
+ * Deep-prune payload so we DO NOT send:
+ * - empty strings ""
+ * - undefined / null
+ * - empty objects {}
+ * - empty arrays []
+ *
+ * We DO keep:
+ * - numbers (including 0)
+ * - booleans
+ * - non-empty strings
+ */
+function pruneDeep(value) {
+  if (value === undefined || value === null) return undefined;
+
+  if (typeof value === "string") {
+    const s = value.trim();
+    return s ? s : undefined;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (typeof value === "boolean") return value;
+
+  if (Array.isArray(value)) {
+    const cleanedArr = value
+      .map((v) => pruneDeep(v))
+      .filter((v) => v !== undefined);
+
+    return cleanedArr.length ? cleanedArr : undefined;
+  }
+
+  if (typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      const cleaned = pruneDeep(v);
+      if (cleaned !== undefined) out[k] = cleaned;
+    }
+    return Object.keys(out).length ? out : undefined;
+  }
+
+  return undefined;
+}
+
 export default function EditBooking() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -95,7 +143,7 @@ export default function EditBooking() {
     status: "",
   });
 
-  // ✅ Form now covers ALL editable fields ShipmentDetails reads
+  // ✅ Form covers editable fields ShipmentDetails reads
   const [form, setForm] = useState({
     shipperName: "",
     shipperAddress: "",
@@ -110,21 +158,21 @@ export default function EditBooking() {
     originAddress: "",
     destinationAddress: "",
 
-    requestedPickupDate: "", // pickupDate / requestedPickupDate / dates.pickup
-    shippingDate: "", // shippingDate / shipDate / dates.shipping
-    eta: "", // eta / dates.eta
+    requestedPickupDate: "",
+    shippingDate: "",
+    eta: "",
 
-    goodsDescription: "", // goodsDescription / cargo.description
-    pieces: "", // packagesCount / pieces / qty / cargo.packagesCount
-    packagingType: "", // packagingType / cargo.packagingType
+    goodsDescription: "",
+    pieces: "",
+    packagingType: "",
 
-    weightKg: "", // weightKg / cargo.weightKg
-    volumeM3: "", // volumeM3 / cargo.volumeM3
+    weightKg: "",
+    volumeM3: "",
 
-    declaredValueAmount: "", // declaredValue / cargo.declaredValue
+    declaredValueAmount: "",
     declaredValueCurrency: "GBP",
 
-    customerNotes: "", // notes / customerNotes / instructions / cargo.notes
+    customerNotes: "",
   });
 
   useEffect(() => {
@@ -354,7 +402,6 @@ export default function EditBooking() {
   }, [id, navigate, hasToken]);
 
   const canSave = useMemo(() => {
-    // Core required to avoid breaking saves
     return Boolean(
       cleanStr(form.shipperName) &&
       cleanStr(form.shipperEmail) &&
@@ -388,19 +435,27 @@ export default function EditBooking() {
       const origin = cleanStr(form.originAddress);
       const destination = cleanStr(form.destinationAddress);
 
-      // ✅ Multi-write payload so ShipmentDetails will re-read everything
-      const payload = {
+      const pickup = cleanStr(form.requestedPickupDate);
+      const ship = cleanStr(form.shippingDate);
+      const eta = cleanStr(form.eta);
+
+      const packagingType = cleanStr(form.packagingType);
+      const goodsDescription = cleanStr(form.goodsDescription);
+      const notes = cleanStr(form.customerNotes);
+
+      // ✅ Build a "merge-safe" payload: only include values that are actually provided.
+      const rawPayload = {
         shipper: {
           name: cleanStr(form.shipperName),
-          address: cleanStr(form.shipperAddress),
           email: cleanStr(form.shipperEmail),
           phone: cleanStr(form.shipperPhone),
+          address: cleanStr(form.shipperAddress),
         },
         consignee: {
           name: cleanStr(form.consigneeName),
-          address: cleanStr(form.consigneeAddress),
           email: cleanStr(form.consigneeEmail),
           phone: cleanStr(form.consigneePhone),
+          address: cleanStr(form.consigneeAddress),
         },
 
         // Addresses / ports (all shapes ShipmentDetails checks)
@@ -419,95 +474,117 @@ export default function EditBooking() {
           destinationPort: destination,
         },
 
-        // Dates (all shapes ShipmentDetails checks)
-        pickupDate: cleanStr(form.requestedPickupDate),
-        requestedPickupDate: cleanStr(form.requestedPickupDate),
-        shippingDate: cleanStr(form.shippingDate),
-        shipDate: cleanStr(form.shippingDate),
-        eta: cleanStr(form.eta),
-        estimatedDeliveryDate: cleanStr(form.eta),
-        dates: {
-          pickup: cleanStr(form.requestedPickupDate),
-          shipping: cleanStr(form.shippingDate),
-          ship: cleanStr(form.shippingDate),
-          eta: cleanStr(form.eta),
-          deliveryEta: cleanStr(form.eta),
+        // Dates (only include if provided — prevent wiping)
+        ...(pickup
+          ? {
+              pickupDate: pickup,
+              requestedPickupDate: pickup,
+              dates: { pickup },
+            }
+          : {}),
+        ...(ship
+          ? {
+              shippingDate: ship,
+              shipDate: ship,
+              dates: { ...(pickup ? { pickup } : {}), shipping: ship, ship },
+            }
+          : {}),
+        ...(eta
+          ? {
+              eta,
+              estimatedDeliveryDate: eta,
+              dates: {
+                ...(pickup ? { pickup } : {}),
+                ...(ship ? { shipping: ship, ship } : {}),
+                eta,
+                deliveryEta: eta,
+              },
+            }
+          : {}),
+
+        // Cargo fields (flat + cargo.* paths ShipmentDetails checks)
+        ...(goodsDescription ? { goodsDescription } : {}),
+        ...(packagingType ? { packagingType } : {}),
+
+        ...(Number.isFinite(piecesNum)
+          ? { pieces: piecesNum, qty: piecesNum }
+          : {}),
+        ...(Number.isFinite(piecesNum)
+          ? { packageCount: piecesNum, packagesCount: piecesNum }
+          : {}),
+
+        ...(Number.isFinite(weightNum) ? { weightKg: weightNum } : {}),
+        ...(Number.isFinite(volumeNum)
+          ? { volumeM3: volumeNum, volumeCbm: volumeNum }
+          : {}),
+
+        ...(Number.isFinite(declaredNum)
+          ? { declaredValue: declaredNum, value: declaredNum }
+          : {}),
+
+        // Notes (only include if provided — prevent wiping)
+        ...(notes
+          ? {
+              notes,
+              customerNotes: notes,
+              instructions: notes,
+              specialInstructions: notes,
+            }
+          : {}),
+
+        // cargo object mirrors
+        cargo: {
+          ...(goodsDescription
+            ? {
+                description: goodsDescription,
+                goodsDescription,
+              }
+            : {}),
+          ...(packagingType
+            ? {
+                packagingType,
+                packaging: packagingType,
+              }
+            : {}),
+          ...(Number.isFinite(piecesNum)
+            ? { packagesCount: piecesNum, packageCount: piecesNum }
+            : {}),
+          ...(Number.isFinite(weightNum) ? { weightKg: weightNum } : {}),
+          ...(Number.isFinite(volumeNum)
+            ? { volumeCbm: volumeNum, volumeM3: volumeNum }
+            : {}),
+          ...(Number.isFinite(declaredNum)
+            ? { declaredValue: declaredNum }
+            : {}),
+          ...(notes ? { notes } : {}),
         },
 
-        // Cargo fields (both “flat” + cargo.* paths ShipmentDetails checks)
-        goodsDescription: cleanStr(form.goodsDescription),
-        packagingType: cleanStr(form.packagingType),
-        pieces: Number.isFinite(piecesNum) ? piecesNum : undefined,
-        qty: Number.isFinite(piecesNum) ? piecesNum : undefined,
-
-        // Cargo fields (flat) — align with Admin immutable card fallbacks
-        packageCount: Number.isFinite(piecesNum) ? piecesNum : undefined,
-        weightKg: Number.isFinite(weightNum) ? weightNum : undefined,
-        volumeCbm: Number.isFinite(volumeNum) ? volumeNum : undefined,
-
-        // legacy/compat (keep for older reads)
-        packagesCount: Number.isFinite(piecesNum) ? piecesNum : undefined,
-        volumeM3: Number.isFinite(volumeNum) ? volumeNum : undefined,
-
-        declaredValue: Number.isFinite(declaredNum) ? declaredNum : undefined,
-        value: Number.isFinite(declaredNum) ? declaredNum : undefined,
-
-        // Notes (all shapes ShipmentDetails checks)
-        notes: cleanStr(form.customerNotes),
-        customerNotes: cleanStr(form.customerNotes),
-        instructions: cleanStr(form.customerNotes),
-        specialInstructions: cleanStr(form.customerNotes),
+        // cargoValue object
+        ...(Number.isFinite(declaredNum) && declaredNum >= 0
+          ? {
+              cargoValue: {
+                amount: declaredNum,
+                currency: cleanStr(form.declaredValueCurrency) || "GBP",
+              },
+            }
+          : {}),
       };
 
-      // cargo object mirrors + preserves your current schema usage too
-      const cargo = {
-        description: cleanStr(form.goodsDescription),
-        goodsDescription: cleanStr(form.goodsDescription),
-        packagingType: cleanStr(form.packagingType),
-        packaging: cleanStr(form.packagingType),
-
-        packagesCount: Number.isFinite(piecesNum) ? piecesNum : undefined,
-        packageCount: Number.isFinite(piecesNum) ? piecesNum : undefined,
-
-        // Make ShipmentDetails happy (numeric pickNum)
-        weightKg: Number.isFinite(weightNum) ? weightNum : undefined,
-
-        // ✅ Admin immutable card + ShipmentDetails both
-        volumeCbm: Number.isFinite(volumeNum) ? volumeNum : undefined,
-        volumeM3: Number.isFinite(volumeNum) ? volumeNum : undefined,
-
-        declaredValue: Number.isFinite(declaredNum) ? declaredNum : undefined,
-
-        notes: cleanStr(form.customerNotes),
-      };
-
-      // packages array (keep prior behaviour, but also keep packagingType flat)
-      if (cleanStr(form.packagingType)) {
-        cargo.packages = [{ type: cleanStr(form.packagingType), quantity: 1 }];
+      // packages array only if packagingType present
+      if (packagingType) {
+        rawPayload.cargo = rawPayload.cargo || {};
+        rawPayload.cargo.packages = [{ type: packagingType, quantity: 1 }];
       }
 
-      payload.cargo = cargo;
+      // ✅ prune deeply to avoid sending "" or empty objects that wipe saved data
+      const payload = pruneDeep(rawPayload) || {};
 
-      // cargoValue object (for systems that use it)
-      if (Number.isFinite(declaredNum) && declaredNum >= 0) {
-        payload.cargoValue = {
-          amount: declaredNum,
-          currency: cleanStr(form.declaredValueCurrency) || "GBP",
-        };
-      }
-
-      // Clean undefined keys at top-level (avoid sending junk)
-      Object.keys(payload).forEach((k) => {
-        if (payload[k] === undefined) delete payload[k];
-      });
-
-      await customerAuthRequest.put(SHIPMENT_PATH(id), payload);
+      await customerAuthRequest.patch(`${SHIPMENT_PATH(id)}/customer`, payload);
 
       setOkMsg("Changes saved. Returning to shipment details…");
 
-      setTimeout(() => {
-        navigate(`/shipmentdetails/${id}`, { replace: true });
-      }, 350);
+      // Navigate immediately; ShipmentDetails will re-fetch and show persisted data
+      navigate(`/shipmentdetails/${id}`, { replace: true });
     } catch (e2) {
       const msg =
         e2?.response?.data?.message ||
@@ -522,6 +599,17 @@ export default function EditBooking() {
     }
   };
 
+  // helper in component scope
+  function toDateInputValue(v) {
+    if (!v) return "";
+    if (typeof v === "string") {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+      if (v.includes("T")) return v.slice(0, 10);
+    }
+    const d = new Date(v);
+    return Number.isFinite(d.getTime()) ? d.toISOString().slice(0, 10) : "";
+  }
+
   if (loading) {
     return (
       <div className="bg-[#1A2930] min-h-[60vh] py-8">
@@ -533,7 +621,6 @@ export default function EditBooking() {
       </div>
     );
   }
-
   return (
     <div className="bg-[#1A2930] min-h-[70vh] py-8 text-white">
       <div className="max-w-3xl mx-auto px-4 md:px-8">
@@ -738,7 +825,7 @@ export default function EditBooking() {
                       Requested pickup date
                     </label>
                     <input
-                      value={form.requestedPickupDate}
+                      value={toDateInputValue(form.requestedPickupDate)}
                       onChange={onChange("requestedPickupDate")}
                       type="date"
                       className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
@@ -750,7 +837,7 @@ export default function EditBooking() {
                       Shipping date
                     </label>
                     <input
-                      value={form.shippingDate}
+                      value={toDateInputValue(form.shippingDate)}
                       onChange={onChange("shippingDate")}
                       type="date"
                       className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
@@ -762,7 +849,7 @@ export default function EditBooking() {
                       ETA / estimated delivery
                     </label>
                     <input
-                      value={form.eta}
+                      value={toDateInputValue(form.eta)}
                       onChange={onChange("eta")}
                       type="date"
                       className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]"
