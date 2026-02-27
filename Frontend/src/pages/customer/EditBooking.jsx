@@ -579,7 +579,7 @@ export default function EditBooking() {
       // ✅ prune deeply to avoid sending "" or empty objects that wipe saved data
       const payload = pruneDeep(rawPayload) || {};
 
-      await customerAuthRequest.patch(`${SHIPMENT_PATH(id)}/customer`, payload);
+      await customerAuthRequest.put(`${SHIPMENT_PATH(id)}`, payload);
 
       setOkMsg("Changes saved. Returning to shipment details…");
 
