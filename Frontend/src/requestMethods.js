@@ -1,10 +1,13 @@
 // Frontend/src/requestMethods.js
+
 import axios from "axios";
 
 export const API_V1_PREFIX = "/api/v1";
 
-export const API_ROOT_URL =
+// Normalise root URL to avoid trailing-slash issues in composed URLs
+const API_ROOT_URL_RAW =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+export const API_ROOT_URL = String(API_ROOT_URL_RAW || "").replace(/\/+$/, "");
 
 const API_V1_BASE_URL = `${API_ROOT_URL}${API_V1_PREFIX}`;
 
@@ -65,7 +68,6 @@ export const publicRequest = axios.create({
 /**
  * ✅ Customer-protected axios client (customer portal) — v1 canonical
  * - Attaches Bearer token automatically
- * - Auto-logout on 401/403
  *
  * IMPORTANT:
  * - With this client, DO NOT prefix paths with "/api/v1"
@@ -87,13 +89,54 @@ customerAuthRequest.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
+/**
+ * Determine whether a 403 is truly an auth invalidation.
+ * In ELX go-live, many 403s are *authorisation/business-rule* rejections
+ * (e.g., forbidden field updates), and should NOT log the customer out.
+ *
+ * We only treat 401 as "token invalid / not logged in".
+ * We treat 403 as "forbidden action" unless the backend explicitly signals
+ * token/session invalidation.
+ */
+function isExplicitAuthInvalidation(error) {
+  const status = error?.response?.status;
+  if (status !== 403) return false;
+
+  const data = error?.response?.data;
+  const msg = String(
+    data?.message || data?.error || error?.message || "",
+  ).toLowerCase();
+
+  // Only logout on 403 if it clearly indicates token/session invalidation.
+  // (These patterns are conservative by design.)
+  const tokenHints = [
+    "jwt",
+    "token",
+    "unauthorized",
+    "not authenticated",
+    "authentication",
+    "invalid signature",
+    "signature verification failed",
+    "expired",
+    "session expired",
+  ];
+
+  return tokenHints.some((h) => msg.includes(h));
+}
+
 // If token expires / is invalid → clear auth + force redirect to login
 customerAuthRequest.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status;
 
-    if (status === 401 || status === 403) {
+    // ✅ Corporate behaviour:
+    // - 401 => token missing/invalid => logout
+    // - 403 => forbidden action => DO NOT logout (show error in UI)
+    const shouldLogout =
+      status === 401 || (status === 403 && isExplicitAuthInvalidation(error));
+
+    if (shouldLogout) {
       clearCustomerAuth();
 
       // Avoid router hook usage inside axios interceptors

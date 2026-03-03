@@ -33,6 +33,7 @@ const router = createBrowserRouter([
 
       // ✅ Password set/reset via welcome email token
       { path: "reset-password/:token", element: <ResetPassword /> },
+      { path: "auth/reset-password/:token", element: <ResetPassword /> },
 
       // Customer (protected)
       {
