@@ -115,6 +115,9 @@ const QuoteSection = () => {
   const [submitError, setSubmitError] = useState("");
   const [createdRef, setCreatedRef] = useState("");
 
+  // ✅ NEW: in-house bot defence timer (server expects this in prod)
+  const [formStartedAt, setFormStartedAt] = useState(() => Date.now());
+
   // ✅ Auto-select tab from service param when targeting #quote
   useEffect(() => {
     const hash = String(location.hash || "");
@@ -138,6 +141,9 @@ const QuoteSection = () => {
       setSubmitted(false);
       setSubmitError("");
       setCreatedRef("");
+
+      // ✅ reset timing window on tab switch
+      setFormStartedAt(Date.now());
     }
 
     // Ensure quote section is visible
@@ -149,7 +155,7 @@ const QuoteSection = () => {
 
   const serviceLabel = useMemo(
     () => getServiceLabel(activeService),
-    [activeService]
+    [activeService],
   );
 
   const buildPayloadFromForm = (fd, serviceId) => {
@@ -370,10 +376,33 @@ const QuoteSection = () => {
 
     try {
       const fd = new FormData(formEl);
+
+      // ✅ NEW: robust Turnstile token capture
+      // Cloudflare Turnstile commonly injects: name="cf-turnstile-response"
+      const turnstileToken =
+        String(
+          fd.get("turnstileToken") ||
+            fd.get("cfTurnstileToken") ||
+            fd.get("cf-turnstile-response") ||
+            fd.get("captchaToken") ||
+            "",
+        ).trim() || "";
+
       let payload = buildPayloadFromForm(fd, activeService);
 
       if (!payload?.ports?.originPort || !payload?.ports?.destinationPort) {
         throw new Error("Please provide both origin and destination.");
+      }
+
+      // ✅ NEW: in-house bot defence fields
+      payload.formStartedAt = Number(formStartedAt) || Date.now();
+
+      // (Honeypot is checked server-side; we do NOT need to copy it into payload.
+      // But if you want it visible for logs, you can pass it. We leave it out.)
+
+      // ✅ Pass Turnstile token if present (verifyTurnstile expects this key)
+      if (turnstileToken) {
+        payload.turnstileToken = turnstileToken;
       }
 
       payload = deepPrune(payload) || {};
@@ -385,7 +414,7 @@ const QuoteSection = () => {
       // ✅ IMPORTANT: lead requests must be PUBLIC (avoid stale customer token)
       const res = await publicRequest.post(
         "/api/v1/shipments/public-request",
-        payload
+        payload,
       );
 
       const created = res.data?.shipment || res.data?.data || res.data;
@@ -397,6 +426,9 @@ const QuoteSection = () => {
       if (formEl && typeof formEl.reset === "function") {
         formEl.reset();
       }
+
+      // ✅ reset timing window for next submit
+      setFormStartedAt(Date.now());
 
       window.setTimeout(() => setSubmitted(false), 6500);
     } catch (err) {
@@ -477,6 +509,9 @@ const QuoteSection = () => {
                     setSubmitted(false);
                     setSubmitError("");
                     setCreatedRef("");
+
+                    // ✅ reset timing window on tab switch
+                    setFormStartedAt(Date.now());
                   }}
                   className={`
                     w-full sm:w-auto
@@ -539,6 +574,31 @@ const QuoteSection = () => {
           ) : null}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* ✅ NEW: in-house bot defence fields */}
+            <input type="hidden" name="formStartedAt" value={formStartedAt} />
+
+            {/* ✅ Honeypot (bots fill it; humans won't) */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: "-10000px",
+                top: "auto",
+                width: "1px",
+                height: "1px",
+                overflow: "hidden",
+              }}
+            >
+              <label htmlFor="website">Website</label>
+              <input
+                id="website"
+                name="website"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+              />
+            </div>
+
             {/* Lead capture (shared) */}
             <div className="grid gap-6 md:grid-cols-3">
               <div className="md:col-span-1">
@@ -549,7 +609,7 @@ const QuoteSection = () => {
                   id="lead_name"
                   type="text"
                   name="lead_name"
-                  placeholder="e.g. Jake Boateng"
+                  placeholder="e.g. John Doe"
                   className={commonInputClasses}
                   required
                 />
