@@ -368,51 +368,62 @@ export default function EditBooking() {
           ]),
         );
 
-        setForm({
-          shipperName: pick(picked, ["shipper.name"]) || "",
-          shipperAddress: pick(picked, ["shipper.address"]) || "",
-          shipperEmail: pick(picked, ["shipper.email"]) || "",
+        setForm((prev) => ({
+          ...prev,
+
+          shipperName: pick(picked, ["shipper.name"]) || prev.shipperName,
+          shipperAddress:
+            pick(picked, ["shipper.address"]) || prev.shipperAddress,
+          shipperEmail: pick(picked, ["shipper.email"]) || prev.shipperEmail,
           shipperPhone:
             pick(picked, [
               "shipper.phone",
               "shipper.mobile",
               "shipper.tel",
               "shipper.contactPhone",
-            ]) || "",
+            ]) || prev.shipperPhone,
 
-          consigneeName: pick(picked, ["consignee.name"]) || "",
-          consigneeAddress: pick(picked, ["consignee.address"]) || "",
+          consigneeName: pick(picked, ["consignee.name"]) || prev.consigneeName,
+          consigneeAddress:
+            pick(picked, ["consignee.address"]) || prev.consigneeAddress,
           consigneeEmail:
-            pick(picked, ["consignee.email", "consignee.contactEmail"]) || "",
+            pick(picked, ["consignee.email", "consignee.contactEmail"]) ||
+            prev.consigneeEmail,
           consigneePhone:
             pick(picked, [
               "consignee.phone",
               "consignee.mobile",
               "consignee.tel",
               "consignee.contactPhone",
-            ]) || "",
+            ]) || prev.consigneePhone,
 
-          originAddress: origin || "",
-          destinationAddress: destination || "",
+          originAddress: origin || prev.originAddress,
+          destinationAddress: destination || prev.destinationAddress,
 
-          requestedPickupDate: requestedPickupDate || "",
-          shippingDate: shippingDate || "",
-          eta: eta || "",
+          requestedPickupDate: requestedPickupDate || prev.requestedPickupDate,
+          shippingDate: shippingDate || prev.shippingDate,
+          eta: eta || prev.eta,
 
-          goodsDescription: goodsDescription || "",
-          pieces: packagesCount === null ? "" : String(packagesCount),
-          packagingType: firstPackageType || "",
+          goodsDescription: goodsDescription || prev.goodsDescription,
+          pieces: packagesCount === null ? prev.pieces : String(packagesCount),
+          packagingType: firstPackageType || prev.packagingType,
 
-          weightKg: weightKg === null ? "" : String(weightKg),
-          volumeM3: volumeM3 === null ? "" : String(volumeM3),
+          weightKg: weightKg === null ? prev.weightKg : String(weightKg),
+          volumeM3: volumeM3 === null ? prev.volumeM3 : String(volumeM3),
 
           declaredValueAmount:
-            declaredValue === null ? "" : String(declaredValue),
-          declaredValueCurrency:
-            picked?.cargoValue?.currency || picked?.quote?.currency || "GBP",
+            declaredValue === null
+              ? prev.declaredValueAmount
+              : String(declaredValue),
 
-          customerNotes: notes || "",
-        });
+          declaredValueCurrency:
+            picked?.cargoValue?.currency ||
+            picked?.quote?.currency ||
+            prev.declaredValueCurrency ||
+            "GBP",
+
+          customerNotes: notes || prev.customerNotes,
+        }));
       } catch (e) {
         if (
           e?.name === "CanceledError" ||
