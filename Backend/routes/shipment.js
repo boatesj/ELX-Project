@@ -1,6 +1,9 @@
 // Backend/routes/shipment.js
 const express = require("express");
 const router = express.Router();
+const rateLimit = require("express-rate-limit");
+const verifyTurnstile = require("../middleware/verifyTurnstile");
+const publicLeadBotDefence = require("../middleware/publicLeadBotDefence");
 
 const path = require("path");
 const fs = require("fs");
@@ -212,12 +215,29 @@ function requireDocUploadFields(req, res, next) {
   return next();
 }
 
+// --------------------
+// PUBLIC LEAD (BOT DEFENCE)
+// --------------------
+const publicLeadLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: Number(process.env.PUBLIC_LEAD_MAX_PER_10M) || 20, // per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    ok: false,
+    message: "Too many quote requests. Please try again later.",
+  },
+});
+
 /**
  * ✅ NEW (PUBLIC)
  * @route   POST /shipments/public-request
  */
 router.post(
   "/public-request",
+  publicLeadLimiter,
+  publicLeadBotDefence,
+  verifyTurnstile,
   validateShipmentCreate,
   handleValidation,
   createPublicLeadShipment,

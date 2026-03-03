@@ -878,7 +878,26 @@ function signInviteToken(userId) {
 
 function buildInviteEmailHtml({ inviteUrl, name }) {
   const safeName = escapeHtml(name || "there");
-  const safeUrl = escapeHtml(inviteUrl);
+
+  // 🔒 Harden the URL: trim whitespace, remove accidental trailing "/n",
+  // strip stray quotes/backslashes, then escape for HTML.
+  const cleanInviteUrl = String(inviteUrl || "")
+    .trim()
+    // remove URL-encoded newline(s)
+    .replace(/(%0A)+$/gi, "")
+    // remove literal backslash+n at end (e.g. "\\n")
+    .replace(/(\\n)+$/g, "")
+    // remove actual newline(s) at end
+    .replace(/(\r\n|\n|\r)+$/g, "")
+    // ✅ remove trailing "/n" (one or many)
+    .replace(/(\/n)+$/gi, "")
+    // remove trailing \, quotes, whitespace
+    .replace(/[\\'"\s]+$/g, "");
+
+  const safeUrl = escapeHtml(cleanInviteUrl);
+
+  // Keep href attribute on ONE line (no newline inside)
+  const linkHtml = `<a href="${safeUrl}" target="_blank" rel="noreferrer noopener">${safeUrl}</a>`;
 
   return `
     <div style="font-family:Arial,Helvetica,sans-serif;background:${BRAND.colours.bg};padding:24px;">
@@ -920,14 +939,27 @@ function buildInviteEmailHtml({ inviteUrl, name }) {
 }
 
 function buildInviteEmailText({ inviteUrl }) {
+  const cleanInviteUrl = String(inviteUrl || "")
+    .trim()
+    // URL-encoded newline(s) at end
+    .replace(/(%0D%0A|%0A|%0D)+$/gi, "")
+    // literal backslash+n at end (e.g. "\\n")
+    .replace(/(\\n)+$/g, "")
+    // real newline(s) at end
+    .replace(/(\r\n|\n|\r)+$/g, "")
+    // literal trailing "/n" at end
+    .replace(/(\/n)+$/gi, "")
+    // trailing quotes/backslashes/whitespace
+    .replace(/[\\'"\s]+$/g, "");
+
   return [
     `${BRAND.name} — Complete your registration`,
     "",
     "Thank you for requesting a quote.",
     "To continue, set your password using this link:",
-    inviteUrl,
+    `<${cleanInviteUrl}>`, // ✅ makes link parsing robust
     "",
-    BRAND.tagline,
+    "UK → Africa Logistics",
   ].join("\n");
 }
 
@@ -995,7 +1027,38 @@ async function createOrFindCustomerAndSendInvite({ traceId, shipment }) {
   const token = signInviteToken(user._id);
   const base = pickFrontendBaseUrl().replace(/\/$/, "");
   const cleanBase = String(base || "").replace(/\/$/, "");
-  const inviteUrl = `${cleanBase}/#/auth/reset-password/${token}`;
+  const stripTrailingJunk = (s) =>
+    String(s || "")
+      .trim()
+      // URL-encoded newline(s)
+      .replace(/(%0A)+$/gi, "")
+      // literal backslash-n at end
+      .replace(/(\\n)+$/g, "")
+      // real newlines at end
+      .replace(/(\r\n|\n|\r)+$/g, "")
+      // 🔥 the real culprit: trailing "/n"
+      .replace(/(\/n)+$/gi, "")
+      // remove stray trailing backslashes / quotes / spaces that sometimes show up in logs
+      .replace(/[\\'"\s]+$/g, "");
+
+  const cleanToken = stripTrailingJunk(token);
+
+  const inviteUrl = `${cleanBase}/reset-password/${encodeURIComponent(cleanToken)}`;
+  // 🔎 DEBUG: prove exactly what characters are on the end of inviteUrl/token
+  const _dbg = (label, s) => {
+    const str = String(s ?? "");
+    const tail = str.slice(-8);
+    const codes = tail.split("").map((c) => c.charCodeAt(0));
+    console.log(`[INVITE_DEBUG] ${label}`, {
+      len: str.length,
+      tailJson: JSON.stringify(tail),
+      tailCodes: codes,
+      fullJson: JSON.stringify(str),
+    });
+  };
+
+  _dbg("cleanToken", cleanToken);
+  _dbg("inviteUrl", inviteUrl);
 
   const html = buildInviteEmailHtml({
     inviteUrl,
@@ -1037,6 +1100,57 @@ async function createPublicLeadShipment(req, res) {
   const traceId =
     (crypto.randomUUID && crypto.randomUUID()) ||
     `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  // ✅ In-house bot defence (belt & braces)
+  // - Honeypot (hidden field)
+  // - Minimum submit time
+  const isProd =
+    String(process.env.NODE_ENV || "").toLowerCase() === "production";
+  const hp =
+    req.body?.website ??
+    req.body?.companyWebsite ??
+    req.body?.url ??
+    req.body?.hp ??
+    req.body?.address2 ??
+    req.body?.fax ??
+    "";
+
+  if (String(hp || "").trim()) {
+    console.warn(`[LEAD][${traceId}] blocked_honeypot`);
+    return res.status(400).json({
+      ok: false,
+      message: "Unable to process request. Please refresh and try again.",
+    });
+  }
+
+  const startedAtRaw =
+    req.body?.formStartedAt ??
+    req.body?.startedAt ??
+    req.body?.tsStarted ??
+    req.body?.clientStartedAt ??
+    "";
+
+  const minMs = Number(process.env.PUBLIC_LEAD_MIN_MS || 3500);
+  if (startedAtRaw !== "") {
+    const startedAt = Number(startedAtRaw);
+    const elapsed = Date.now() - startedAt;
+    if (Number.isFinite(elapsed) && elapsed >= 0 && elapsed < minMs) {
+      console.warn(`[LEAD][${traceId}] blocked_fast_submit`, {
+        elapsed,
+        minMs,
+      });
+      return res.status(429).json({
+        ok: false,
+        message: "Too many requests. Please try again in a moment.",
+      });
+    }
+  } else if (isProd) {
+    console.warn(`[LEAD][${traceId}] blocked_missing_startedAt`);
+    return res.status(400).json({
+      ok: false,
+      message: "Unable to process request. Please refresh and try again.",
+    });
+  }
 
   try {
     console.log(`[LEAD][${traceId}] createPublicLeadShipment:start`, {
@@ -1399,6 +1513,78 @@ async function updateShipment(req, res) {
 
     const updates = sanitizeUpdatesForRole(req, req.body || {});
 
+    // ✅ Customer updates: ensure cargo numeric fields persist + refresh snapshot
+    // Why: customerRequest snapshot was only backfilled once, so Admin immutable card
+    // kept showing Packages/Volume as 0 even after customer edits.
+    if (!isAdmin(req)) {
+      const raw = req.body || {};
+
+      // Helper: accept numbers or numeric strings
+      const numOrUndef = (v) => {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : undefined;
+      };
+
+      // Pull from both flat + cargo.* shapes (customer portal sends both)
+      const pieces =
+        numOrUndef(raw?.pieces) ??
+        numOrUndef(raw?.qty) ??
+        numOrUndef(raw?.packageCount) ??
+        numOrUndef(raw?.packagesCount) ??
+        numOrUndef(raw?.cargo?.packageCount) ??
+        numOrUndef(raw?.cargo?.packagesCount);
+
+      const volumeCbm =
+        numOrUndef(raw?.volumeCbm) ??
+        numOrUndef(raw?.volumeM3) ??
+        numOrUndef(raw?.cbm) ??
+        numOrUndef(raw?.cargo?.volumeCbm) ??
+        numOrUndef(raw?.cargo?.volumeM3);
+
+      const weightKg =
+        numOrUndef(raw?.weightKg) ?? numOrUndef(raw?.cargo?.weightKg);
+
+      // Ensure updates.cargo exists when we need it (but don't create empty objects)
+      if (
+        pieces !== undefined ||
+        volumeCbm !== undefined ||
+        weightKg !== undefined
+      ) {
+        updates.cargo =
+          updates.cargo && typeof updates.cargo === "object"
+            ? updates.cargo
+            : {};
+
+        // Write flat fields (Admin + other screens read these)
+        if (pieces !== undefined) {
+          updates.packageCount = pieces;
+          updates.packagesCount = pieces;
+          updates.pieces = pieces;
+          updates.qty = pieces;
+        }
+        if (volumeCbm !== undefined) {
+          updates.volumeCbm = volumeCbm;
+          updates.volumeM3 = volumeCbm; // legacy compat
+        }
+        if (weightKg !== undefined) {
+          updates.weightKg = weightKg;
+        }
+
+        // Write cargo.* mirrors (snapshot builder + UI fallbacks)
+        if (pieces !== undefined) {
+          updates.cargo.packageCount = pieces;
+          updates.cargo.packagesCount = pieces;
+        }
+        if (volumeCbm !== undefined) {
+          updates.cargo.volumeCbm = volumeCbm;
+          updates.cargo.volumeM3 = volumeCbm; // legacy compat
+        }
+        if (weightKg !== undefined) {
+          updates.cargo.weightKg = weightKg;
+        }
+      }
+    }
+
     // ✅ Go-live safety: prevent accidental wiping of nested objects from Admin PUT payloads
     if (isAdmin(req) && updates && typeof updates === "object") {
       // never allow snapshot overwrite (already handled elsewhere, keep it here too)
@@ -1431,17 +1617,37 @@ async function updateShipment(req, res) {
       if ("customerRequest" in updates) delete updates.customerRequest;
     }
 
+    // ✅ Customer safety: merge cargo instead of replacing it
+    // Prevents later customer edits (partial payloads) wiping previously saved cargo fields
+    if (!isAdmin(req) && updates && typeof updates === "object") {
+      const isPlainObj = (v) => v && typeof v === "object" && !Array.isArray(v);
+
+      if (isPlainObj(updates.cargo)) {
+        const existingCargo = shipment?.cargo?.toObject
+          ? shipment.cargo.toObject()
+          : shipment?.cargo || {};
+
+        updates.cargo = { ...(existingCargo || {}), ...(updates.cargo || {}) };
+      }
+    }
+
     Object.assign(shipment, updates);
 
-    // ✅ Never rewrite immutable customerRequest snapshot.
-    // Backfill once for legacy shipments that have no snapshot yet.
-    if (!isAdmin(req) && isBlankCustomerRequest(shipment.customerRequest)) {
-      shipment.customerRequest = buildCustomerRequestSnapshot(shipment);
+    // ✅ Customer portal: refresh customerRequest snapshot on each customer update
+    // Preserve capturedAt so the snapshot remains "immutable-style" while reflecting latest brief.
+    if (!isAdmin(req)) {
+      const prevCapturedAt = shipment?.customerRequest?.capturedAt || null;
+      const nextSnap = buildCustomerRequestSnapshot(shipment);
+
+      if (nextSnap) {
+        if (prevCapturedAt) nextSnap.capturedAt = prevCapturedAt;
+        shipment.customerRequest = nextSnap;
+      }
 
       shipment.trackingEvents.push({
         status: "update",
         event:
-          "Customer updated booking details (customerRequest snapshot backfilled for legacy shipment)",
+          "Customer updated booking details (customerRequest snapshot refreshed)",
         location: "",
         date: new Date(),
         meta: {
