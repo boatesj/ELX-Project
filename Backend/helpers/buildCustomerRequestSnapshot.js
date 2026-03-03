@@ -32,6 +32,29 @@ function n(v) {
  * }
  */
 function buildCustomerRequestSnapshot(shipmentDoc) {
+  // --------- robust pick helpers (handles flat + nested + legacy) ----------
+  const pick = (obj, paths) => {
+    for (const p of paths) {
+      const parts = String(p).split(".");
+      let cur = obj;
+      for (const key of parts) cur = cur?.[key];
+      if (cur !== undefined && cur !== null && cur !== "") return cur;
+    }
+    return undefined;
+  };
+
+  const toFiniteOrNull = (val) => {
+    const num = Number(val);
+    return Number.isFinite(num) ? num : null;
+  };
+
+  const parseNumberFromTextOrNull = (val) => {
+    const txt = String(val ?? "").trim();
+    if (!txt) return null;
+    const m = txt.match(/-?\d+(\.\d+)?/);
+    return m ? toFiniteOrNull(m[0]) : null;
+  };
+
   const shipment = shipmentDoc?.toObject ? shipmentDoc.toObject() : shipmentDoc;
   if (!shipment) return null;
 
@@ -87,14 +110,14 @@ function buildCustomerRequestSnapshot(shipmentDoc) {
   const intake = shipment?.meta?.intake || {};
   const intakeRoute = intake?.route || {};
 
-  // ROUTE (priority order: meta.intake -> addresses -> ports -> parties)
+  // ROUTE (priority order: meta.intake -> addresses -> ports -> parties -> existing snapshot)
   const origin = first(
     intake.origin,
     intakeRoute.origin,
     addressToText(shipment?.originAddress),
     portToText(shipment?.ports?.originPort),
     addressToText(shipment?.shipper?.address),
-    shipment?.customerRequest?.route?.origin, // keep existing last
+    shipment?.customerRequest?.route?.origin,
   );
 
   const destination = first(
@@ -103,7 +126,7 @@ function buildCustomerRequestSnapshot(shipmentDoc) {
     addressToText(shipment?.destinationAddress),
     portToText(shipment?.ports?.destinationPort),
     addressToText(shipment?.consignee?.address),
-    shipment?.customerRequest?.route?.destination, // keep existing last
+    shipment?.customerRequest?.route?.destination,
   );
 
   const originPort = portToText(
@@ -136,18 +159,104 @@ function buildCustomerRequestSnapshot(shipmentDoc) {
     ),
   );
 
-  // CARGO (add meta.intake fallbacks)
-  const weightText = first(intake.weight, shipment?.cargo?.weight);
-  const weightKg = (() => {
-    const m = String(weightText || "").match(/[\d.]+/);
-    if (!m) return null;
-    const parsed = Number(m[0]);
-    return Number.isFinite(parsed) ? parsed : null;
-  })();
+  // ---------------- CARGO (fix: packages + volume now follow weight-style fallbacks) ----------------
 
+  // Weight (prefer numeric fields; else parse from "2400 kg" text)
+  const weightText = first(
+    intake.weight,
+    // ✅ include common intake locations (container/roro/air)
+    pick(shipment, [
+      "meta.intake.container.weightKg",
+      "meta.intake.roro.weightKg",
+      "meta.intake.air.weightKg",
+      "meta.intake.container.weight",
+      "meta.intake.roro.weight",
+      "meta.intake.air.weight",
+      "meta.intake.weightKg",
+      "meta.intake.weight",
+      "cargo.weight",
+      "weight",
+    ]),
+  );
+
+  const weightKg =
+    toFiniteOrNull(
+      pick(shipment, [
+        // ✅ shipment-level first (customer/admin edits)
+        "weightKg",
+        "cargo.weightKg",
+        // ✅ lead intake fallbacks
+        "meta.intake.container.weightKg",
+        "meta.intake.roro.weightKg",
+        "meta.intake.air.weightKg",
+        "meta.intake.weightKg",
+      ]),
+    ) ?? parseNumberFromTextOrNull(weightText);
+
+  // Packages / pieces
+  // IMPORTANT: include BOTH flat and cargo.* keys because different UIs write different shapes
+  const packageCount = toFiniteOrNull(
+    pick(shipment, [
+      // intake first
+      "meta.intake.packageCount",
+      "meta.intake.packagesCount",
+      "meta.intake.pieces",
+      "meta.intake.qty",
+
+      // flat writes (some clients)
+      "packageCount",
+      "packagesCount",
+      "pieces",
+      "qty",
+
+      // cargo writes (customer edit page writes here)
+      "cargo.packageCount",
+      "cargo.packagesCount",
+      "cargo.pieces",
+      "cargo.qty",
+    ]),
+  );
+
+  // Volume (CBM / m3)
+  const volumeCbm = toFiniteOrNull(
+    pick(shipment, [
+      // intake first
+      "meta.intake.volumeCbm",
+      "meta.intake.volumeM3",
+
+      // flat writes
+      "volumeCbm",
+      "volumeM3",
+      "cbm",
+
+      // cargo writes
+      "cargo.volumeCbm",
+      "cargo.volumeM3",
+      "cargo.cbm",
+    ]),
+  );
+
+  // Declared value
   const declaredValue =
-    n(first(intake.declaredValue, shipment?.cargoValue?.amount)) ?? null;
+    toFiniteOrNull(
+      pick(shipment, [
+        "meta.intake.declaredValue",
+        "declaredValue",
+        "cargo.declaredValue",
+        "cargoValue.amount",
+      ]),
+    ) ?? null;
 
+  const declaredCurrency = first(
+    pick(shipment, [
+      "meta.intake.declaredCurrency",
+      "cargoValue.currency",
+      "quote.currency",
+    ]),
+    "GBP",
+  );
+
+  // Packaging type (schema-first: cargo.packages[0].type; else cargo.packagingType; else intake)
   const packagingType = (() => {
     const p = shipment?.cargo?.packages;
     if (Array.isArray(p) && p.length) {
@@ -157,8 +266,30 @@ function buildCustomerRequestSnapshot(shipmentDoc) {
         return first(firstPkg.type, firstPkg.packageType, firstPkg.name);
       }
     }
-    return first(intake.packagingType, "");
+    return first(
+      pick(shipment, ["cargo.packagingType", "cargo.packaging"]),
+      intake.packagingType,
+      "",
+    );
   })();
+
+  const goodsDescription = first(
+    intake.cargoDescription,
+    intake.goodsDescription,
+    pick(shipment, ["cargo.goodsDescription", "cargo.description"]),
+  );
+
+  const notes = first(
+    intake.customerNotes,
+    intake.notes,
+    pick(shipment, [
+      "cargo.notes",
+      "customerNotes",
+      "notes",
+      "instructions",
+      "specialInstructions",
+    ]),
+  );
 
   return {
     capturedAt: new Date(),
@@ -189,24 +320,25 @@ function buildCustomerRequestSnapshot(shipmentDoc) {
       },
     },
     cargo: {
-      goodsDescription: first(
-        intake.cargoDescription,
-        intake.goodsDescription,
-        shipment?.cargo?.description,
-      ),
-      pieces: n(first(intake.packageCount, shipment?.cargo?.packageCount)),
+      goodsDescription,
+
+      // ✅ Mirror counts in both common keys:
+      // - Admin immutable card reads packageCount/volumeCbm
+      // - Customer schema/UI may read pieces/volumeM3
+      pieces: packageCount,
+      packageCount,
+
       packagingType,
+
       weightKg,
-      volumeM3: n(
-        first(intake.volumeM3, intake.volumeCbm, shipment?.cargo?.volumeCbm),
-      ),
+
+      volumeM3: volumeCbm,
+      volumeCbm,
+
       declaredValue,
-      declaredCurrency: first(
-        intake.declaredCurrency,
-        shipment?.cargoValue?.currency,
-        "GBP",
-      ),
-      notes: first(intake.customerNotes, intake.notes, shipment?.customerNotes),
+      declaredCurrency,
+
+      notes,
     },
     dates: {
       shippingDate: first(intake.shippingDate, shipment?.shippingDate) || null,
