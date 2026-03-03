@@ -1190,12 +1190,15 @@ const Shipment = () => {
                           c.volumeCbm ??
                           shipment?.cargo?.volumeCbm ??
                           null;
+
                         const volume =
                           volumeRaw === null ||
                           volumeRaw === undefined ||
-                          volumeRaw === ""
+                          String(volumeRaw).trim() === ""
                             ? "—"
-                            : Number(volumeRaw);
+                            : Number.isFinite(Number(volumeRaw))
+                              ? Number(volumeRaw)
+                              : "—";
 
                         return (
                           <>

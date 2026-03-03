@@ -68,6 +68,8 @@ const UserDetails = () => {
   const [user, setUser] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const statusLabel = useMemo(
     () => getStatusLabel(user?.status),
@@ -118,29 +120,37 @@ const UserDetails = () => {
 
   const title = user?.fullname || user?.name || "Customer Profile";
   const userId = user?._id || id;
-
-  const isAdminUser = String(user?.role || "")
-    .toLowerCase()
-    .includes("admin");
-
-  const editLabel = isAdminUser ? "Edit Profile" : "Edit Customer";
-
   const handleDelete = async () => {
-    const ok = window.confirm("Delete this user? This cannot be undone.");
+    if (!userId) return;
+
+    const ok = window.confirm(
+      "Delete this user permanently? This cannot be undone.",
+    );
     if (!ok) return;
+
+    setDeleteLoading(true);
+    setDeleteError("");
 
     try {
       await authRequest.delete(`/users/${userId}`);
       navigate("/users");
     } catch (err) {
-      console.error("Delete user failed:", err);
-      alert(
+      const msg =
         err?.response?.data?.message ||
-          err?.message ||
-          "Failed to delete user. Check server logs.",
-      );
+        err?.message ||
+        "Failed to delete user.";
+      setDeleteError(msg);
+      console.error("User delete error:", err);
+    } finally {
+      setDeleteLoading(false);
     }
   };
+
+  const isAdminUser = String(user?.role || "")
+    .toLowerCase()
+    .includes("admin");
+
+  const editLabel = isAdminUser ? "Edit Profile" : "Edit User";
 
   return (
     <div className="m-4 sm:m-[30px] bg-[#D9D9D9] p-4 sm:p-[20px] rounded-md">
@@ -180,6 +190,14 @@ const UserDetails = () => {
                 {editLabel}
               </button>
             </Link>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleteLoading}
+              className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition text-xs font-semibold w-full sm:w-auto disabled:opacity-60"
+            >
+              {deleteLoading ? "Deleting…" : "Delete"}
+            </button>
           </div>
         )}
       </div>
@@ -187,6 +205,11 @@ const UserDetails = () => {
       {loadError && (
         <div className="mb-3 px-4 py-2 rounded-md bg-red-100 text-red-800 text-sm border border-red-300">
           {loadError}
+        </div>
+      )}
+      {deleteError && (
+        <div className="mb-3 px-4 py-2 rounded-md bg-red-100 text-red-800 text-sm border border-red-300">
+          {deleteError}
         </div>
       )}
 
