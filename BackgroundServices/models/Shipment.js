@@ -120,6 +120,7 @@ const ShipmentSchema = new mongoose.Schema(
       type: String,
       enum: [
         "pending",
+        "quoted",
         "booked",
         "at_origin_yard",
         "loaded",
@@ -137,6 +138,19 @@ const ShipmentSchema = new mongoose.Schema(
     notifications: {
       pending: { type: Boolean, default: false },
       delivered: { type: Boolean, default: false },
+    },
+
+    // Quote metadata (used by quote reminder job)
+    quote: {
+      sentAt: { type: Date },
+      version: { type: Number },
+      total: { type: Number },
+      currency: { type: String },
+    },
+
+    // Reminder tracking (idempotency)
+    reminders: {
+      quoteReminder1SentAt: { type: Date },
     },
 
     trackingEvents: [TrackingEventSchema],
@@ -166,4 +180,5 @@ ShipmentSchema.pre("save", function (next) {
   next();
 });
 
-module.exports = mongoose.model("Shipment", ShipmentSchema);
+module.exports =
+  mongoose.models.Shipment || mongoose.model("Shipment", ShipmentSchema);
