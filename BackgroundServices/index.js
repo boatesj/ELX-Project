@@ -2,6 +2,7 @@
 
 const path = require("path");
 const dotenv = require("dotenv");
+const { QuoteReminderEmail } = require("./EmailService/QuoteReminderEmail");
 
 // Load env FIRST (before importing any modules that read process.env at require-time)
 dotenv.config({ path: path.resolve(__dirname, ".env") });
@@ -44,6 +45,7 @@ const run = () => {
     try {
       await sendWelcomeMail();
       await PendingShipmentEmail();
+      await QuoteReminderEmail();
       await DeliveredShipmentEmail();
       console.log("✅ All background email jobs completed successfully.");
     } catch (err) {

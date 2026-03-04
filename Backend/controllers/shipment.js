@@ -2204,7 +2204,16 @@ async function sendQuoteEmail(req, res) {
       // ✅ In your live system you observed status becomes QUOTED even in console.
       // To keep Phase 5 workflow consistent, mark quoted here too.
       shipment.status = "quoted";
+
+      // Ensure quote object exists
+      shipment.quote = shipment.quote || {};
       shipment.quote.sentAt = new Date();
+
+      // Ensure reminders object exists
+      shipment.reminders = shipment.reminders || {};
+
+      // Reset reminder marker if quote is re-sent
+      delete shipment.reminders.quoteReminder1SentAt;
 
       await shipment.save();
 
@@ -2213,7 +2222,6 @@ async function sendQuoteEmail(req, res) {
         mail,
         shipment,
       });
-    }
 
     // SMTP mode: require messageId
     const msgId = mail?.messageId;
@@ -2440,27 +2448,85 @@ async function sendBookingConfirmationEmail(req, res) {
       text: textBody,
     });
 
-    // Console mode: simulate only
-    if (mail && String(mail.mode).toLowerCase() === "console") {
+          // Console mode: simulate only
+      if (mail && String(mail.mode).toLowerCase() === "console") {
+        shipment.trackingEvents = shipment.trackingEvents || [];
+        shipment.trackingEvents.push({
+          status: "update",
+          event: `Quote email simulated (MAIL_TRANSPORT=console) to (${customerEmail})`,
+          location: "",
+          date: new Date(),
+          meta: {
+            updatedBy: req?.user?.id || null,
+            source: "admin_quote_send",
+            toEmail: customerEmail,
+            quoteVersion: shipment.quote?.version || 1,
+            total: shipment.quote?.total,
+            currency: shipment.quote?.currency,
+            mailMode: "console",
+            messageId: mail.messageId || null,
+          },
+        });
+
+        // Keep workflow consistent: mark quoted even in console mode
+        shipment.status = "quoted";
+
+        shipment.quote = shipment.quote || {};
+        shipment.quote.sentAt = new Date();
+
+        shipment.reminders = shipment.reminders || {};
+        delete shipment.reminders.quoteReminder1SentAt;
+
+        await shipment.save();
+
+        return res.status(200).json({
+          message: "Quote emailed successfully.",
+          mail,
+          shipment,
+        });
+      }
+
+      // SMTP mode: require messageId
+      const msgId = mail?.messageId;
+      if (!msgId) {
+        return res.status(500).json({
+          message:
+            "SMTP send did not return a messageId. Quote not marked as sent.",
+          mail,
+        });
+      }
+
+      shipment.quote = shipment.quote || {};
+      shipment.quote.sentAt = new Date();
+
+      shipment.status = "quoted";
+
+      shipment.reminders = shipment.reminders || {};
+      delete shipment.reminders.quoteReminder1SentAt;
+
+      shipment.trackingEvents = shipment.trackingEvents || [];
       shipment.trackingEvents.push({
         status: "update",
-        event: `Booking confirmation simulated (MAIL_TRANSPORT=console) to (${customerEmail})`,
+        event: `Quote sent to customer (${customerEmail})`,
         location: "",
         date: new Date(),
         meta: {
           updatedBy: req?.user?.id || null,
-          source: "admin_booking_confirm_send",
+          source: "admin_quote_send",
           toEmail: customerEmail,
-          mailMode: "console",
-          messageId: mail.messageId || null,
+          quoteVersion: shipment.quote?.version || 1,
+          total: shipment.quote?.total,
+          currency: shipment.quote?.currency,
+          mailMode: "smtp",
+          messageId: msgId,
+          accepted: mail?.accepted,
         },
       });
 
       await shipment.save();
 
       return res.status(200).json({
-        message:
-          "MAIL_TRANSPORT=console: email simulated (not delivered). Shipment not marked as booked.",
+        message: "Quote emailed successfully.",
         mail,
         shipment,
       });
