@@ -16,3 +16,16 @@
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Local environment backups
+.env.backup
+.env.local.backup
+
+# Runtime storage
+Backend/backups/
+Backend/uploads/
+
+# Service env backups
+Admin/.env.backup
+Frontend/.env.local.backup
+BackgroundServices/.env.local.backup

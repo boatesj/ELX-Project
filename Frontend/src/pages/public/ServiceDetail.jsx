@@ -79,7 +79,7 @@ export default function ServiceDetail() {
   const Icon = service.icon;
 
   return (
-    <div className="px-4">
+    <div className="px-4 pt-28 md:pt-32">
       <div className="mx-auto max-w-4xl">
         <Link
           to="/services"
