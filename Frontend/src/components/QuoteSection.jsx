@@ -71,7 +71,7 @@ const QuoteSection = () => {
 
   const serviceLabel = useMemo(
     () => getServiceLabel(activeService),
-    [activeService]
+    [activeService],
   );
 
   const buildPayloadFromForm = (fd, serviceId) => {
@@ -307,7 +307,7 @@ const QuoteSection = () => {
       // ✅ IMPORTANT: lead requests must be PUBLIC (avoid stale customer token)
       const res = await publicRequest.post(
         "/api/v1/shipments/public-request",
-        payload
+        payload,
       );
 
       const created = res.data?.shipment || res.data?.data || res.data;
@@ -470,7 +470,7 @@ const QuoteSection = () => {
                   id="lead_name"
                   type="text"
                   name="lead_name"
-                  placeholder="e.g. Jake Boateng"
+                  placeholder="e.g. Joe Bloggs"
                   className={commonInputClasses}
                   required
                 />
