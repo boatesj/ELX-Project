@@ -22,11 +22,12 @@ const PreFooterCTA = () => {
                 Support you can trust
               </p>
               <h3 className="mt-1 text-lg md:text-2xl font-extrabold tracking-tight">
-                Need help with a shipment?
+                Planning a shipment to West Africa?
               </h3>
               <p className="text-sm md:text-[15px] text-[#1A2930]/90 mt-2 max-w-xl">
-                We’ll guide you with routes, pricing and paperwork — from
-                booking to delivery.
+                Our team helps individuals, families and businesses ship from
+                the UK to Ghana and key West African destinations with clear
+                guidance on routes, pricing and export paperwork.
               </p>
             </div>
 
@@ -57,7 +58,7 @@ const PreFooterCTA = () => {
             <p className="text-xs md:text-[13px] text-[#1A2930]/80 text-center md:text-left">
               Typical response time:{" "}
               <span className="font-semibold">same day</span> • Clear updates •
-              UK–Africa specialists
+              UK–West Africa shipping specialists
             </p>
           </div>
         </div>
