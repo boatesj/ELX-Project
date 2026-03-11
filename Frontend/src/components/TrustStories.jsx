@@ -33,7 +33,7 @@ const testimonials = [
     id: 3,
     icon: <FaUserTie className="text-lg" />,
     label: "Health Products shipper",
-    title: "Personal effects, consolidated and tracked",
+    title: "Small business, consolidated and tracked",
     quote:
       "Instead of sending multiple parcels, we shipped everything through Ellcworth. They checked and consolidated our boxes, so we had one shipment, one bill and full visibility until delivery.",
     name: "Amma Asafo-Agyei",
