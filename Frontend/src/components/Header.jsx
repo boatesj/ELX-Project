@@ -7,10 +7,10 @@ const slides = [
     alt: "Container vessel at sea carrying stacked shipping containers",
     position: "center 40%",
     mobilePosition: "center 55%",
-    badge: "Container Shipping · UK to Africa",
-    title: "There’s a smarter way to handle your container shipments.",
+    badge: "Container Shipping · UK to West Africa",
+    title: "A smarter way to ship containers from the UK to West Africa.",
     subtitle: "One point of contact for FCL and LCL moves",
-    body: "Share what you’re shipping and where it’s going, and we’ll coordinate carriers, paperwork and schedules—then keep you updated so there are no surprises at loading or arrival.",
+    body: "Tell us what you’re shipping and whether it’s going to Ghana or another West African destination, and we’ll coordinate carriers, paperwork and sailing schedules while keeping you updated from booking to arrival.",
     ctaLabel: "Plan a container shipment",
     ctaHref: "#quote",
   },
@@ -20,10 +20,10 @@ const slides = [
     alt: "Air cargo aircraft in flight over the clouds",
     position: "center 45%",
     mobilePosition: "center 55%",
-    badge: "Time-Critical Air Freight",
-    title: "Need it there fast? We make it happen.",
-    subtitle: "Priority air options when every day counts",
-    body: "We secure space on trusted airlines, monitor each milestone and help your shipment clear quickly at destination—so your urgent cargo arrives when your team or customer expects it.",
+    badge: "Time-Critical Air Freight · UK to Africa",
+    title: "When time matters, we move urgent cargo fast.",
+    subtitle: "Priority air freight for African destinations",
+    body: "We secure space on trusted airlines, monitor each milestone and help your shipment move quickly from the UK to destination, so urgent cargo arrives when your team or customer expects it.",
     ctaLabel: "Book priority air freight",
     ctaHref: "#quote",
   },
@@ -33,10 +33,10 @@ const slides = [
     alt: "Vehicles being loaded onto a RoRo vessel at the port",
     position: "center 40%",
     mobilePosition: "center 55%",
-    badge: "RoRo Vehicle Shipping",
-    title: "Exporting your vehicle shouldn’t be the stressful part.",
+    badge: "RoRo Vehicle Shipping · UK to West Africa",
+    title: "Shipping your vehicle to West Africa shouldn’t be stressful.",
     subtitle: "RoRo sailings for cars, vans, 4x4s, lorries and trucks",
-    body: "You deliver the vehicle to port; we handle the rest—export paperwork, RoRo bookings and shipment updates until it’s safely discharged at the African destination port.",
+    body: "You deliver the vehicle to port, and we handle the rest: export paperwork, RoRo booking and shipment updates until safe discharge at the destination port in Ghana or elsewhere in West Africa.",
     ctaLabel: "Get a RoRo vehicle quote",
     ctaHref: "#quote",
   },
@@ -47,9 +47,9 @@ const slides = [
     position: "center 45%",
     mobilePosition: "center 55%",
     badge: "Secure Document Logistics",
-    title: "Your secure documents stay protected end-to-end.",
+    title: "Sensitive documents handled securely from dispatch to delivery.",
     subtitle: "For certificates, cheques and other secure print",
-    body: "We work alongside specialist printers and institutions to move high-value documents in tamper-evident packaging, with tracked, signed-for delivery from the print room to the final office.",
+    body: "We support printers, institutions and organisations moving high-value documents in secure packaging, with tracked and signed-for delivery where care, control and accountability matter.",
     ctaLabel: "Talk to our document team",
     ctaHref: "#contact",
   },
@@ -59,10 +59,10 @@ const slides = [
     alt: "Warehouse team repacking and consolidating cargo on a work table",
     position: "center 45%",
     mobilePosition: "center 55%",
-    badge: "Repacking & Consolidation",
-    title: "Protect your cargo with export-ready packing.",
+    badge: "Repacking & Consolidation · UK Export Support",
+    title: "Prepare your cargo properly before it leaves the UK.",
     subtitle: "Consolidation and repacking before shipment",
-    body: "Send supplier deliveries and online purchases to our warehouse; we’ll check, photograph, repack and consolidate them into a single, secure export so you ship once instead of many times.",
+    body: "Send supplier deliveries and online purchases to our warehouse, and we’ll check, photograph, repack and consolidate them into one secure export shipment for Ghana, West Africa or another destination you specify.",
     ctaLabel: "Arrange repacking support",
     ctaHref: "#contact",
   },
@@ -72,20 +72,18 @@ const Header = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Detect mobile vs desktop for object-position and general behaviour
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const mq = window.matchMedia("(max-width: 768px)");
     const handleChange = (e) => setIsMobile(e.matches);
 
-    handleChange(mq); // initial
+    handleChange(mq);
     mq.addEventListener("change", handleChange);
 
     return () => mq.removeEventListener("change", handleChange);
   }, []);
 
-  // Auto-advance every 15 seconds
   useEffect(() => {
     if (!slides.length) return;
 
@@ -107,8 +105,8 @@ const Header = () => {
       className="
         relative
         w-full
-        min-h-[85vh]          /* mobile */
-        md:min-h-[110vh]      /* desktop/tablet */
+        min-h-[85vh]
+        md:min-h-[110vh]
         pt-[120px]
         md:pt-[160px]
         lg:pt-[180px]
@@ -119,7 +117,6 @@ const Header = () => {
       "
       aria-label="Ellcworth Express hero"
     >
-      {/* BACKGROUND SLIDES – full hero area */}
       <div className="absolute inset-0">
         {slides.map((slide, index) => (
           <div
@@ -152,7 +149,6 @@ const Header = () => {
               />
             </picture>
 
-            {/* Gradient overlay for text contrast */}
             <div
               className="
                 absolute inset-0
@@ -164,10 +160,8 @@ const Header = () => {
         ))}
       </div>
 
-      {/* FOREGROUND CONTENT */}
       <div className="relative z-0 flex min-h-[60vh] items-center">
         <div className="mx-auto flex w-full max-w-6xl flex-col justify-center px-4 md:px-6 lg:px-8">
-          {/* Text block */}
           <div className="max-w-2xl space-y-5">
             {currentSlide.badge ? (
               <span className="inline-flex items-center rounded-full border border-[#FFA500] bg-white/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-100">
@@ -212,9 +206,7 @@ const Header = () => {
             </div>
           </div>
 
-          {/* Controls row */}
           <div className="mt-8 flex max-w-2xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            {/* Dots */}
             <div className="flex items-center gap-2">
               {slides.map((_, index) => (
                 <button
@@ -235,13 +227,12 @@ const Header = () => {
               ))}
             </div>
 
-            {/* Prev / Next */}
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() =>
                   setCurrentIndex(
-                    (prev) => (prev - 1 + slides.length) % slides.length
+                    (prev) => (prev - 1 + slides.length) % slides.length,
                   )
                 }
                 className="
