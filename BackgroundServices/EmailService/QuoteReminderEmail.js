@@ -1,65 +1,100 @@
 // BackgroundServices/EmailService/QuoteReminderEmail.js
 
-/**
- * Reminder v1 (go-live safe)
- * - One reminder only (e.g. 24h after quote email sent)
- * - Kill-switch via REMINDERS_ENABLED
- * - Idempotent via reminders.quoteReminder1SentAt
- *
- * IMPORTANT:
- * This job assumes shipments store:
- *   quote.sentAt (Date)                       // set by Backend when quote email is sent
- *   reminders.quoteReminder1SentAt (Date|null) // set by this job after reminder send
- */
-
+const ejs = require("ejs");
+const path = require("path");
+const dotenv = require("dotenv");
+const { dispatchMail } = require("../helpers/sendmail");
 const Shipment = require("../models/Shipment");
 
-async function QuoteReminderEmail() {
-  const enabled =
-    String(process.env.REMINDERS_ENABLED || "false").toLowerCase() === "true";
-  if (!enabled) return;
+dotenv.config();
 
-  // Default 24h; in dev you can set 2 for fast testing.
-  const afterMinutes = Number(process.env.REMINDER_QUOTE_AFTER_MINUTES || 1440);
-  const cutoff = new Date(Date.now() - afterMinutes * 60 * 1000);
+const QuoteReminderEmail = async () => {
+  try {
+    const enabled =
+      String(process.env.REMINDERS_ENABLED || "false").toLowerCase() === "true";
+    if (!enabled) return;
 
-  // Status target (default: quoted)
-  const statuses = String(process.env.REMINDER_TARGET_STATUSES || "quoted")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+    const afterMinutes = Number(
+      process.env.REMINDER_QUOTE_AFTER_MINUTES || 1440,
+    );
+    const cutoff = new Date(Date.now() - afterMinutes * 60 * 1000);
 
-  const due = await Shipment.find({
-    isDeleted: false,
-    status: { $in: statuses },
-    "quote.sentAt": { $exists: true, $lte: cutoff },
-    "reminders.quoteReminder1SentAt": { $exists: false },
-  }).limit(200);
+    const statuses = String(process.env.REMINDER_TARGET_STATUSES || "quoted")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
 
-  if (!due.length) return;
+    const shipments = await Shipment.find({
+      status: { $in: statuses },
+      isDeleted: false,
+      "quote.sentAt": { $exists: true, $lte: cutoff },
+      "reminders.quoteReminder1SentAt": { $exists: false },
+    }).populate("customer", "fullname email");
 
-  for (const shipment of due) {
-    try {
-      // TODO: replace with your actual send function
-      // For now we just mark so it cannot spam.
-      await Shipment.updateOne(
-        {
-          _id: shipment._id,
-          "reminders.quoteReminder1SentAt": { $exists: false },
-        },
-        { $set: { "reminders.quoteReminder1SentAt": new Date() } },
-      );
-
-      // eslint-disable-next-line no-console
-      console.log(`📩 Quote reminder queued/sent for shipment ${shipment._id}`);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(
-        `❌ QuoteReminderEmail failed for shipment ${shipment?._id}:`,
-        err.message,
-      );
+    if (!shipments.length) {
+      return;
     }
+
+    for (const shipment of shipments) {
+      const shipper = shipment.shipper || {};
+      const ports = shipment.ports || {};
+      const quote = shipment.quote || {};
+
+      const customerName =
+        shipper.name || shipment?.customer?.fullname || "Customer";
+
+      const validUntil = quote.validUntil
+        ? new Date(quote.validUntil).toLocaleDateString("en-GB")
+        : "Please contact us";
+
+      const html = await ejs.renderFile(
+        path.join(__dirname, "../templates/quoteReminder.ejs"),
+        {
+          customerName,
+          referenceNo: shipment.referenceNo || "N/A",
+          originPort: ports.originPort || "TBA",
+          destinationPort: ports.destinationPort || "TBA",
+          currency: quote.currency || "GBP",
+          total:
+            typeof quote.total === "number" ? quote.total.toFixed(2) : "0.00",
+          validUntil,
+        },
+      );
+
+      const toEmail =
+        shipper.email || shipment?.customer?.email || process.env.SUPPORT_EMAIL;
+
+      const message = {
+        from: process.env.EMAIL,
+        to: toEmail,
+        subject: `Reminder: your quote for ${shipment.referenceNo} is waiting`,
+        html,
+      };
+
+      try {
+        await dispatchMail(message);
+
+        await Shipment.updateOne(
+          {
+            _id: shipment._id,
+            "reminders.quoteReminder1SentAt": { $exists: false },
+          },
+          { $set: { "reminders.quoteReminder1SentAt": new Date() } },
+        );
+
+        console.log(
+          `✅ Quote reminder email sent to ${toEmail || "N/A"} for ${shipment.referenceNo}`,
+        );
+      } catch (mailErr) {
+        console.error(
+          `❌ Failed to send quote reminder for ${shipment.referenceNo}:`,
+          mailErr,
+        );
+      }
+    }
+  } catch (err) {
+    console.error("❌ Error in QuoteReminderEmail:", err);
   }
-}
+};
 
 module.exports = { QuoteReminderEmail };

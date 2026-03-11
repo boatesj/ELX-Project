@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <body
+    style="font-family: Arial, sans-serif; color: #1a2930; line-height: 1.6"
+  >
+    <p>Dear <%= customerName %>,</p>
+
+    <p>
+      This is a gentle reminder that your Ellcworth shipping quote is ready and
+      awaiting your response.
+    </p>
+
+    <p>
+      <strong>Reference:</strong> <%= referenceNo %><br />
+      <strong>Route:</strong> <%= originPort %> to <%= destinationPort %><br />
+      <strong>Total:</strong> <%= currency %> <%= total %><br />
+      <strong>Valid until:</strong> <%= validUntil %>
+    </p>
+
+    <p>
+      If you would like to proceed, or if you would like us to make any
+      adjustments, please reply to this email and our team will assist promptly.
+    </p>
+
+    <p>
+      Kind regards,<br />
+      Ellcworth Express
+    </p>
+  </body>
+</html>
