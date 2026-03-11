@@ -1,13 +1,13 @@
 const partners = [
   {
-    name: "Presbyterian University",
+    name: "Universities of Ghana Overseas Office",
     label: "Higher Education · Ghana",
-    short: "PUC",
+    short: "UG00",
   },
   {
-    name: "Tamale Technical University",
-    label: "Technical Institute · Ghana",
-    short: "TTU",
+    name: "Norstrom Enterprises Ltd",
+    label: "Clearing and Forwarding",
+    short: "NEL",
   },
   {
     name: "SecurePrint UK",
