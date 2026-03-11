@@ -11,11 +11,11 @@ const testimonials = [
     id: 1,
     icon: <FaUniversity className="text-lg" />,
     label: "Higher education",
-    title: "Secure documents for an African university",
+    title: "Secure documents for Ghanaian universities",
     quote:
       "Ellcworth handled our degree certificates with care from the UK printer to our campus. The updates were clear, and the handover documentation helped us maintain full control at every stage.",
-    name: "Mrs. Nyarko",
-    role: "Registry, Presbyterian University",
+    name: "Mr. Andy Lumor",
+    role: "Representative of Universities of Ghana Overseas",
     rating: 5,
   },
   {
@@ -25,19 +25,19 @@ const testimonials = [
     title: "RoRo shipment for a vehicle dealer",
     quote:
       "They confirmed sailing options, guided us on port delivery and issued documents our buyers in Tema can rely on. It’s now straightforward to quote delivery dates with confidence.",
-    name: "Kofi Mensah",
+    name: "Faheed Wassef",
     role: "Vehicle trader, Accra",
     rating: 5,
   },
   {
     id: 3,
     icon: <FaUserTie className="text-lg" />,
-    label: "Family shipper",
+    label: "Health Products shipper",
     title: "Personal effects, consolidated and tracked",
     quote:
       "Instead of sending multiple parcels, we shipped everything through Ellcworth. They checked and consolidated our boxes, so we had one shipment, one bill and full visibility until delivery.",
-    name: "Ama Boateng",
-    role: "Family shipper, Kumasi",
+    name: "Amma Asafo-Agyei",
+    role: "Business shipper, Accra",
     rating: 5,
   },
 ];
