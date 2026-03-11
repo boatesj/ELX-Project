@@ -55,7 +55,7 @@ export default function ServiceDetail() {
 
   if (!service) {
     return (
-      <div className="px-4">
+      <div className="px-4 pt-28 md:pt-32">
         <div className="mx-auto max-w-4xl rounded-3xl bg-[#0B1118] border border-white/10 p-6 md:p-8 shadow-xl">
           <p className="text-white text-lg font-semibold">Service not found.</p>
           <p className="mt-2 text-gray-300 text-sm">
@@ -79,7 +79,7 @@ export default function ServiceDetail() {
   const Icon = service.icon;
 
   return (
-    <div className="px-4">
+    <div className="px-4 pt-28 md:pt-32">
       <div className="mx-auto max-w-4xl">
         <Link
           to="/services"

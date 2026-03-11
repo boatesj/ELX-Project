@@ -4,53 +4,41 @@ import { Link } from "react-router-dom";
 
 const Navbar = () => {
   return (
-    <div className="w-full z-10 fixed top-0 left-0">
+    <header className="fixed inset-x-0 top-0 z-50 w-full">
       {/* Top bar */}
-      <div className="w-full bg-[#1A2930] text-white">
-        <div className="container mx-auto flex justify-between items-center py-2 px-4 md:px-8 lg:px-16">
+      <div className="w-full bg-[#1A2930]">
+        <div className="container mx-auto flex h-[72px] items-center justify-between px-4 md:px-8 lg:px-16">
           {/* Logo + brand block */}
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <img
               src={assets.logo_w}
               alt="Ellcworth Express logo"
-              className="w-12 h-auto md:w-14"
+              className="h-12 w-auto shrink-0 md:h-14"
             />
 
             <div className="flex flex-col leading-tight">
-              {/* COMPANY NAME */}
-              <span className="font-brand text-sm sm:text-base md:text-xl font-bold tracking-[0.18em] text-white">
+              <span className="whitespace-nowrap font-brand text-sm font-bold tracking-[0.18em] text-white sm:text-base md:text-xl">
                 ELLCWORTH <span className="text-[#FFA500]">EXPRESS</span>
               </span>
 
-              {/* TAGLINE */}
-              <span
-                className="
-                  font-brand
-                  text-[0.55rem]
-                  sm:text-[0.6rem]
-                  md:text-[0.6rem]
-                  tracking-[0.25em]
-                  uppercase
-                  text-[#FFA500]
-                  mt-1
-                "
-              >
+              <span className="mt-1 whitespace-nowrap font-brand text-[0.55rem] uppercase tracking-[0.25em] text-[#FFA500] sm:text-[0.6rem] md:text-[0.6rem]">
                 SMART LOGISTICS. SEAMLESS FREIGHT
               </span>
             </div>
           </div>
 
           {/* Contact info */}
-          <div className="hidden md:flex items-center gap-7 text-xs md:text-sm font-medium text-white tracking-[0.12em] lowercase">
-            <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-7 text-xs font-medium lowercase tracking-[0.12em] text-white md:flex md:text-sm">
+            <div className="flex items-center gap-2 whitespace-nowrap">
               <FaEnvelope className="text-[#FFA500]" />
               <a href="mailto:cs@ellcworth.com" className="hover:underline">
                 cs@ellcworth.com
               </a>
             </div>
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-2 whitespace-nowrap">
               <FaPhone className="text-[#FFA500]" />
-              <a href="tel:0208414800" className="hover:underline">
+              <a href="tel:+442089796054" className="hover:underline">
                 +44 20 8979 6054
               </a>
             </div>
@@ -59,50 +47,72 @@ const Navbar = () => {
       </div>
 
       {/* Main nav bar */}
-      <div className="w-full bg-[#FFA500]">
-        <div className="container mx-auto flex items-center justify-between py-3 px-4 md:px-8 lg:px-16">
-          {/* Centered menu links */}
-          <div className="flex-1 hidden md:flex justify-center">
-            <ul className="flex gap-7 text-xs md:text-sm font-medium text-[#1A2930] tracking-[0.12em] capitalize">
-              <a href="#Header" className="cursor-pointer hover:text-gray-800">
-                Home
-              </a>
-              <a
-                href="#services"
-                className="cursor-pointer hover:text-gray-800"
-              >
-                Our Services
-              </a>
-              <a href="#whyus" className="cursor-pointer hover:text-gray-800">
-                Why Us
-              </a>
-              <a
-                href="#repackaging"
-                className="cursor-pointer hover:text-gray-800"
-              >
-                Repack &amp; Consolidation
-              </a>
-              <a href="#booking" className="cursor-pointer hover:text-gray-800">
-                Book a Shipment
-              </a>
-              <a
-                href="#testimonials"
-                className="cursor-pointer hover:text-gray-800"
-              >
-                Client Stories
-              </a>
+      <div className="w-full bg-[#FFA500] shadow-sm">
+        <div className="container mx-auto flex h-[52px] items-center justify-between px-4 md:px-8 lg:px-16">
+          <nav
+            className="hidden flex-1 justify-center md:flex"
+            aria-label="Main navigation"
+          >
+            <ul className="flex items-center gap-7 text-xs font-medium capitalize tracking-[0.12em] text-[#1A2930] md:text-sm">
+              <li>
+                <a
+                  href="/#Header"
+                  className="cursor-pointer hover:text-gray-800"
+                >
+                  Home
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/#services"
+                  className="cursor-pointer hover:text-gray-800"
+                >
+                  Our Services
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/#whyus"
+                  className="cursor-pointer hover:text-gray-800"
+                >
+                  Why Us
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/#repackaging"
+                  className="cursor-pointer hover:text-gray-800"
+                >
+                  Repack &amp; Consolidation
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/#booking"
+                  className="cursor-pointer hover:text-gray-800"
+                >
+                  Book a Shipment
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/#testimonials"
+                  className="cursor-pointer hover:text-gray-800"
+                >
+                  Client Stories
+                </a>
+              </li>
             </ul>
-          </div>
+          </nav>
 
-          {/* Button on the right */}
           <Link to="/login">
-            <button className="hidden md:block bg-[#1A2930] text-white px-6 py-2 rounded-full text-xs md:text-sm font-semibold tracking-[0.14em] capitalize hover:bg-[#121c23] transition ml-4">
+            <button className="ml-4 hidden rounded-full bg-[#1A2930] px-6 py-2 text-xs font-semibold capitalize tracking-[0.14em] text-white transition hover:bg-[#121c23] md:block md:text-sm">
               Customer Login
             </button>
           </Link>
         </div>
       </div>
-    </div>
+    </header>
   );
 };
 
