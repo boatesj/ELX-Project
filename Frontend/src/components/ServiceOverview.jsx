@@ -13,37 +13,37 @@ const SERVICES = [
     id: "container",
     icon: FaShip,
     title: "Container shipping (FCL & LCL)",
-    body: "Full and shared containers from the UK to key West African ports.",
+    body: "Full and shared container shipping from the UK to Ghana and key West African ports.",
   },
   {
     id: "roro",
     icon: FaCarSide,
     title: "RoRo vehicle shipping",
-    body: "Cars, vans, 4×4s, trucks and plant on regular RoRo sailings.",
+    body: "Cars, vans, 4×4s, trucks and machinery moved on regular UK to West Africa RoRo sailings.",
   },
   {
     id: "air",
     icon: FaPlaneDeparture,
     title: "Fast air freight",
-    body: "Priority options for urgent cargo that can’t wait for a vessel.",
+    body: "Urgent cargo and commercial shipments moved quickly from the UK to African destinations.",
   },
   {
     id: "documents",
     icon: FaFileSignature,
     title: "Secure document logistics",
-    body: "Certificates, cheques and other secure print handled with care.",
+    body: "Certificates, cheques and sensitive documents handled securely for time-critical delivery.",
   },
   {
     id: "repacking",
     icon: FaBoxes,
     title: "Repacking & consolidation",
-    body: "Multiple UK deliveries checked, repacked and shipped as one export.",
+    body: "Multiple UK collections checked, combined and prepared for one efficient export shipment.",
   },
   {
     id: "customs",
     icon: FaRegClipboard,
     title: "Export & customs support",
-    body: "Practical help with export paperwork, valuations and destination rules.",
+    body: "Practical support with export paperwork, valuations and shipping requirements for West Africa.",
   },
 ];
 
@@ -77,13 +77,14 @@ const ServiceOverview = () => {
 
           <div className="relative max-w-3xl">
             <h2 className="text-2xl md:text-[2.1rem] font-semibold tracking-tight mb-3 uppercase">
-              Deliveries with Added Value.
+              UK to West Africa Shipping, Handled Properly.
             </h2>
             <p className="text-sm md:text-base text-slate-100/90 leading-relaxed">
-              Whether it&apos;s a single vehicle, a full container, secure
-              documents or a consolidated shipment, every service is built
-              around guidance, communication and careful handling from booking
-              to delivery.
+              From vehicles and containers to urgent cargo and secure documents,
+              Ellcworth supports individuals, families, traders and businesses
+              shipping from the UK to Ghana and key West African destinations
+              with guidance, communication and careful handling from booking to
+              delivery.
             </p>
           </div>
 
