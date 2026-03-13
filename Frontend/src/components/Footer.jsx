@@ -96,9 +96,14 @@ const Footer = () => {
 
               <li className="flex items-center gap-2">
                 <FaWhatsapp className="text-[#FFA500]" />
-                <span className="text-slate-300">
-                  WhatsApp support coming soon
-                </span>
+                <a
+                  href="https://wa.me/447776234234?text=Hello%20Ellcworth%2C%20I%20have%20a%20shipping%20enquiry."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-slate-300 hover:text-white transition-colors"
+                >
+                  Chat with us on WhatsApp
+                </a>
               </li>
             </ul>
           </div>

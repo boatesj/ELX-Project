@@ -20,7 +20,7 @@ const RootLayout = () => {
 
       <main
         className={`flex-1 ${
-          isHome ? "" : "pt-[120px] md:pt-[150px] lg:pt-[160px]"
+          isHome ? "" : "pt-[84px] md:pt-[150px] lg:pt-[160px]"
         }`}
       >
         <Outlet />
