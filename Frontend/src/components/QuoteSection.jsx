@@ -306,7 +306,7 @@ const QuoteSection = () => {
 
       // ✅ IMPORTANT: lead requests must be PUBLIC (avoid stale customer token)
       const res = await publicRequest.post(
-        "/api/v1/shipments/public-request",
+        "/shipments/public-request",
         payload,
       );
 

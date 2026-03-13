@@ -68,15 +68,17 @@ const envAllow = [
 const devAllow = [
   "http://localhost:3000",
   "http://localhost:5173",
+  "http://localhost:5174",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
 ];
 
 const allowlist = new Set(
   (process.env.NODE_ENV === "production"
     ? envAllow
     : [...envAllow, ...devAllow]
-  ).filter(Boolean)
+  ).filter(Boolean),
 );
 
 app.use(
@@ -96,7 +98,7 @@ app.use(
       return cb(new Error("CORS blocked"));
     },
     credentials: true,
-  })
+  }),
 );
 
 // --------------------
@@ -202,7 +204,7 @@ const swaggerSpec = swaggerJsdoc({
 app.use(
   "/docs",
   swaggerUI.serve,
-  swaggerUI.setup(swaggerSpec, { explorer: true })
+  swaggerUI.setup(swaggerSpec, { explorer: true }),
 );
 
 // --------------------
@@ -221,7 +223,7 @@ app.use(
     console.warn("LEGACY HIT:", req.method, req.originalUrl);
     next();
   },
-  userRoute
+  userRoute,
 );
 
 app.use(
@@ -230,7 +232,7 @@ app.use(
     console.warn("LEGACY HIT:", req.method, req.originalUrl);
     next();
   },
-  shipmentRoute
+  shipmentRoute,
 );
 
 // Config (ports, service types, cargo categories)
