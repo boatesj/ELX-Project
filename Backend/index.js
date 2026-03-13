@@ -239,11 +239,11 @@ app.use(
 app.use("/api/v1/config", configRoute);
 
 // Admin system routes
-app.use("/admin/settings", settingsRoute);
-app.use("/admin/backups", backupsRoute);
-app.use("/admin/analytics", analyticsRoute);
-app.use("/admin/logs", logsRoute);
-app.use("/admin/calendar", calendarRoute);
+app.use("/api/v1/admin/settings", settingsRoute);
+app.use("/api/v1/admin/backups", backupsRoute);
+app.use("/api/v1/admin/analytics", analyticsRoute);
+app.use("/api/v1/admin/logs", logsRoute);
+app.use("/api/v1/admin/calendar", calendarRoute);
 
 // --------------------
 // 404 (in JSON)

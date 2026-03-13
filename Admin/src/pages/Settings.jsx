@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import PageShell from "../components/PageShell";
-import { adminRequest } from "../requestMethods";
+import { authRequest } from "../requestMethods";
 
 /* ----------------------------- UI Primitives ----------------------------- */
 
@@ -55,8 +55,8 @@ const Button = ({ variant = "primary", ...props }) => {
     variant === "primary"
       ? "bg-[#FFA500] text-[#0B1118] hover:brightness-110 shadow-[0_10px_30px_rgba(255,165,0,0.18)]"
       : variant === "ghost"
-      ? "bg-white/5 text-gray-100 hover:bg-white/10 border border-white/10"
-      : "bg-red-500/10 text-red-200 hover:bg-red-500/15 border border-red-500/20";
+        ? "bg-white/5 text-gray-100 hover:bg-white/10 border border-white/10"
+        : "bg-red-500/10 text-red-200 hover:bg-red-500/15 border border-red-500/20";
 
   return (
     <button
@@ -76,7 +76,7 @@ export default function Settings() {
       { key: "notifications", label: "Notifications" },
       { key: "integrations", label: "Integrations" },
     ],
-    []
+    [],
   );
 
   const [active, setActive] = useState("company");
@@ -179,15 +179,15 @@ export default function Settings() {
       requireMfaRef.current.value = s?.security?.requireMfa ?? "recommended";
     if (sessionTimeoutRef.current)
       sessionTimeoutRef.current.value = String(
-        s?.security?.sessionTimeoutMinutes ?? 60
+        s?.security?.sessionTimeoutMinutes ?? 60,
       );
     if (passwordMinLengthRef.current)
       passwordMinLengthRef.current.value = String(
-        s?.security?.passwordMinLength ?? 10
+        s?.security?.passwordMinLength ?? 10,
       );
     if (lockoutThresholdRef.current)
       lockoutThresholdRef.current.value = String(
-        s?.security?.lockoutThreshold ?? 5
+        s?.security?.lockoutThreshold ?? 5,
       );
 
     // Notifications
@@ -199,7 +199,7 @@ export default function Settings() {
         s?.notifications?.replyTo ?? "support@ellcworth.com";
     if (overdueHoursRef.current)
       overdueHoursRef.current.value = String(
-        s?.notifications?.overdueHours ?? 48
+        s?.notifications?.overdueHours ?? 48,
       );
     if (digestTimeRef.current)
       digestTimeRef.current.value = s?.notifications?.digestTime ?? "08:30";
@@ -215,7 +215,7 @@ export default function Settings() {
 
     (async () => {
       try {
-        const res = await adminRequest.get("/settings");
+        const res = await authRequest.get("/admin/settings");
         if (ignore) return;
 
         const s = res?.data || null;
@@ -242,7 +242,7 @@ export default function Settings() {
         showBanner(
           "error",
           err?.response?.data?.message ||
-            "Failed to load settings (are you logged in as admin?)"
+            "Failed to load settings (are you logged in as admin?)",
         );
       }
     })();
@@ -315,7 +315,7 @@ export default function Settings() {
   const save = async (key, payload) => {
     try {
       setBusyKey(key);
-      const res = await adminRequest.put("/settings", payload);
+      const res = await authRequest.put("/admin/settings", payload);
       const s = res?.data || loaded;
 
       setLoaded(s);
@@ -339,7 +339,7 @@ export default function Settings() {
     } catch (err) {
       showBanner(
         "error",
-        err?.response?.data?.message || "Save failed. Please try again."
+        err?.response?.data?.message || "Save failed. Please try again.",
       );
     } finally {
       setBusyKey("");
@@ -364,16 +364,15 @@ export default function Settings() {
     showBanner("success", `Preview: ${tn} • ${cn} • ${cur} • ${tz}`);
   };
 
-  // ✅ WIRED: Send test email (Backend should implement POST /admin/settings/test-email)
   const sendTestEmail = async () => {
     try {
       setBusyKey("testEmail");
-      const res = await adminRequest.post("/settings/test-email");
+      const res = await authRequest.post("/admin/settings/test-email");
       showBanner("success", res?.data?.message || "Test email sent");
     } catch (err) {
       showBanner(
         "error",
-        err?.response?.data?.message || "Failed to send test email"
+        err?.response?.data?.message || "Failed to send test email",
       );
     } finally {
       setBusyKey("");
@@ -416,7 +415,6 @@ export default function Settings() {
           </div>
         }
       >
-        {/* Banner (small + unobtrusive) */}
         {banner ? (
           <div
             className={[
@@ -430,7 +428,6 @@ export default function Settings() {
           </div>
         ) : null}
 
-        {/* Tabs */}
         <div className="flex gap-2 overflow-x-auto pb-2">
           {tabs.map((t) => (
             <button
@@ -449,7 +446,6 @@ export default function Settings() {
         </div>
 
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* ------------------------------ COMPANY ------------------------------ */}
           {active === "company" && (
             <>
               <SectionCard
@@ -593,7 +589,6 @@ export default function Settings() {
             </>
           )}
 
-          {/* ------------------------------ SECURITY ------------------------------ */}
           {active === "security" && (
             <>
               <SectionCard
@@ -619,7 +614,7 @@ export default function Settings() {
                     <Select
                       ref={sessionTimeoutRef}
                       defaultValue={String(
-                        loaded?.security?.sessionTimeoutMinutes ?? 60
+                        loaded?.security?.sessionTimeoutMinutes ?? 60,
                       )}
                     >
                       <option value="15">15 minutes</option>
@@ -717,7 +712,6 @@ export default function Settings() {
             </>
           )}
 
-          {/* ---------------------------- NOTIFICATIONS ---------------------------- */}
           {active === "notifications" && (
             <>
               <SectionCard
@@ -798,7 +792,6 @@ export default function Settings() {
                         : "Save notification rules"}
                     </Button>
 
-                    {/* ✅ Wired */}
                     <Button
                       variant="ghost"
                       onClick={sendTestEmail}
@@ -821,7 +814,7 @@ export default function Settings() {
                     <Select
                       ref={overdueHoursRef}
                       defaultValue={String(
-                        loaded?.notifications?.overdueHours ?? 48
+                        loaded?.notifications?.overdueHours ?? 48,
                       )}
                     >
                       <option value="24">After 24 hours</option>
@@ -862,7 +855,6 @@ export default function Settings() {
             </>
           )}
 
-          {/* ---------------------------- INTEGRATIONS ---------------------------- */}
           {active === "integrations" && (
             <>
               <SectionCard title="Integrations" hint="Plug in, don’t patch">
