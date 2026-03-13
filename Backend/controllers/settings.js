@@ -1,6 +1,6 @@
 const Setting = require("../models/Setting");
 const { createLog } = require("../utils/createLog");
-const nodemailer = require("nodemailer");
+const { dispatchMail } = require("../utils/dispatchMail");
 
 async function getSingleton() {
   let s = await Setting.findOne();
@@ -48,35 +48,33 @@ async function testEmail(req, res) {
   try {
     const s = await getSingleton();
 
-    const host = process.env.SMTP_HOST;
-    const port = Number(process.env.SMTP_PORT || 587);
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-
-    if (!host || !user || !pass) {
+    if (!process.env.POSTMARK_SERVER_TOKEN || !process.env.EMAIL_FROM) {
       return res.status(400).json({
         ok: false,
         message:
-          "SMTP not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS",
+          "Postmark not configured. Set POSTMARK_SERVER_TOKEN and EMAIL_FROM",
       });
     }
 
     const to = (s?.notifications?.replyTo || "support@ellcworth.com").trim();
     const fromName = (s?.notifications?.fromName || "Ellcworth Express").trim();
-    const fromEmail = (process.env.SMTP_FROM || user).trim();
+    const fromEmail = String(process.env.EMAIL_FROM || "").trim();
+    const replyTo = String(
+      process.env.EMAIL_REPLY_TO || "support@ellcworth.com",
+    ).trim();
 
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-    });
-
-    await transporter.sendMail({
-      from: `"${fromName}" <${fromEmail}>`,
+    await dispatchMail({
       to,
+      from: `"${fromName}" <${fromEmail}>`,
+      replyTo,
       subject: "Ellcworth Admin — Test Email",
       text: "This is a test email from Ellcworth Admin Settings.",
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6">
+          <h2>Ellcworth Admin — Test Email</h2>
+          <p>This is a test email from Ellcworth Admin Settings.</p>
+        </div>
+      `,
     });
 
     await createLog(req, {

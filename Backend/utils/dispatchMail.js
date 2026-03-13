@@ -1,13 +1,9 @@
 // Backend/utils/dispatchMail.js
-const nodemailer = require("nodemailer");
+const postmark = require("postmark");
 
 function pickFromAddress(env) {
   return (
-    env.EMAIL_FROM ||
-    env.SMTP_FROM ||
-    env.MAIL_FROM ||
-    env.SMTP_USER || // sensible fallback
-    ""
+    env.EMAIL_FROM || env.SMTP_FROM || env.MAIL_FROM || env.SMTP_USER || ""
   );
 }
 
@@ -25,82 +21,65 @@ function requireEnv(env, keys) {
     ].join(" | ");
 
     const err = new Error(
-      `SMTP not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS (and optionally EMAIL_FROM). ${detail}`
+      `Postmark not configured. Set POSTMARK_SERVER_TOKEN and EMAIL_FROM. ${detail}`,
     );
-    err.code = "SMTP_NOT_CONFIGURED";
+    err.code = "POSTMARK_NOT_CONFIGURED";
     throw err;
   }
 }
 
 function logSendResult(info) {
-  // ✅ "truth" log: what nodemailer says happened (or console transport equivalent)
   console.log("📨 sendMail result:", {
-    messageId: info?.messageId,
-    accepted: info?.accepted,
-    rejected: info?.rejected,
-    pending: info?.pending,
-    response: info?.response,
-    envelope: info?.envelope,
-    // These may exist depending on transport / provider:
-    // messageSize: info?.messageSize,
-    // previewUrl: info?.previewUrl,
+    messageId: info?.MessageID || info?.messageId || null,
+    to: info?.To || null,
+    submittedAt: info?.SubmittedAt || null,
+    errorCode: info?.ErrorCode,
+    message: info?.Message,
   });
 }
 
 function buildTransport() {
   const env = process.env;
-  const transportMode = String(env.MAIL_TRANSPORT || "").toLowerCase();
+  const transportMode = String(env.MAIL_TRANSPORT || "postmark").toLowerCase();
 
-  // ✅ DEV escape hatch: log emails instead of sending
   if (transportMode === "console") {
     return {
       mode: "console",
       async sendMail(msg) {
-        // Don't dump huge HTML into terminal; show the useful bits.
         console.log("📧 [MAIL_TRANSPORT=console] Email would send:", {
           to: msg.to,
           from: msg.from,
+          replyTo: msg.replyTo,
           subject: msg.subject,
           textPreview: (msg.text || "").slice(0, 500),
         });
 
-        // Return a nodemailer-like shape so downstream logging is consistent.
         return {
-          messageId: "console-transport",
-          accepted: Array.isArray(msg.to) ? msg.to : [msg.to].filter(Boolean),
-          rejected: [],
-          response: "MAIL_TRANSPORT=console",
-          envelope: {
-            from: msg.from,
-            to: Array.isArray(msg.to) ? msg.to : [msg.to].filter(Boolean),
-          },
+          MessageID: "console-transport",
+          To: msg.to,
+          SubmittedAt: new Date().toISOString(),
+          ErrorCode: 0,
+          Message: "MAIL_TRANSPORT=console",
         };
       },
     };
   }
 
-  // Default: SMTP
-  requireEnv(env, ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS"]);
+  requireEnv(env, ["POSTMARK_SERVER_TOKEN", "EMAIL_FROM"]);
 
-  const port = Number(env.SMTP_PORT);
-  const secure =
-    String(env.SMTP_SECURE || "").toLowerCase() === "true" || port === 465;
-
-  const transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: Number.isFinite(port) ? port : 587,
-    secure,
-    auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASS,
-    },
-  });
+  const client = new postmark.ServerClient(env.POSTMARK_SERVER_TOKEN);
 
   return {
-    mode: "smtp",
+    mode: "postmark",
     async sendMail(msg) {
-      const info = await transporter.sendMail(msg);
-      return info;
+      return client.sendEmail({
+        From: msg.from,
+        To: msg.to,
+        Subject: msg.subject,
+        HtmlBody: msg.html || undefined,
+        TextBody: msg.text || undefined,
+        ReplyTo: msg.replyTo || undefined,
+      });
     },
   };
 }
@@ -109,69 +88,66 @@ function buildTransport() {
  * dispatchMail returns a normalized payload:
  * {
  *   ok: true,
- *   mode: "smtp" | "console",
+ *   mode: "postmark" | "console",
  *   messageId: string | null,
- *   accepted?: string[],
  *   response?: string
  * }
  */
-async function dispatchMail({ to, subject, html, text, from }) {
+async function dispatchMail({ to, subject, html, text, from, replyTo }) {
   const env = process.env;
 
   const resolvedFrom = String(from || pickFromAddress(env) || "").trim();
   if (!resolvedFrom) {
     throw new Error(
-      "Email FROM address missing. Set EMAIL_FROM (or SMTP_FROM) in Backend/.env."
+      "Email FROM address missing. Set EMAIL_FROM in Backend/.env or Render env.",
     );
   }
+
+  const resolvedReplyTo = String(
+    replyTo || env.EMAIL_REPLY_TO || resolvedFrom,
+  ).trim();
 
   const transport = buildTransport();
   const msg = {
     to,
     from: resolvedFrom,
+    replyTo: resolvedReplyTo,
     subject,
     text,
     html,
   };
 
-  // 🔎 Minimal runtime trace (keep)
   console.log("📬 dispatchMail attempt:", {
     mode: transport.mode,
     to,
     from: resolvedFrom,
+    replyTo: resolvedReplyTo,
     subject,
   });
 
   const info = await transport.sendMail(msg);
 
-  // ✅ prove delivery-attempt truth (what the SMTP server said)
   logSendResult(info);
 
-  // ✅ if the server rejected the recipient, treat as failure
-  if (Array.isArray(info?.rejected) && info.rejected.length > 0) {
-    const err = new Error(
-      `SMTP rejected recipient(s): ${info.rejected.join(", ")}`
-    );
-    err.code = "SMTP_RECIPIENT_REJECTED";
-    err.details = {
-      rejected: info.rejected,
-      accepted: info.accepted,
-      response: info.response,
-      envelope: info.envelope,
-      messageId: info.messageId,
-    };
+  if (info?.ErrorCode && Number(info.ErrorCode) !== 0) {
+    const err = new Error(info.Message || "Postmark send failed");
+    err.code = "POSTMARK_SEND_FAILED";
+    err.details = info;
     throw err;
   }
 
   const messageId =
-    info && typeof info.messageId === "string" ? info.messageId : null;
+    typeof info?.MessageID === "string"
+      ? info.MessageID
+      : typeof info?.messageId === "string"
+        ? info.messageId
+        : null;
 
   return {
     ok: true,
     mode: transport.mode,
     messageId,
-    accepted: info?.accepted,
-    response: info?.response,
+    response: info?.Message || info?.response,
   };
 }
 
