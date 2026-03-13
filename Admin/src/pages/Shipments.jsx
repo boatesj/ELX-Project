@@ -81,18 +81,18 @@ const Shipments = () => {
       localStorage.removeItem("user");
       navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`);
     },
-    [location.pathname, navigate]
+    [location.pathname, navigate],
   );
 
   const handleDelete = useCallback(
     async (id) => {
       const confirm = window.confirm(
-        "Are you sure you want to delete this shipment?"
+        "Are you sure you want to delete this shipment?",
       );
       if (!confirm) return;
 
       try {
-        await authRequest.delete(`/api/v1/shipments/${id}`);
+        await authRequest.delete(`/shipments/${id}`);
         setRows((prev) => prev.filter((row) => row._id !== id));
       } catch (error) {
         const status = error?.response?.status;
@@ -102,12 +102,12 @@ const Shipments = () => {
         }
         console.error(
           "❌ Error deleting shipment:",
-          error?.response?.data || error
+          error?.response?.data || error,
         );
         alert("Failed to delete shipment. Please try again.");
       }
     },
-    [redirectToLogin]
+    [redirectToLogin],
   );
 
   const columns = useMemo(
@@ -153,7 +153,7 @@ const Shipments = () => {
           <div className="flex items-center h-full">
             <span
               className={`px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
-                params.value
+                params.value,
               )}`}
             >
               {formatStatusLabel(params.value)}
@@ -236,7 +236,7 @@ const Shipments = () => {
         },
       },
     ],
-    [handleDelete]
+    [handleDelete],
   );
 
   useEffect(() => {
@@ -283,10 +283,10 @@ const Shipments = () => {
         }
         console.error(
           "❌ Error fetching shipments:",
-          error?.response?.data || error
+          error?.response?.data || error,
         );
         setLoadError(
-          error?.response?.data?.message || "Failed to load shipments."
+          error?.response?.data?.message || "Failed to load shipments.",
         );
       } finally {
         setLoading(false);
@@ -402,7 +402,7 @@ const Shipments = () => {
 
                   <span
                     className={`shrink-0 px-2 py-1 rounded-full text-xs font-semibold leading-tight ${getStatusClasses(
-                      row.status
+                      row.status,
                     )}`}
                   >
                     {formatStatusLabel(row.status)}

@@ -62,7 +62,7 @@ const Section = ({ title, subtitle, open, onToggle, children }) => (
 // Phase 3A: API standardised to /api/v1/*
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const USERS_API = `${API_BASE_URL}/api/v1/users`;
+const USERS_API = `${API_BASE_URL}/users`;
 
 const NewUser = () => {
   const navigate = useNavigate();

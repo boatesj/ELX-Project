@@ -100,7 +100,7 @@ const NewShipment = () => {
 
   const currentModeOptions = useMemo(
     () => MODE_OPTIONS[form.serviceType] || [],
-    [form.serviceType]
+    [form.serviceType],
   );
 
   // Map UI mode → backend Shipment.mode enum
@@ -131,8 +131,8 @@ const NewShipment = () => {
   const submitLabel = saving
     ? "Creating..."
     : form.recordType === "quote"
-    ? "Create quote & open booking"
-    : "Create shipment & open booking";
+      ? "Create quote & open booking"
+      : "Create shipment & open booking";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -214,7 +214,7 @@ const NewShipment = () => {
         shippingDate: shippingDateValue, // "YYYY-MM-DD" from input is valid ISO8601
       };
 
-      const res = await authRequest.post("/api/v1/shipments", payload);
+      const res = await authRequest.post("/shipments", payload);
       const created = res.data?.data || res.data?.shipment || res.data;
 
       // To avoid "No routes matched /shipments/:id" until details route is ready
@@ -226,7 +226,7 @@ const NewShipment = () => {
     } catch (error) {
       console.error(
         "❌ Error creating shipment:",
-        error.response?.data || error
+        error.response?.data || error,
       );
 
       if (error.response?.status === 422) {
@@ -241,7 +241,7 @@ const NewShipment = () => {
       } else {
         setErrorMsg(
           error.response?.data?.message ||
-            "We couldn’t create this shipment. Please try again."
+            "We couldn’t create this shipment. Please try again.",
         );
       }
     } finally {
