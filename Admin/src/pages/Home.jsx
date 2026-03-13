@@ -65,22 +65,22 @@ const MetricCard = ({
     accent === "teal"
       ? "focus:ring-sky-400/30"
       : accent === "green"
-      ? "focus:ring-emerald-400/30"
-      : "focus:ring-[#FFA500]/30";
+        ? "focus:ring-emerald-400/30"
+        : "focus:ring-[#FFA500]/30";
 
   const accentBar =
     accent === "teal"
       ? "from-sky-400/70 to-sky-400/0"
       : accent === "green"
-      ? "from-emerald-400/70 to-emerald-400/0"
-      : "from-[#FFA500]/70 to-[#FFA500]/0";
+        ? "from-emerald-400/70 to-emerald-400/0"
+        : "from-[#FFA500]/70 to-[#FFA500]/0";
 
   const accentGlow =
     accent === "teal"
       ? "bg-sky-500/20"
       : accent === "green"
-      ? "bg-emerald-500/20"
-      : "bg-[#FFA500]/20";
+        ? "bg-emerald-500/20"
+        : "bg-[#FFA500]/20";
 
   return (
     <button
@@ -176,8 +176,8 @@ const PillLink = ({ label, onClick, tone = "orange" }) => {
     tone === "teal"
       ? "hover:text-sky-300"
       : tone === "green"
-      ? "hover:text-emerald-300"
-      : "hover:text-[#FFA500]";
+        ? "hover:text-emerald-300"
+        : "hover:text-[#FFA500]";
   return (
     <button
       type="button"
@@ -242,9 +242,9 @@ const Home = () => {
 
         // ✅ Standardise Admin API calls to /api/v1
         const [usersRes, dashboardRes, shipmentsRes] = await Promise.all([
-          authRequest.get("/api/v1/users"),
-          authRequest.get("/api/v1/shipments/dashboard"),
-          authRequest.get("/api/v1/shipments"),
+          authRequest.get("/users"),
+          authRequest.get("/shipments/dashboard"),
+          authRequest.get("/shipments"),
         ]);
 
         // ----- USERS -----
@@ -321,7 +321,7 @@ const Home = () => {
         setLoadError(
           err?.response?.data?.message ||
             err?.message ||
-            "Failed to load dashboard analytics."
+            "Failed to load dashboard analytics.",
         );
       } finally {
         setLoading(false);
@@ -581,10 +581,10 @@ const Home = () => {
                         const [origin, destination] = raw.split(" → ");
                         navigate(
                           `/shipments?origin=${encodeURIComponent(
-                            origin || ""
+                            origin || "",
                           )}&destination=${encodeURIComponent(
-                            destination || ""
-                          )}`
+                            destination || "",
+                          )}`,
                         );
                       }}
                     >
