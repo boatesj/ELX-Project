@@ -134,9 +134,9 @@ app.get("/", (req, res) => {
       shipments:
         "CRUD /api/v1/shipments (auth) + admin ops at /api/v1/shipments/:id/* + legacy /shipments (temporary)",
       config: {
-        ports: "/config/ports",
-        serviceTypes: "/config/service-types",
-        cargoCategories: "/config/cargo-categories",
+        ports: "/api/v1/config/ports",
+        serviceTypes: "/api/v1/config/service-types",
+        cargoCategories: "/api/v1/config/cargo-categories",
       },
       docs: "/docs",
     },
@@ -236,7 +236,7 @@ app.use(
 );
 
 // Config (ports, service types, cargo categories)
-app.use("/config", configRoute);
+app.use("/api/v1/config", configRoute);
 
 // Admin system routes
 app.use("/admin/settings", settingsRoute);
