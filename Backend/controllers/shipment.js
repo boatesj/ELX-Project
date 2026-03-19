@@ -730,6 +730,71 @@ async function createPublicLeadShipment(req, res) {
 
     const shipment = await Shipment.create(payload);
 
+    console.log("🧪 public lead requestor snapshot:", {
+      requestor: payload?.requestor,
+      shipper: payload?.shipper,
+    });
+
+    const requestorName = String(
+      payload?.requestor?.name || payload?.shipper?.name || "",
+    ).trim();
+
+    const requestorEmail = String(
+      payload?.requestor?.email || payload?.shipper?.email || "",
+    )
+      .trim()
+      .toLowerCase();
+
+    const requestorPhone = String(
+      payload?.requestor?.phone || payload?.shipper?.phone || "",
+    ).trim();
+
+    const requestorAddress = String(
+      payload?.shipper?.address || "To be confirmed",
+    ).trim();
+
+    const requestorCountry = "United Kingdom";
+
+    console.log("🧪 derived pending-user fields:", {
+      requestorName,
+      requestorEmail,
+      requestorPhone,
+      requestorAddress,
+      requestorCountry,
+    });
+
+    if (requestorEmail) {
+      const existingUser = await User.findOne({ email: requestorEmail });
+      console.log("🧪 existing user lookup:", {
+        requestorEmail,
+        found: !!existingUser,
+        existingUserId: existingUser?._id || null,
+        existingUserStatus: existingUser?.status || null,
+      });
+
+      if (!existingUser) {
+        const createdUser = await User.create({
+          fullname: requestorName || "Customer",
+          email: requestorEmail,
+          phone: requestorPhone || "To be confirmed",
+          country: requestorCountry,
+          address: requestorAddress || "To be confirmed",
+          status: "pending",
+          welcomeMailSent: false,
+        });
+
+        console.log("✅ pending user created from public lead:", {
+          userId: createdUser._id,
+          email: createdUser.email,
+          status: createdUser.status,
+        });
+      }
+    } else {
+      console.log(
+        "⚠️ skipped pending-user creation: no requestorEmail derived",
+      );
+    }
+
     // Create/find lightweight pending user so welcome/invite flow can run
     const requestorName = String(
       payload?.requestor?.name || payload?.shipper?.name || "",
@@ -773,7 +838,11 @@ async function createPublicLeadShipment(req, res) {
       shipment,
     });
   } catch (err) {
-    console.error("Error creating public lead shipment:", err);
+    console.error("Error creating public lead shipment:", {
+      message: err.message,
+      stack: err.stack,
+      name: err.name,
+    });
     return res.status(500).json({
       message: "Failed to create lead request",
       error: err.message,
