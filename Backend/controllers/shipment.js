@@ -795,44 +795,6 @@ async function createPublicLeadShipment(req, res) {
       );
     }
 
-    // Create/find lightweight pending user so welcome/invite flow can run
-    const requestorName = String(
-      payload?.requestor?.name || payload?.shipper?.name || "",
-    ).trim();
-
-    const requestorEmail = String(
-      payload?.requestor?.email || payload?.shipper?.email || "",
-    )
-      .trim()
-      .toLowerCase();
-
-    const requestorPhone = String(
-      payload?.requestor?.phone || payload?.shipper?.phone || "",
-    ).trim();
-
-    const requestorAddress = String(
-      payload?.shipper?.address || "To be confirmed",
-    ).trim();
-
-    // Go-live-safe default until public quote captures country explicitly
-    const requestorCountry = "United Kingdom";
-
-    if (requestorEmail) {
-      const existingUser = await User.findOne({ email: requestorEmail });
-
-      if (!existingUser) {
-        await User.create({
-          fullname: requestorName || "Customer",
-          email: requestorEmail,
-          phone: requestorPhone || "To be confirmed",
-          country: requestorCountry,
-          address: requestorAddress || "To be confirmed",
-          status: "pending",
-          welcomeMailSent: false,
-        });
-      }
-    }
-
     return res.status(201).json({
       message: "Lead request created successfully.",
       shipment,
