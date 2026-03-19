@@ -1,6 +1,7 @@
 // Backend/controllers/shipment.js
 const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
+const User = require("../models/User");
 
 // ✅ Mail dispatcher (local util abstraction)
 // Controllers should not depend on BackgroundServices folder structure.
@@ -279,11 +280,11 @@ function computeQuoteObjectTotals(rawQuote = {}) {
     });
 
   const subtotal = toMoney(
-    normalizedItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0)
+    normalizedItems.reduce((sum, li) => sum + (Number(li.amount) || 0), 0),
   );
 
   const taxTotal = toMoney(
-    normalizedItems.reduce((sum, li) => sum + (Number(li._tax) || 0), 0)
+    normalizedItems.reduce((sum, li) => sum + (Number(li._tax) || 0), 0),
   );
 
   const total = toMoney(subtotal + taxTotal);
@@ -343,10 +344,10 @@ function brandHeaderHtml({ title, reference }) {
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
         <div>
           <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;opacity:.92;">${escapeHtml(
-            BRAND.name
+            BRAND.name,
           )}</div>
           <div style="margin-top:6px;font-size:18px;font-weight:800;">${escapeHtml(
-            title
+            title,
           )}</div>
           <div style="margin-top:6px;font-size:12px;opacity:.92;">
             Reference: <span style="font-family:monospace;">${ref}</span>
@@ -385,10 +386,10 @@ function buildQuoteEmailHtml({ shipment, quote, approveInstruction }) {
           <td style="padding:10px 8px;border-bottom:1px solid #eee;">${label}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #eee;text-align:right;">${qty}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #eee;text-align:right;">${escapeHtml(
-            unit
+            unit,
           )}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:700;">${escapeHtml(
-            amt
+            amt,
           )}</td>
         </tr>
       `;
@@ -398,7 +399,7 @@ function buildQuoteEmailHtml({ shipment, quote, approveInstruction }) {
   const notes = quote.notesToCustomer
     ? `<div style="margin-top:12px;color:#334155;font-size:14px;line-height:1.6;">
          <strong>Notes:</strong><br/>${escapeHtml(
-           quote.notesToCustomer
+           quote.notesToCustomer,
          ).replaceAll("\n", "<br/>")}
        </div>`
     : "";
@@ -424,7 +425,7 @@ function buildQuoteEmailHtml({ shipment, quote, approveInstruction }) {
 
         <p style="margin:0 0 14px 0;font-size:14px;color:#334155;line-height:1.7;">
           Thank you for requesting a quote from <strong>${escapeHtml(
-            BRAND.name
+            BRAND.name,
           )}</strong>.
           Please find below our quotation for the shipment detailed in your request.
         </p>
@@ -442,7 +443,7 @@ function buildQuoteEmailHtml({ shipment, quote, approveInstruction }) {
           ${
             validUntil
               ? `<div><strong>Quote valid until:</strong> ${escapeHtml(
-                  validUntil
+                  validUntil,
                 )}</div>`
               : ""
           }
@@ -481,19 +482,19 @@ function buildQuoteEmailHtml({ shipment, quote, approveInstruction }) {
             <div style="text-align:right;">
               <div style="color:${BRAND.colours.muted};">Subtotal</div>
               <div style="font-weight:800;">${escapeHtml(
-                formatCurrency(quote.subtotal, quote.currency)
+                formatCurrency(quote.subtotal, quote.currency),
               )}</div>
             </div>
             <div style="text-align:right;">
               <div style="color:${BRAND.colours.muted};">Tax</div>
               <div style="font-weight:800;">${escapeHtml(
-                formatCurrency(quote.taxTotal, quote.currency)
+                formatCurrency(quote.taxTotal, quote.currency),
               )}</div>
             </div>
             <div style="text-align:right;">
               <div style="color:${BRAND.colours.muted};">Total</div>
               <div style="font-weight:900;font-size:16px;">${escapeHtml(
-                formatCurrency(quote.total, quote.currency)
+                formatCurrency(quote.total, quote.currency),
               )}</div>
             </div>
           </div>
@@ -712,12 +713,15 @@ async function createPublicLeadShipment(req, res) {
     const shipperPhone = String(payload?.shipper?.phone || "").trim();
 
     if (!payload.requestor) payload.requestor = {};
-    if (!payload.requestor.name && shipperName)
+    if (!payload.requestor.name && shipperName) {
       payload.requestor.name = shipperName;
-    if (!payload.requestor.email && shipperEmail)
+    }
+    if (!payload.requestor.email && shipperEmail) {
       payload.requestor.email = shipperEmail;
-    if (!payload.requestor.phone && shipperPhone)
+    }
+    if (!payload.requestor.phone && shipperPhone) {
       payload.requestor.phone = shipperPhone;
+    }
 
     // Defensive: mark meta lead stage
     payload.meta = payload.meta || {};
@@ -725,6 +729,44 @@ async function createPublicLeadShipment(req, res) {
     payload.meta.source = payload.meta.source || "web_quote";
 
     const shipment = await Shipment.create(payload);
+
+    // Create/find lightweight pending user so welcome/invite flow can run
+    const requestorName = String(
+      payload?.requestor?.name || payload?.shipper?.name || "",
+    ).trim();
+
+    const requestorEmail = String(
+      payload?.requestor?.email || payload?.shipper?.email || "",
+    )
+      .trim()
+      .toLowerCase();
+
+    const requestorPhone = String(
+      payload?.requestor?.phone || payload?.shipper?.phone || "",
+    ).trim();
+
+    const requestorAddress = String(
+      payload?.shipper?.address || "To be confirmed",
+    ).trim();
+
+    // Go-live-safe default until public quote captures country explicitly
+    const requestorCountry = "United Kingdom";
+
+    if (requestorEmail) {
+      const existingUser = await User.findOne({ email: requestorEmail });
+
+      if (!existingUser) {
+        await User.create({
+          fullname: requestorName || "Customer",
+          email: requestorEmail,
+          phone: requestorPhone || "To be confirmed",
+          country: requestorCountry,
+          address: requestorAddress || "To be confirmed",
+          status: "pending",
+          welcomeMailSent: false,
+        });
+      }
+    }
 
     return res.status(201).json({
       message: "Lead request created successfully.",
@@ -789,7 +831,7 @@ async function getAllShipments(req, res) {
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(
       Math.max(parseInt(req.query.limit, 10) || 200, 1),
-      500
+      500,
     );
     const skip = (page - 1) * limit;
 
@@ -916,8 +958,8 @@ async function updateCharges(req, res) {
     const incoming = Array.isArray(req.body)
       ? req.body
       : Array.isArray(req.body?.charges)
-      ? req.body.charges
-      : [];
+        ? req.body.charges
+        : [];
 
     const charges = normalizeCharges(incoming);
 
@@ -1177,7 +1219,7 @@ async function saveQuote(req, res) {
 
     // Must have at least one labelled line
     const hasAnyLabel = incomingLineItems.some((li) =>
-      String(li?.label || "").trim()
+      String(li?.label || "").trim(),
     );
     if (!hasAnyLabel) {
       return res.status(400).json({
@@ -1207,7 +1249,7 @@ async function saveQuote(req, res) {
         unitPrice: toNumber(li.unitPrice, 0),
         amount: toNumber(
           li.amount,
-          toNumber(li.qty, 1) * toNumber(li.unitPrice, 0)
+          toNumber(li.qty, 1) * toNumber(li.unitPrice, 0),
         ),
         taxRate: toNumber(li.taxRate, 0),
       })),
@@ -1223,7 +1265,7 @@ async function saveQuote(req, res) {
     // ✅ Sync charges[] from quote lineItems (Option A)
     shipment.charges = quoteLineItemsToCharges(
       shipment.quote.lineItems,
-      currency
+      currency,
     );
 
     // Optional: bump status from request_received -> under_review on first draft save
@@ -1280,7 +1322,7 @@ async function sendQuoteEmail(req, res) {
     shipment.quote.total = computed.total;
 
     const customerEmail = String(
-      req.body?.toEmail || shipment.shipper?.email || ""
+      req.body?.toEmail || shipment.shipper?.email || "",
     ).trim();
 
     if (!customerEmail) {
@@ -1314,7 +1356,7 @@ async function sendQuoteEmail(req, res) {
       "",
       `Route: ${origin} -> ${destination}`,
       `Total: ${shipment.quote?.currency || "GBP"} ${toMoney(
-        shipment.quote?.total || 0
+        shipment.quote?.total || 0,
       ).toFixed(2)}`,
       validUntil ? `Quote valid until: ${validUntil}` : "",
       "",
@@ -1455,7 +1497,7 @@ async function sendBookingConfirmationEmail(req, res) {
     }
 
     const customerEmail = String(
-      req.body?.toEmail || shipment.shipper?.email || ""
+      req.body?.toEmail || shipment.shipper?.email || "",
     ).trim();
 
     if (!customerEmail) {
@@ -1579,7 +1621,7 @@ async function getDashboardStats(req, res) {
         .sort({ createdAt: -1 })
         .limit(5)
         .select(
-          "referenceNo status mode ports.originPort ports.destinationPort createdAt"
+          "referenceNo status mode ports.originPort ports.destinationPort createdAt",
         )
         .lean(),
 
@@ -1620,7 +1662,7 @@ async function getDashboardStats(req, res) {
         .sort({ createdAt: -1 })
         .limit(500)
         .select(
-          "referenceNo status mode createdAt ports.originPort ports.destinationPort consignee.name shipper.name charges"
+          "referenceNo status mode createdAt ports.originPort ports.destinationPort consignee.name shipper.name charges",
         )
         .lean(),
     ]);
@@ -1667,7 +1709,7 @@ async function getDashboardStats(req, res) {
       const chargesArr = Array.isArray(s.charges) ? s.charges : [];
       const amountTotal = chargesArr.reduce(
         (sum, c) => sum + (Number(c.amount) || 0),
-        0
+        0,
       );
       const currency = chargesArr.find((c) => c?.currency)?.currency || "GBP";
 
