@@ -10,7 +10,10 @@ dotenv.config();
 const sendWelcomeMail = async () => {
   try {
     // Find new users who haven't received welcome mail yet
-    const users = await User.find({ welcomeMailSent: false, status: "pending" });
+    const users = await User.find({
+      welcomeMailSent: false,
+      status: "pending",
+    });
 
     if (users.length === 0) {
       console.log("ℹ️ No new users to send welcome mail to.");
@@ -19,11 +22,9 @@ const sendWelcomeMail = async () => {
 
     for (let user of users) {
       // Generate a secure, time-limited token (valid for 24h)
-      const token = jwt.sign(
-        { id: user._id },
-        process.env.JWT_SECRET,
-        { expiresIn: "24h" }
-      );
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+        expiresIn: "24h",
+      });
 
       // Build secure reset link
       const setPasswordUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password/${token}`;
@@ -34,16 +35,17 @@ const sendWelcomeMail = async () => {
         {
           fullname: user.fullname,
           email: user.email,
-          setPasswordUrl
-        }
+          setPasswordUrl,
+        },
       );
 
       // Send mail via Gmail
       await dispatchMail({
-        from: process.env.EMAIL,
+        from: process.env.EMAIL_FROM,
+        replyTo: process.env.EMAIL_REPLY_TO,
         to: user.email,
         subject: "Welcome to Ellcworth",
-        html
+        html,
       });
 
       console.log(`✅ Welcome mail sent to ${user.email}`);
@@ -51,7 +53,7 @@ const sendWelcomeMail = async () => {
       // Update user so we don’t resend
       await User.updateOne(
         { _id: user._id },
-        { $set: { welcomeMailSent: true, status: "active" } }
+        { $set: { welcomeMailSent: true, status: "active" } },
       );
     }
   } catch (err) {
