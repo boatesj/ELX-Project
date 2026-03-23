@@ -27,7 +27,8 @@ const sendWelcomeMail = async () => {
       });
 
       // Build secure reset link
-      const setPasswordUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/reset-password/${token}`;
+      console.log("CLIENT_URL at runtime:", process.env.CLIENT_URL);
+      const setPasswordUrl = `${process.env.CLIENT_URL || "http://localhost:5173"}/#/auth/reset-password/${token}`;
 
       // Render welcome email with link
       const html = await ejs.renderFile(
