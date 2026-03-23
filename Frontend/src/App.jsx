@@ -15,6 +15,7 @@ import ShipmentDetails from "@/pages/customer/ShipmentDetails.jsx";
 import NewBooking from "@/pages/customer/NewBooking.jsx";
 import EditBooking from "@/pages/customer/EditBooking.jsx";
 import RequireCustomerAuth from "@/components/auth/RequireCustomerAuth.jsx";
+import ResetPassword from "@/pages/auth/ResetPassword.jsx";
 
 const router = createBrowserRouter([
   {
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
 
       // Auth
       { path: "login", element: <CustomerLogin /> },
+      { path: "auth/reset-password/:token", element: <ResetPassword /> },
 
       // Customer (protected)
       {
