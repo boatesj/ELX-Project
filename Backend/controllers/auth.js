@@ -321,12 +321,18 @@ const requestPasswordReset = async (req, res) => {
   try {
     const { token } = req.params;
 
+    console.log("RESET DEBUG VERSION 2 - GET");
     console.log("GET /reset-password hit");
     console.log("GET token exists:", Boolean(token));
     console.log("GET token preview:", String(token || "").slice(0, 25));
-    console.log("GET jwt secret exists:", Boolean(jwtSecret()));
 
-    const secret = jwtSecret();
+    const secret = jwtSecret() || "";
+    console.log("GET jwt secret exists:", Boolean(secret));
+    console.log(
+      "BE JWT fingerprint:",
+      crypto.createHash("sha256").update(secret).digest("hex").slice(0, 12),
+    );
+
     if (!secret) throw new Error("JWT secret not configured");
 
     const decoded = jwt.verify(token, secret);
@@ -347,6 +353,7 @@ const resetPassword = async (req, res) => {
     const { token } = req.params;
     const { password } = req.body;
 
+    console.log("RESET DEBUG VERSION 2 - POST");
     console.log("POST /reset-password hit");
     console.log("POST token exists:", Boolean(token));
     console.log("POST token preview:", String(token || "").slice(0, 25));
