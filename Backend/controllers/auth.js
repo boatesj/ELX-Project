@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs"); // kept (used elsewhere / harmless if unused
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { createLog } = require("../utils/createLog");
+const crypto = require("crypto");
 
 // Unified secret helper (matches your other files)
 function jwtSecret() {
@@ -350,13 +351,18 @@ const resetPassword = async (req, res) => {
     console.log("POST token exists:", Boolean(token));
     console.log("POST token preview:", String(token || "").slice(0, 25));
     console.log("POST password exists:", Boolean(password));
-    console.log("POST jwt secret exists:", Boolean(jwtSecret()));
 
     if (!password) {
       return res.status(400).json({ message: "Password is required" });
     }
 
-    const secret = jwtSecret();
+    const secret = jwtSecret() || "";
+    console.log("POST jwt secret exists:", Boolean(secret));
+    console.log(
+      "BE JWT fingerprint:",
+      crypto.createHash("sha256").update(secret).digest("hex").slice(0, 12),
+    );
+
     if (!secret) throw new Error("JWT secret not configured");
 
     const decoded = jwt.verify(token, secret);
