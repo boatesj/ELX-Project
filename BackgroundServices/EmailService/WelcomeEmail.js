@@ -33,7 +33,14 @@ const sendWelcomeMail = async () => {
           .slice(0, 12),
       );
 
-      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      const secret = process.env.JWT_SECRET || process.env.JWT_SEC || "";
+      console.log(
+        "BG JWT fingerprint:",
+        crypto.createHash("sha256").update(secret).digest("hex").slice(0, 12),
+      );
+      if (!secret) throw new Error("JWT secret not configured");
+
+      const token = jwt.sign({ id: user._id }, secret, {
         expiresIn: "24h",
       });
 
