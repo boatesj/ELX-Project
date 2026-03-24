@@ -4,6 +4,7 @@ const dotenv = require("dotenv");
 const jwt = require("jsonwebtoken");
 const { dispatchMail } = require("../helpers/sendmail"); // Gmail transporter
 const User = require("../models/User");
+const crypto = require("crypto");
 
 dotenv.config();
 
@@ -22,6 +23,16 @@ const sendWelcomeMail = async () => {
 
     for (let user of users) {
       // Generate a secure, time-limited token (valid for 24h)
+      const jwtSecret = process.env.JWT_SECRET || "";
+      console.log(
+        "BG JWT fingerprint:",
+        crypto
+          .createHash("sha256")
+          .update(jwtSecret)
+          .digest("hex")
+          .slice(0, 12),
+      );
+
       const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
         expiresIn: "24h",
       });
