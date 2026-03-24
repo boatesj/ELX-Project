@@ -74,7 +74,7 @@ const registerUser = async (req, res) => {
           action: "User registered",
           ref: normalizedEmail,
           meta: { ip: req.ip, ua: req.headers["user-agent"] },
-        }
+        },
       );
     } catch (_) {}
 
@@ -103,7 +103,7 @@ const loginUser = async (req, res) => {
 
     const normalizedEmail = String(email).toLowerCase().trim();
     const user = await User.findOne({ email: normalizedEmail }).select(
-      "+password"
+      "+password",
     );
 
     if (!user) {
@@ -120,7 +120,7 @@ const loginUser = async (req, res) => {
             action: "Login failed (unknown email)",
             ref: normalizedEmail,
             meta: { ip: req.ip, ua: req.headers["user-agent"] },
-          }
+          },
         );
       } catch (_) {}
       return res.status(401).json({ message: "Invalid credentials." });
@@ -141,7 +141,7 @@ const loginUser = async (req, res) => {
             action: "Login failed (invalid password)",
             ref: user.email,
             meta: { ip: req.ip, ua: req.headers["user-agent"] },
-          }
+          },
         );
       } catch (_) {}
       return res.status(401).json({ message: "Invalid credentials." });
@@ -160,7 +160,7 @@ const loginUser = async (req, res) => {
           action: "Login success",
           ref: user.email,
           meta: { ip: req.ip, ua: req.headers["user-agent"] },
-        }
+        },
       );
     } catch (_) {}
 
@@ -197,7 +197,7 @@ const customerLoginUser = async (req, res) => {
 
     const normalizedEmail = String(email).toLowerCase().trim();
     const user = await User.findOne({ email: normalizedEmail }).select(
-      "+password"
+      "+password",
     );
 
     if (!user) {
@@ -214,7 +214,7 @@ const customerLoginUser = async (req, res) => {
             action: "Customer login failed (unknown email)",
             ref: normalizedEmail,
             meta: { ip: req.ip, ua: req.headers["user-agent"] },
-          }
+          },
         );
       } catch (_) {}
       return res
@@ -237,7 +237,7 @@ const customerLoginUser = async (req, res) => {
             action: "Customer login blocked (admin attempted customer portal)",
             ref: user.email,
             meta: { ip: req.ip, ua: req.headers["user-agent"] },
-          }
+          },
         );
       } catch (_) {}
       return res.status(403).json({
@@ -261,7 +261,7 @@ const customerLoginUser = async (req, res) => {
             action: "Customer login failed (invalid password)",
             ref: user.email,
             meta: { ip: req.ip, ua: req.headers["user-agent"] },
-          }
+          },
         );
       } catch (_) {}
       return res
@@ -294,7 +294,7 @@ const customerLoginUser = async (req, res) => {
           action: "Customer login success",
           ref: user.email,
           meta: { ip: req.ip, ua: req.headers["user-agent"] },
-        }
+        },
       );
     } catch (_) {}
 
@@ -320,12 +320,20 @@ const requestPasswordReset = async (req, res) => {
   try {
     const { token } = req.params;
 
+    console.log("GET /reset-password hit");
+    console.log("GET token exists:", Boolean(token));
+    console.log("GET token preview:", String(token || "").slice(0, 25));
+    console.log("GET jwt secret exists:", Boolean(jwtSecret()));
+
     const secret = jwtSecret();
     if (!secret) throw new Error("JWT secret not configured");
 
     const decoded = jwt.verify(token, secret);
+    console.log("GET decoded user id:", decoded?.id);
+
     return res.status(200).json({ valid: true, userId: decoded.id });
   } catch (err) {
+    console.log("GET reset verify error:", err.name, err.message);
     return res
       .status(400)
       .json({ valid: false, message: "Invalid or expired token" });
@@ -338,6 +346,12 @@ const resetPassword = async (req, res) => {
     const { token } = req.params;
     const { password } = req.body;
 
+    console.log("POST /reset-password hit");
+    console.log("POST token exists:", Boolean(token));
+    console.log("POST token preview:", String(token || "").slice(0, 25));
+    console.log("POST password exists:", Boolean(password));
+    console.log("POST jwt secret exists:", Boolean(jwtSecret()));
+
     if (!password) {
       return res.status(400).json({ message: "Password is required" });
     }
@@ -346,36 +360,23 @@ const resetPassword = async (req, res) => {
     if (!secret) throw new Error("JWT secret not configured");
 
     const decoded = jwt.verify(token, secret);
+    console.log("POST decoded user id:", decoded?.id);
 
     const user = await User.findById(decoded.id).select("+password");
+    console.log("POST user found:", Boolean(user));
+
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    user.password = password; // pre-save hook hashes it
+    user.password = password;
     user.status = "active";
     user.welcomeMailSent = true;
     await user.save();
-
-    try {
-      await createLog(
-        makeAuthLogReq({
-          userId: user._id,
-          role: user.role,
-          ip: req.ip,
-          ua: req.headers["user-agent"],
-        }),
-        {
-          type: "auth",
-          action: "Password reset completed",
-          ref: user.email,
-          meta: { ip: req.ip, ua: req.headers["user-agent"] },
-        }
-      );
-    } catch (_) {}
 
     return res.status(200).json({
       message: "Password has been set successfully. You can now login.",
     });
   } catch (err) {
+    console.log("POST reset verify error:", err.name, err.message);
     return res.status(400).json({ message: "Invalid or expired token" });
   }
 };
