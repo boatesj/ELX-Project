@@ -14,6 +14,7 @@ const {
   addDocument,
   updateStatus,
   getDashboardStats,
+  respondToQuote,
 
   // ✅ NEW quote handlers
   saveQuote,
@@ -56,7 +57,7 @@ router.post(
   "/public-request",
   validateShipmentCreate,
   handleValidation,
-  createPublicLeadShipment
+  createPublicLeadShipment,
 );
 
 /**
@@ -69,7 +70,7 @@ router.post(
   requireAuth,
   validateShipmentCreate,
   handleValidation,
-  createShipment
+  createShipment,
 );
 
 /**
@@ -120,7 +121,7 @@ router.get("/track/:ref", async (req, res) => {
           "trackingEvents.meta",
           "createdAt",
           "updatedAt",
-        ].join(" ")
+        ].join(" "),
       )
       .lean();
 
@@ -163,7 +164,7 @@ router.get(
   requireAuth,
   validateObjectIdParam("id"),
   handleValidation,
-  getOneShipment
+  getOneShipment,
 );
 
 /**
@@ -178,7 +179,7 @@ router.patch(
   requireRole("admin"),
   validateObjectIdParam("id"),
   handleValidation,
-  updateCharges
+  updateCharges,
 );
 
 /**
@@ -193,7 +194,7 @@ router.patch(
   requireRole("admin"),
   validateObjectIdParam("id"),
   handleValidation,
-  saveQuote
+  saveQuote,
 );
 
 /**
@@ -208,7 +209,21 @@ router.post(
   requireRole("admin"),
   validateObjectIdParam("id"),
   handleValidation,
-  sendQuoteEmail
+  sendQuoteEmail,
+);
+
+/**
+ * ✅ NEW
+ * @route   PATCH /shipments/:id/quote/respond
+ * @desc    Customer approves quote or requests changes
+ * @access  Auth
+ */
+router.patch(
+  "/:id/quote/respond",
+  requireAuth,
+  validateObjectIdParam("id"),
+  handleValidation,
+  respondToQuote,
 );
 
 /**
@@ -223,7 +238,7 @@ router.post(
   requireRole("admin"),
   validateObjectIdParam("id"),
   handleValidation,
-  sendBookingConfirmationEmail
+  sendBookingConfirmationEmail,
 );
 
 /**
@@ -236,7 +251,7 @@ router.put(
   requireAuth,
   validateObjectIdParam("id"),
   handleValidation,
-  updateShipment
+  updateShipment,
 );
 
 /**
@@ -249,7 +264,7 @@ router.delete(
   requireAuth,
   validateObjectIdParam("id"),
   handleValidation,
-  deleteShipment
+  deleteShipment,
 );
 
 /**
@@ -264,7 +279,7 @@ router.post(
   validateObjectIdParam("id"),
   validateTrackingEvent,
   handleValidation,
-  addTrackingEvent
+  addTrackingEvent,
 );
 
 /**
@@ -279,7 +294,7 @@ router.post(
   validateObjectIdParam("id"),
   validateDocument,
   handleValidation,
-  addDocument
+  addDocument,
 );
 
 /**
@@ -293,7 +308,7 @@ router.patch(
   requireRole("admin"),
   validateObjectIdParam("id"),
   handleValidation,
-  updateStatus
+  updateStatus,
 );
 
 module.exports = router;
