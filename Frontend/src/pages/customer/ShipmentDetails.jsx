@@ -17,12 +17,27 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { customerAuthRequest, CUSTOMER_TOKEN_KEY } from "@/requestMethods";
 
 const SHIPMENT_PATH = (id) => `/shipments/${id}`;
+const QUOTE_RESPONSE_PATH = (id) => `/shipments/${id}/quote/respond`;
 
 const getStatusClasses = (status) => {
   const s = String(status || "").toLowerCase();
+
+  if (["quoted", "quote_sent", "quote_ready"].includes(s)) {
+    return "bg-[#FFA500]/15 text-[#A16207] border border-[#FFA500]/40";
+  }
+
+  if (["customer_requested_changes"].includes(s)) {
+    return "bg-amber-500/15 text-amber-700 border border-amber-500/40";
+  }
+
+  if (["customer_approved", "quote_accepted"].includes(s)) {
+    return "bg-emerald-500/15 text-emerald-700 border border-emerald-500/40";
+  }
+
   if (s === "booked") {
     return "bg-[#FFA500]/15 text-[#FFA500] border border-[#FFA500]/50";
   }
+
   if (
     ["at_origin_yard", "loaded", "sailed", "in transit", "in_transit"].includes(
       s,
@@ -30,12 +45,15 @@ const getStatusClasses = (status) => {
   ) {
     return "bg-[#9A9EAB]/20 text-[#1A2930] border border-[#9A9EAB]/60";
   }
+
   if (["arrived", "cleared", "delivered"].includes(s)) {
-    return "bg-emerald-500/15 text-emerald-300 border border-emerald-500/50";
+    return "bg-emerald-500/15 text-emerald-700 border border-emerald-500/40";
   }
+
   if (s === "cancelled") {
     return "bg-red-500/15 text-red-600 border border-red-500/40";
   }
+
   return "bg-gray-100 text-gray-700 border border-gray-300";
 };
 
@@ -91,6 +109,20 @@ function toDisplayDate(val) {
     });
   } catch {
     return String(val);
+  }
+}
+
+function toMoney(value, currency = "GBP") {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "—";
+  try {
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency: String(currency || "GBP").toUpperCase(),
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${currency || "GBP"}`;
   }
 }
 
@@ -171,6 +203,7 @@ function canActOnDoc(doc) {
   const url = String(doc?.fileUrl || "").trim();
   return url.length > 0;
 }
+
 function getDocUrl(doc) {
   return String(doc?.fileUrl || "").trim();
 }
@@ -359,6 +392,11 @@ const ShipmentDetails = () => {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState("");
 
+  const [quoteMessage, setQuoteMessage] = useState("");
+  const [quoteBusy, setQuoteBusy] = useState(false);
+  const [quoteOkMsg, setQuoteOkMsg] = useState("");
+  const [quoteErrMsg, setQuoteErrMsg] = useState("");
+
   useEffect(() => {
     const onStorage = () => {
       const local = localStorage.getItem(CUSTOMER_TOKEN_KEY);
@@ -404,8 +442,9 @@ const ShipmentDetails = () => {
           e?.name === "CanceledError" ||
           e?.name === "AbortError" ||
           e?.code === "ERR_CANCELED"
-        )
+        ) {
           return;
+        }
 
         const status = e?.response?.status;
 
@@ -449,6 +488,135 @@ const ShipmentDetails = () => {
   const documents = Array.isArray(shipment?.documents)
     ? shipment.documents
     : [];
+
+  const quote =
+    shipment?.quote && typeof shipment.quote === "object"
+      ? shipment.quote
+      : null;
+
+  const quoteCurrency = String(quote?.currency || "GBP").trim() || "GBP";
+  const quoteLineItems = Array.isArray(quote?.lineItems) ? quote.lineItems : [];
+  const quoteSubtotal = quote?.subtotal;
+  const quoteTaxTotal = quote?.taxTotal;
+  const quoteTotal = quote?.total;
+  const quoteValidUntil = quote?.validUntil
+    ? toDisplayDate(quote.validUntil)
+    : "";
+  const quoteNotes = String(quote?.notes || "").trim();
+
+  const statusLower = String(status || "").toLowerCase();
+
+  const canApproveQuote = ["quoted", "customer_requested_changes"].includes(
+    statusLower,
+  );
+
+  const hasApprovedQuote = [
+    "customer_approved",
+    "quote_accepted",
+    "booked",
+  ].includes(statusLower);
+
+  const fetchShipment = async () => {
+    const res = await customerAuthRequest.get(SHIPMENT_PATH(id));
+    const payload = res?.data ?? {};
+    const picked = pickShipment(payload);
+    if (picked) setShipment(picked);
+  };
+
+  const handleApproveQuote = async () => {
+    if (!canApproveQuote || quoteBusy) return;
+
+    setQuoteBusy(true);
+    setQuoteErrMsg("");
+    setQuoteOkMsg("");
+
+    try {
+      const payload = {
+        action: "approve",
+        response: "approve",
+        decision: "approve",
+        approve: true,
+        message: String(quoteMessage || "").trim(),
+        comments: String(quoteMessage || "").trim(),
+      };
+
+      const res = await customerAuthRequest.patch(
+        QUOTE_RESPONSE_PATH(id),
+        payload,
+      );
+
+      const maybeShipment = pickShipment(res?.data ?? {});
+      if (maybeShipment) {
+        setShipment(maybeShipment);
+      } else {
+        await fetchShipment();
+      }
+
+      setQuoteOkMsg(
+        "Thank you. Your quote approval has been sent to Ellcworth Operations.",
+      );
+      setQuoteMessage("");
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message ||
+        e?.response?.data?.error ||
+        "We couldn’t submit your approval just now. Please try again.";
+
+      setQuoteErrMsg(msg);
+      console.error("Approve quote error:", e);
+    } finally {
+      setQuoteBusy(false);
+    }
+  };
+
+  const handleRequestChanges = async () => {
+    const trimmed = String(quoteMessage || "").trim();
+
+    if (!canApproveQuote || quoteBusy || !trimmed) return;
+
+    setQuoteBusy(true);
+    setQuoteErrMsg("");
+    setQuoteOkMsg("");
+
+    try {
+      const payload = {
+        action: "request_changes",
+        response: "request_changes",
+        decision: "request_changes",
+        approve: false,
+        message: trimmed,
+        comments: trimmed,
+        requestedChanges: trimmed,
+      };
+
+      const res = await customerAuthRequest.patch(
+        QUOTE_RESPONSE_PATH(id),
+        payload,
+      );
+
+      const maybeShipment = pickShipment(res?.data ?? {});
+      if (maybeShipment) {
+        setShipment(maybeShipment);
+      } else {
+        await fetchShipment();
+      }
+
+      setQuoteOkMsg(
+        "Your requested changes have been sent to Ellcworth Operations.",
+      );
+      setQuoteMessage("");
+    } catch (e) {
+      const msg =
+        e?.response?.data?.message ||
+        e?.response?.data?.error ||
+        "We couldn’t submit your request right now. Please try again.";
+
+      setQuoteErrMsg(msg);
+      console.error("Request quote changes error:", e);
+    } finally {
+      setQuoteBusy(false);
+    }
+  };
 
   const handleViewDoc = (doc) => {
     const url = getDocUrl(doc);
@@ -562,6 +730,236 @@ const ShipmentDetails = () => {
           </div>
 
           <div className="px-5 py-5 space-y-6">
+            {/* Quote response */}
+            {quote || canApproveQuote || hasApprovedQuote ? (
+              <div className="bg-[#F9FAFB] rounded-lg border border-[#E5E7EB] overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#E5E7EB] bg-white">
+                  <p className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#9A9EAB]">
+                    Quote response
+                  </p>
+                  <p className="text-xs md:text-sm text-slate-600 mt-1">
+                    Review the quotation details below. You can approve the
+                    quote or request adjustments before Ellcworth confirms
+                    booking.
+                  </p>
+                </div>
+
+                <div className="p-4 space-y-4">
+                  {quote ? (
+                    <div className="bg-white rounded-lg border border-[#E5E7EB] overflow-hidden">
+                      <div className="px-4 py-3 border-b border-[#E5E7EB] bg-[#F9FAFB] flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                        <div className="text-sm font-semibold text-[#1A2930]">
+                          Current quotation
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {quoteValidUntil
+                            ? `Valid until: ${quoteValidUntil}`
+                            : "Validity: —"}
+                        </div>
+                      </div>
+
+                      <div className="p-4 space-y-4">
+                        {quoteLineItems.length > 0 ? (
+                          <div className="rounded-lg border border-[#E5E7EB] overflow-hidden">
+                            <div className="grid grid-cols-12 gap-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 bg-[#F9FAFB] border-b border-[#E5E7EB]">
+                              <div className="col-span-5">Item</div>
+                              <div className="col-span-2 text-right">Qty</div>
+                              <div className="col-span-2 text-right">Unit</div>
+                              <div className="col-span-3 text-right">
+                                Amount
+                              </div>
+                            </div>
+
+                            {quoteLineItems.map((item, index) => {
+                              const label = String(
+                                item?.label || `Item ${index + 1}`,
+                              ).trim();
+                              const qty = Number(item?.qty ?? 1);
+                              const unitPrice = Number(item?.unitPrice ?? 0);
+                              const amount =
+                                item?.amount !== undefined &&
+                                item?.amount !== null
+                                  ? Number(item.amount)
+                                  : qty * unitPrice;
+
+                              return (
+                                <div
+                                  key={`${label}-${index}`}
+                                  className="grid grid-cols-12 gap-2 px-4 py-3 text-sm border-b border-[#E5E7EB] last:border-b-0"
+                                >
+                                  <div className="col-span-5 text-[#1A2930] font-medium">
+                                    {label}
+                                  </div>
+                                  <div className="col-span-2 text-right text-slate-600">
+                                    {Number.isFinite(qty) ? qty : "—"}
+                                  </div>
+                                  <div className="col-span-2 text-right text-slate-600">
+                                    {toMoney(unitPrice, quoteCurrency)}
+                                  </div>
+                                  <div className="col-span-3 text-right text-[#1A2930] font-semibold">
+                                    {toMoney(amount, quoteCurrency)}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-dashed border-[#D1D5DB] bg-[#F9FAFB] p-4 text-xs md:text-sm text-slate-600">
+                            Line items were not included in the saved quote, but
+                            the total below is available.
+                          </div>
+                        )}
+
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <div className="rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500 font-semibold">
+                              Subtotal
+                            </p>
+                            <p className="mt-1 text-base font-semibold text-[#1A2930]">
+                              {toMoney(quoteSubtotal, quoteCurrency)}
+                            </p>
+                          </div>
+
+                          <div className="rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500 font-semibold">
+                              Tax
+                            </p>
+                            <p className="mt-1 text-base font-semibold text-[#1A2930]">
+                              {toMoney(quoteTaxTotal, quoteCurrency)}
+                            </p>
+                          </div>
+
+                          <div className="rounded-lg border border-[#FFA500]/30 bg-[#FFA500]/10 px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.14em] text-[#A16207] font-semibold">
+                              Total
+                            </p>
+                            <p className="mt-1 text-lg font-bold text-[#1A2930]">
+                              {toMoney(quoteTotal, quoteCurrency)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {quoteNotes ? (
+                          <div className="rounded-lg border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.14em] text-slate-500 font-semibold mb-1">
+                              Notes
+                            </p>
+                            <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                              {quoteNotes}
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {quoteOkMsg ? (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                      {quoteOkMsg}
+                    </div>
+                  ) : null}
+
+                  {quoteErrMsg ? (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {quoteErrMsg}
+                    </div>
+                  ) : null}
+
+                  {canApproveQuote ? (
+                    <div className="bg-white rounded-lg border border-[#E5E7EB] p-4">
+                      <div className="flex items-start gap-3">
+                        <FaInfoCircle className="mt-0.5 text-[#FFA500]" />
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-[#1A2930]">
+                            Respond to this quotation
+                          </p>
+                          <p className="mt-1 text-xs md:text-sm text-slate-600">
+                            Approve if everything looks right, or request
+                            changes if you need Ellcworth to revise the quote
+                            first.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-3">
+                        <textarea
+                          value={quoteMessage}
+                          onChange={(e) => {
+                            setQuoteMessage(e.target.value);
+                            if (quoteErrMsg) setQuoteErrMsg("");
+                            if (quoteOkMsg) setQuoteOkMsg("");
+                          }}
+                          rows={4}
+                          maxLength={1200}
+                          placeholder="Optional note for approval, or describe the changes you need..."
+                          className="w-full text-sm border border-[#D1D5DB] rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500] bg-white"
+                        />
+
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                          <p className="text-[11px] text-slate-400">
+                            Tip: if requesting changes, briefly explain what
+                            needs to be adjusted.
+                          </p>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={handleRequestChanges}
+                              disabled={
+                                quoteBusy || !String(quoteMessage).trim()
+                              }
+                              className={`
+                                px-4 py-2 rounded-full text-xs md:text-sm font-semibold border transition
+                                ${
+                                  quoteBusy || !String(quoteMessage).trim()
+                                    ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                                    : "bg-white text-[#1A2930] border-[#1A2930]/30 hover:border-[#FFA500] hover:text-[#FFA500]"
+                                }
+                              `}
+                            >
+                              {quoteBusy ? "Sending..." : "Request changes"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleApproveQuote}
+                              disabled={quoteBusy}
+                              className={`
+                                px-4 py-2 rounded-full text-xs md:text-sm font-semibold transition
+                                ${
+                                  quoteBusy
+                                    ? "bg-[#9A9EAB] text-white cursor-not-allowed"
+                                    : "bg-[#1A2930] text-white hover:bg-[#FFA500] hover:text-[#1A2930]"
+                                }
+                              `}
+                            >
+                              {quoteBusy ? "Sending..." : "Approve quote"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : hasApprovedQuote ? (
+                    <div className="bg-white rounded-lg border border-emerald-200 p-4">
+                      <div className="flex items-start gap-3">
+                        <FaCheckCircle className="mt-0.5 text-emerald-600" />
+                        <div>
+                          <p className="text-sm font-semibold text-[#1A2930]">
+                            Quote already approved
+                          </p>
+                          <p className="mt-1 text-xs md:text-sm text-slate-600">
+                            Your approval has been recorded. Ellcworth
+                            Operations will continue with booking and next-step
+                            coordination.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
             {/* Tracking */}
             <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E5E7EB]">
               <div className="flex items-start justify-between gap-4">
