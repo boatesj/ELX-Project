@@ -534,7 +534,7 @@ const ShipmentDetails = () => {
       const payload = {
         action: "approve",
         response: "approve",
-        decision: "approve",
+        decision: "approved",
         approve: true,
         message: String(quoteMessage || "").trim(),
         comments: String(quoteMessage || "").trim(),
@@ -582,7 +582,7 @@ const ShipmentDetails = () => {
       const payload = {
         action: "request_changes",
         response: "request_changes",
-        decision: "request_changes",
+        decision: "requested_changes",
         approve: false,
         message: trimmed,
         comments: trimmed,
