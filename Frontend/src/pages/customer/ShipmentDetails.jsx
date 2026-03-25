@@ -16,7 +16,7 @@ import {
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { customerAuthRequest, CUSTOMER_TOKEN_KEY } from "@/requestMethods";
 
-const SHIPMENT_PATH = (id) => `/api/v1/shipments/${id}`;
+const SHIPMENT_PATH = (id) => `/shipments/${id}`;
 
 const getStatusClasses = (status) => {
   const s = String(status || "").toLowerCase();
@@ -25,7 +25,7 @@ const getStatusClasses = (status) => {
   }
   if (
     ["at_origin_yard", "loaded", "sailed", "in transit", "in_transit"].includes(
-      s
+      s,
     )
   ) {
     return "bg-[#9A9EAB]/20 text-[#1A2930] border border-[#9A9EAB]/60";
@@ -275,22 +275,22 @@ const MilestoneRow = ({ item, isLast }) => {
   const titleColor = done
     ? "text-[#1A2930]"
     : current
-    ? "text-[#1A2930]"
-    : "text-slate-700";
+      ? "text-[#1A2930]"
+      : "text-slate-700";
 
   const metaColor = done
     ? "text-slate-600"
     : current
-    ? "text-slate-600"
-    : "text-slate-500";
+      ? "text-slate-600"
+      : "text-slate-500";
 
   const badge = done ? "Completed" : current ? "In progress" : "Upcoming";
 
   const badgeClass = done
     ? "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20"
     : current
-    ? "bg-[#FFA500]/10 text-[#A16207] border border-[#FFA500]/25"
-    : "bg-slate-500/10 text-slate-700 border border-slate-500/20";
+      ? "bg-[#FFA500]/10 text-[#A16207] border border-[#FFA500]/25"
+      : "bg-slate-500/10 text-slate-700 border border-slate-500/20";
 
   const smallTag = item?.badge ? String(item.badge).trim() : "";
 
@@ -417,7 +417,7 @@ const ShipmentDetails = () => {
 
         setShipment(null);
         setErrMsg(
-          "We couldn’t load this shipment right now. Please go back and try again."
+          "We couldn’t load this shipment right now. Please go back and try again.",
         );
         console.error("ShipmentDetails fetch error:", e);
       } finally {
@@ -430,7 +430,7 @@ const ShipmentDetails = () => {
 
   const timeline = useMemo(
     () => (shipment ? buildTimeline(shipment) : []),
-    [shipment]
+    [shipment],
   );
 
   const reference = shipment?.referenceNo || "—";
