@@ -389,8 +389,25 @@ const resetPassword = async (req, res) => {
       message: "Password has been set successfully. You can now login.",
     });
   } catch (err) {
+    const secret = jwtSecret() || "";
+    const fingerprint = crypto
+      .createHash("sha256")
+      .update(secret)
+      .digest("hex")
+      .slice(0, 12);
+
     console.log("POST reset verify error:", err.name, err.message);
-    return res.status(400).json({ message: "Invalid or expired token" });
+    console.log("BE JWT fingerprint:", fingerprint);
+
+    return res.status(400).json({
+      message: "Invalid or expired token",
+      debug: {
+        version: "reset-v3",
+        errorName: err.name,
+        errorMessage: err.message,
+        jwtFingerprint: fingerprint,
+      },
+    });
   }
 };
 
