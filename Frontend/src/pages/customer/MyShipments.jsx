@@ -7,7 +7,7 @@ const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
 const CUSTOMER_TOKEN_KEY = "elx_customer_token";
 const CUSTOMER_USER_KEY = "elx_customer_user";
 
-const MY_SHIPMENTS_PATH = `/api/v1/shipments/me/list`;
+const MY_SHIPMENTS_PATH = `/shipments/me/list`;
 
 function safeJsonParse(raw) {
   try {
@@ -153,7 +153,7 @@ const MyShipments = () => {
 
         setItems([]);
         setErrMsg(
-          "We couldn’t load your shipments right now. Please refresh and try again."
+          "We couldn’t load your shipments right now. Please refresh and try again.",
         );
         console.error("MyShipments fetch error:", e);
       } finally {
@@ -178,10 +178,10 @@ const MyShipments = () => {
     const arr = Array.isArray(items) ? items : [];
     return [...arr].sort((a, b) => {
       const ad = new Date(
-        a?.createdAt || a?.bookingDate || a?.date || 0
+        a?.createdAt || a?.bookingDate || a?.date || 0,
       ).getTime();
       const bd = new Date(
-        b?.createdAt || b?.bookingDate || b?.date || 0
+        b?.createdAt || b?.bookingDate || b?.date || 0,
       ).getTime();
       return bd - ad;
     });
