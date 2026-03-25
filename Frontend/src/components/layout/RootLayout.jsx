@@ -12,16 +12,22 @@ const RootLayout = () => {
   const isCustomerRoute =
     location.pathname.startsWith("/myshipments") ||
     location.pathname.startsWith("/shipmentdetails") ||
-    location.pathname.startsWith("/allshipments");
+    location.pathname.startsWith("/allshipments") ||
+    location.pathname.startsWith("/editbooking") ||
+    location.pathname.startsWith("/newbooking");
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#EDECEC]">
+    <div
+      className={`min-h-screen flex flex-col ${
+        isCustomerRoute ? "bg-[#1A2930]" : "bg-[#EDECEC]"
+      }`}
+    >
       {isCustomerRoute ? <NavbarCustomer /> : <NavbarPublic />}
 
       <main
         className={`flex-1 ${
           isHome ? "" : "pt-[84px] md:pt-[150px] lg:pt-[160px]"
-        }`}
+        } ${isCustomerRoute ? "bg-[#1A2930]" : ""}`}
       >
         <Outlet />
       </main>
