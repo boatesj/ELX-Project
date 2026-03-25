@@ -3,7 +3,7 @@ import { FaArrowLeft, FaSave } from "react-icons/fa";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { customerAuthRequest, CUSTOMER_TOKEN_KEY } from "@/requestMethods";
 
-const SHIPMENT_PATH = (id) => `/api/v1/shipments/${id}`;
+const SHIPMENT_PATH = (id) => `/shipments/${id}`;
 
 function pickShipment(payload) {
   if (payload && typeof payload === "object") {
@@ -119,7 +119,7 @@ export default function EditBooking() {
         }
 
         setErrMsg(
-          "We couldn’t load this shipment right now. Please go back and try again."
+          "We couldn’t load this shipment right now. Please go back and try again.",
         );
         console.error("EditBooking fetch error:", e);
       } finally {
@@ -134,12 +134,12 @@ export default function EditBooking() {
     // Backend validators require these (based on your 422 output + successful create)
     return Boolean(
       form.shipperName.trim() &&
-        form.shipperAddress.trim() &&
-        form.shipperEmail.trim() &&
-        form.consigneeName.trim() &&
-        form.consigneeAddress.trim() &&
-        form.originPort.trim() &&
-        form.destinationPort.trim()
+      form.shipperAddress.trim() &&
+      form.shipperEmail.trim() &&
+      form.consigneeName.trim() &&
+      form.consigneeAddress.trim() &&
+      form.originPort.trim() &&
+      form.destinationPort.trim(),
     );
   }, [form]);
 
