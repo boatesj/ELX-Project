@@ -3,7 +3,7 @@ import { FaArrowLeft, FaCheckCircle, FaShip, FaTruck } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { customerAuthRequest } from "@/requestMethods";
 
-const CREATE_SHIPMENT_PATH = "/api/v1/shipments";
+const CREATE_SHIPMENT_PATH = "/shipments";
 
 /**
  * Backend validator requires mode to be one of:
@@ -68,18 +68,18 @@ export default function NewBooking() {
 
   const canSubmit = useMemo(() => {
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
-      String(form.shipperEmail || "").trim()
+      String(form.shipperEmail || "").trim(),
     );
 
     return Boolean(
       form.mode &&
-        form.shipperName.trim() &&
-        form.shipperAddress.trim() &&
-        emailOk &&
-        form.consigneeName.trim() &&
-        form.consigneeAddress.trim() &&
-        form.originPort.trim() &&
-        form.destinationPort.trim()
+      form.shipperName.trim() &&
+      form.shipperAddress.trim() &&
+      emailOk &&
+      form.consigneeName.trim() &&
+      form.consigneeAddress.trim() &&
+      form.originPort.trim() &&
+      form.destinationPort.trim(),
     );
   }, [form]);
 
