@@ -703,7 +703,7 @@ async function createPublicLeadShipment(req, res) {
     payload.status = payload.status || "request_received";
     payload.paymentStatus = payload.paymentStatus || "unpaid";
 
-    // Never assign ownership/createdBy for public lead requests
+    // Public leads should not set createdBy
     delete payload.customer;
     delete payload.createdBy;
 
@@ -727,13 +727,6 @@ async function createPublicLeadShipment(req, res) {
     payload.meta = payload.meta || {};
     payload.meta.leadStage = true;
     payload.meta.source = payload.meta.source || "web_quote";
-
-    const shipment = await Shipment.create(payload);
-
-    console.log("🧪 public lead requestor snapshot:", {
-      requestor: payload?.requestor,
-      shipper: payload?.shipper,
-    });
 
     const requestorName = String(
       payload?.requestor?.name || payload?.shipper?.name || "",
@@ -763,6 +756,8 @@ async function createPublicLeadShipment(req, res) {
       requestorCountry,
     });
 
+    let linkedUser = null;
+
     if (requestorEmail) {
       const existingUser = await User.findOne({ email: requestorEmail });
       console.log("🧪 existing user lookup:", {
@@ -772,8 +767,10 @@ async function createPublicLeadShipment(req, res) {
         existingUserStatus: existingUser?.status || null,
       });
 
-      if (!existingUser) {
-        const createdUser = await User.create({
+      if (existingUser) {
+        linkedUser = existingUser;
+      } else {
+        linkedUser = await User.create({
           fullname: requestorName || "Customer",
           email: requestorEmail,
           phone: requestorPhone || "To be confirmed",
@@ -784,16 +781,26 @@ async function createPublicLeadShipment(req, res) {
         });
 
         console.log("✅ pending user created from public lead:", {
-          userId: createdUser._id,
-          email: createdUser.email,
-          status: createdUser.status,
+          userId: linkedUser._id,
+          email: linkedUser.email,
+          status: linkedUser.status,
         });
       }
+
+      payload.customer = linkedUser._id;
     } else {
       console.log(
         "⚠️ skipped pending-user creation: no requestorEmail derived",
       );
     }
+
+    const shipment = await Shipment.create(payload);
+
+    console.log("🧪 public lead requestor snapshot:", {
+      requestor: payload?.requestor,
+      shipper: payload?.shipper,
+      linkedCustomerId: payload?.customer || null,
+    });
 
     return res.status(201).json({
       message: "Lead request created successfully.",
@@ -811,7 +818,6 @@ async function createPublicLeadShipment(req, res) {
     });
   }
 }
-
 async function createShipment(req, res) {
   try {
     const payload = { ...req.body };
