@@ -1785,6 +1785,90 @@ async function getDashboardStats(req, res) {
   }
 }
 
+async function respondToQuote(req, res) {
+  try {
+    const { id } = req.params;
+    const decision = String(req.body?.decision || "")
+      .trim()
+      .toLowerCase();
+    const message = String(req.body?.message || "").trim();
+
+    if (!["approved", "requested_changes"].includes(decision)) {
+      return res.status(400).json({
+        message: 'Invalid decision. Use "approved" or "requested_changes".',
+      });
+    }
+
+    const { shipment, error } = await findAccessibleShipmentById(req, id, {
+      lean: false,
+      populateCustomer: true,
+    });
+
+    if (error) {
+      return res.status(404).json({ message: error });
+    }
+
+    if (String(shipment.status || "").toLowerCase() !== "quoted") {
+      return res.status(400).json({
+        message: `Quote response is only allowed when shipment status is "quoted". Current status is "${shipment.status}".`,
+      });
+    }
+
+    if (decision === "approved") {
+      shipment.status = "quote_accepted";
+
+      shipment.trackingEvents.push({
+        status: "quote_accepted",
+        event: "Customer approved quote",
+        location: "",
+        date: new Date(),
+        meta: {
+          source: "customer_quote_response",
+          decision: "approved",
+          actorRole: String(req?.user?.role || "").toLowerCase() || "user",
+          actorId: requireUserId(req),
+        },
+      });
+    }
+
+    if (decision === "requested_changes") {
+      shipment.status = "customer_requested_changes";
+
+      shipment.trackingEvents.push({
+        status: "customer_requested_changes",
+        event: "Customer requested quote changes",
+        location: "",
+        date: new Date(),
+        meta: {
+          source: "customer_quote_response",
+          decision: "requested_changes",
+          actorRole: String(req?.user?.role || "").toLowerCase() || "user",
+          actorId: requireUserId(req),
+          message,
+        },
+      });
+    }
+
+    await shipment.save();
+
+    return res.status(200).json({
+      ok: true,
+      message:
+        decision === "approved"
+          ? "Quote approved successfully."
+          : "Quote change request submitted successfully.",
+      shipment,
+    });
+  } catch (err) {
+    console.error("Error responding to quote:", err);
+    return res.status(500).json({
+      ok: false,
+      message: "Failed to respond to quote",
+      error: err.message,
+    });
+  }
+}
+
 module.exports = {
   createShipment,
   getAllShipments,
@@ -1801,6 +1885,7 @@ module.exports = {
   // ✅ Quote
   saveQuote,
   sendQuoteEmail,
+  respondToQuote,
 
   // ✅ Booking confirmation
   sendBookingConfirmationEmail,
