@@ -1526,10 +1526,10 @@ async function sendBookingConfirmationEmail(req, res) {
     }
 
     // Soft guard on lifecycle (do not hard-refactor status system here)
-    const allowedPrior = new Set(["quoted", "quote_accepted"]);
+    const allowedPrior = new Set(["quoted", "customer_approved"]);
     if (shipment.status && !allowedPrior.has(String(shipment.status))) {
       return res.status(400).json({
-        message: `Cannot confirm booking from current status "${shipment.status}". Expected quoted or quote_accepted.`,
+        message: `Cannot confirm booking from current status "${shipment.status}". Expected quoted or customer_approved.`,
       });
     }
 
@@ -1815,10 +1815,10 @@ async function respondToQuote(req, res) {
     }
 
     if (decision === "approved") {
-      shipment.status = "quote_accepted";
+      shipment.status = "customer_approved";
 
       shipment.trackingEvents.push({
-        status: "quote_accepted",
+        status: "customer_approved",
         event: "Customer approved quote",
         location: "",
         date: new Date(),
