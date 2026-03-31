@@ -538,10 +538,10 @@ const Shipment = () => {
       } catch (error) {
         console.error(
           "❌ Error fetching shipment:",
-          error.response?.data || error
+          error.response?.data || error,
         );
         setErrorMsg(
-          error.response?.data?.message || "Could not load shipment details."
+          error.response?.data?.message || "Could not load shipment details.",
         );
       } finally {
         setLoading(false);
@@ -642,10 +642,10 @@ const Shipment = () => {
     } catch (error) {
       console.error(
         "❌ Error updating shipment:",
-        error.response?.data || error
+        error.response?.data || error,
       );
       setErrorMsg(
-        error.response?.data?.message || "Failed to update this shipment."
+        error.response?.data?.message || "Failed to update this shipment.",
       );
     } finally {
       setSaving(false);
@@ -677,7 +677,7 @@ const Shipment = () => {
 
       setQuoteMsg(
         opts?.successMsg ||
-          `Status updated to ${formatStatusLabel(nextStatus)}.`
+          `Status updated to ${formatStatusLabel(nextStatus)}.`,
       );
     } catch (err) {
       console.error("❌ Error updating status:", err?.response?.data || err);
@@ -688,7 +688,7 @@ const Shipment = () => {
 
       setQuoteError(
         err?.response?.data?.message ||
-          "Failed to update status. Please try again."
+          "Failed to update status. Please try again.",
       );
     } finally {
       setStatusActing(false);
@@ -722,7 +722,7 @@ const Shipment = () => {
       console.error("❌ Error adding document:", error.response?.data || error);
       setDocError(
         error.response?.data?.message ||
-          "Failed to add document to this shipment."
+          "Failed to add document to this shipment.",
       );
     } finally {
       setDocSaving(false);
@@ -816,7 +816,7 @@ const Shipment = () => {
 
       const res = await authRequest.patch(
         `/shipments/${shipmentId}/quote`,
-        payload
+        payload,
       );
       const updated = res.data?.shipment || res.data?.data || res.data;
 
@@ -832,7 +832,7 @@ const Shipment = () => {
     } catch (err) {
       console.error("❌ Error saving quote:", err?.response?.data || err);
       setQuoteError(
-        err?.response?.data?.message || "Failed to save quote draft."
+        err?.response?.data?.message || "Failed to save quote draft.",
       );
       return false;
     } finally {
@@ -864,7 +864,7 @@ const Shipment = () => {
         `/shipments/${shipmentId}/quote/send`,
         {
           // optional override: toEmail
-        }
+        },
       );
 
       const updated = res.data?.shipment || res.data?.data || res.data;
@@ -875,8 +875,8 @@ const Shipment = () => {
       setForm((p) => ({ ...p, status: newStatus }));
       setQuoteMsg(
         `Quote emailed successfully. Status set to ${String(
-          newStatus
-        ).toUpperCase()}.`
+          newStatus,
+        ).toUpperCase()}.`,
       );
     } catch (err) {
       console.error("❌ Error sending quote:", err?.response?.data || err);
@@ -901,6 +901,20 @@ const Shipment = () => {
     ? new Date(shipment.quote.sentAt).toLocaleString("en-GB")
     : "";
   const quoteVersion = shipment?.quote?.version || 0;
+
+  const latestQuoteChangeRequest = useMemo(() => {
+    const events = Array.isArray(shipment?.trackingEvents)
+      ? [...shipment.trackingEvents]
+      : [];
+
+    return events
+      .reverse()
+      .find(
+        (event) =>
+          event?.status === "customer_requested_changes" &&
+          String(event?.meta?.message || "").trim(),
+      );
+  }, [shipment]);
 
   // ----- Option B gating -----
   const isRequestPipeline = REQUEST_STATUSES.has(form.status);
@@ -996,18 +1010,40 @@ const Shipment = () => {
                   Quote:{" "}
                   {formatMoney(
                     shipment.quote.total,
-                    shipment.quote.currency || "GBP"
+                    shipment.quote.currency || "GBP",
                   )}
                 </span>
               ) : null}
             </div>
+            {latestQuoteChangeRequest ? (
+              <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-amber-900">
+                      Customer requested quote changes
+                    </p>
+                    <p className="mt-1 text-sm text-amber-800">
+                      {latestQuoteChangeRequest.meta.message}
+                    </p>
+                  </div>
+
+                  <p className="text-xs text-amber-700">
+                    {latestQuoteChangeRequest.date
+                      ? new Date(latestQuoteChangeRequest.date).toLocaleString(
+                          "en-GB",
+                        )
+                      : ""}
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
         <div className="flex flex-col sm:items-end gap-2">
           <span
             className={`px-3 py-1 rounded-full text-xs font-semibold w-fit ${getStatusClasses(
-              form.status
+              form.status,
             )}`}
           >
             {formatStatusLabel(form.status)}
@@ -1548,11 +1584,11 @@ const Shipment = () => {
                           {formatMoney(
                             (toMoney(
                               li.amount ||
-                                Number(li.qty || 1) * Number(li.unitPrice || 0)
+                                Number(li.qty || 1) * Number(li.unitPrice || 0),
                             ) *
                               Number(li.taxRate || 0)) /
                               100,
-                            quoteCurrency
+                            quoteCurrency,
                           )}
                         </span>
                         <button
@@ -1648,7 +1684,7 @@ const Shipment = () => {
                     type="button"
                     onClick={() => {
                       const ok = window.confirm(
-                        "Mark this quote as customer approved?"
+                        "Mark this quote as customer approved?",
                       );
                       if (!ok) return;
                       quickSetStatus("customer_approved", {
@@ -1671,7 +1707,7 @@ const Shipment = () => {
                     type="button"
                     onClick={() => {
                       const ok = window.confirm(
-                        "Confirm booking now? This will move the shipment to BOOKED."
+                        "Confirm booking now? This will move the shipment to BOOKED.",
                       );
                       if (!ok) return;
                       quickSetStatus("booked", {
@@ -1843,11 +1879,11 @@ const Shipment = () => {
                           {formatMoney(
                             (toMoney(
                               li.amount ||
-                                Number(li.qty || 1) * Number(li.unitPrice || 0)
+                                Number(li.qty || 1) * Number(li.unitPrice || 0),
                             ) *
                               Number(li.taxRate || 0)) /
                               100,
-                            quoteCurrency
+                            quoteCurrency,
                           )}
                         </span>
 
@@ -1955,7 +1991,7 @@ const Shipment = () => {
                     type="button"
                     onClick={() => {
                       const ok = window.confirm(
-                        "Mark this quote as customer approved?"
+                        "Mark this quote as customer approved?",
                       );
                       if (!ok) return;
                       quickSetStatus("customer_approved", {
@@ -1978,7 +2014,7 @@ const Shipment = () => {
                     type="button"
                     onClick={() => {
                       const ok = window.confirm(
-                        "Confirm booking now? This will move the shipment to BOOKED."
+                        "Confirm booking now? This will move the shipment to BOOKED.",
                       );
                       if (!ok) return;
                       quickSetStatus("booked", {
@@ -2441,7 +2477,7 @@ const Shipment = () => {
                             Uploaded{" "}
                             {doc.uploadedAt
                               ? new Date(doc.uploadedAt).toLocaleDateString(
-                                  "en-GB"
+                                  "en-GB",
                                 )
                               : ""}
                           </span>
@@ -2520,7 +2556,7 @@ const Shipment = () => {
                             Uploaded{" "}
                             {doc.uploadedAt
                               ? new Date(doc.uploadedAt).toLocaleDateString(
-                                  "en-GB"
+                                  "en-GB",
                                 )
                               : ""}
                           </span>
