@@ -2,6 +2,9 @@
 const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
 const User = require("../models/User");
+const path = require("path");
+const { Readable } = require("stream");
+const cloudinary = require("../config/cloudinary");
 
 // ✅ Mail dispatcher (local util abstraction)
 // Controllers should not depend on BackgroundServices folder structure.
@@ -1157,6 +1160,76 @@ async function addDocument(req, res) {
   }
 }
 
+function uploadBufferToCloudinary(fileBuffer, options = {}) {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "ellcworth/shipment-docs",
+        resource_type: "auto",
+        ...options,
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      },
+    );
+
+    Readable.from(fileBuffer).pipe(uploadStream);
+  });
+}
+
+async function uploadDocument(req, res) {
+  try {
+    const { id } = req.params;
+    const name = String(req.body?.name || "").trim();
+    const file = req.file;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid shipment id" });
+    }
+
+    if (!file) {
+      return res.status(400).json({ message: "No file uploaded." });
+    }
+
+    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
+
+    if (!shipment) {
+      return res.status(404).json({ message: "Shipment not found" });
+    }
+
+    const docName = name || file.originalname || "Uploaded document";
+
+    const uploadedFile = await uploadBufferToCloudinary(file.buffer, {
+      public_id: `${Date.now()}-${String(file.originalname || "document")
+        .replace(/\s+/g, "-")
+        .replace(/[^a-zA-Z0-9._-]/g, "")}`,
+    });
+
+    const docEntry = {
+      name: docName,
+      fileUrl: uploadedFile.secure_url,
+      uploadedAt: new Date(),
+      uploadedBy: req?.user?.id || undefined,
+    };
+
+    shipment.documents.push(docEntry);
+    await shipment.save();
+
+    return res.status(200).json({
+      message: "Document uploaded to shipment successfully.",
+      data: shipment.documents,
+      document: docEntry,
+    });
+  } catch (err) {
+    console.error("Error uploading document to shipment:", err);
+    return res.status(500).json({
+      message: "Failed to upload document",
+      error: err.message,
+    });
+  }
+}
+
 async function updateStatus(req, res) {
   try {
     const { id } = req.params;
@@ -1879,6 +1952,7 @@ module.exports = {
   deleteShipment,
   addTrackingEvent,
   addDocument,
+  uploadDocument,
   updateStatus,
   getDashboardStats,
 

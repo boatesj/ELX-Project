@@ -1,8 +1,10 @@
 const express = require("express");
 const dotenv = require("dotenv");
+dotenv.config();
 const cors = require("cors");
 const mongoose = require("mongoose");
 const helmet = require("helmet");
+const path = require("path");
 
 // Try to require morgan only if installed
 let morgan = null;
@@ -27,7 +29,6 @@ const analyticsRoute = require("./routes/analytics");
 const logsRoute = require("./routes/logs");
 const calendarRoute = require("./routes/calendar");
 
-dotenv.config();
 const app = express();
 
 // If deployed behind a proxy (Render/Heroku/Nginx), this helps rate-limit + IP correctness
@@ -109,6 +110,8 @@ app.use(helmet());
 app.use(apiLimiter);
 
 if (process.env.NODE_ENV === "development" && morgan) app.use(morgan("dev"));
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // --------------------
 // HEALTH CHECK
