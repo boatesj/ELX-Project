@@ -1160,6 +1160,30 @@ async function addDocument(req, res) {
   }
 }
 
+function getCloudinaryResourceType(file) {
+  const mime = String(file?.mimetype || "").toLowerCase();
+
+  if (
+    mime === "image/jpeg" ||
+    mime === "image/png" ||
+    mime === "image/webp" ||
+    mime === "image/jpg"
+  ) {
+    return "image";
+  }
+
+  return "raw";
+}
+
+function buildSafePublicId(originalName = "document") {
+  const ext = path.extname(originalName);
+  const base = path.basename(originalName, ext) || "document";
+
+  return `${Date.now()}-${base}`
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9._-]/g, "");
+}
+
 function uploadBufferToCloudinary(fileBuffer, options = {}) {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
