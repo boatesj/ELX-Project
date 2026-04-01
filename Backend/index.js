@@ -1,5 +1,6 @@
 const express = require("express");
 const dotenv = require("dotenv");
+dotenv.config();
 const cors = require("cors");
 const mongoose = require("mongoose");
 const helmet = require("helmet");
@@ -28,7 +29,6 @@ const analyticsRoute = require("./routes/analytics");
 const logsRoute = require("./routes/logs");
 const calendarRoute = require("./routes/calendar");
 
-dotenv.config();
 const app = express();
 
 // If deployed behind a proxy (Render/Heroku/Nginx), this helps rate-limit + IP correctness

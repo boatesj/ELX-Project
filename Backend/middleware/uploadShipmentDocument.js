@@ -1,27 +1,6 @@
-const fs = require("fs");
-const path = require("path");
 const multer = require("multer");
 
-const uploadDir = path.join(__dirname, "..", "uploads", "shipment-docs");
-
-fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const safeOriginal = String(file.originalname || "document")
-      .replace(/\s+/g, "-")
-      .replace(/[^a-zA-Z0-9._-]/g, "");
-
-    const ext = path.extname(safeOriginal);
-    const base = path.basename(safeOriginal, ext) || "document";
-    const uniqueName = `${Date.now()}-${base}${ext}`;
-
-    cb(null, uniqueName);
-  },
-});
+const storage = multer.memoryStorage();
 
 const allowedMimeTypes = new Set([
   "application/pdf",

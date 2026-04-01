@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
 const User = require("../models/User");
 const path = require("path");
+const { Readable } = require("stream");
+const cloudinary = require("../config/cloudinary");
 
 // ✅ Mail dispatcher (local util abstraction)
 // Controllers should not depend on BackgroundServices folder structure.
@@ -1158,6 +1160,24 @@ async function addDocument(req, res) {
   }
 }
 
+function uploadBufferToCloudinary(fileBuffer, options = {}) {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        folder: "ellcworth/shipment-docs",
+        resource_type: "auto",
+        ...options,
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      },
+    );
+
+    Readable.from(fileBuffer).pipe(uploadStream);
+  });
+}
+
 async function uploadDocument(req, res) {
   try {
     const { id } = req.params;
@@ -1179,11 +1199,16 @@ async function uploadDocument(req, res) {
     }
 
     const docName = name || file.originalname || "Uploaded document";
-    const fileUrl = `/uploads/shipment-docs/${file.filename}`;
+
+    const uploadedFile = await uploadBufferToCloudinary(file.buffer, {
+      public_id: `${Date.now()}-${String(file.originalname || "document")
+        .replace(/\s+/g, "-")
+        .replace(/[^a-zA-Z0-9._-]/g, "")}`,
+    });
 
     const docEntry = {
       name: docName,
-      fileUrl,
+      fileUrl: uploadedFile.secure_url,
       uploadedAt: new Date(),
       uploadedBy: req?.user?.id || undefined,
     };
