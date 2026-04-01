@@ -778,7 +778,20 @@ const Shipment = () => {
       }
     } catch (err) {
       console.error("❌ Error uploading document:", err.response?.data || err);
+
       setDocError(err?.response?.data?.message || "Failed to upload document.");
+
+      // 🔧 Reset selected file (critical fix)
+      setNewDocFile(null);
+
+      // 🔧 Reset file inputs (prevents repeated error loop)
+      if (mobileDocFileInputRef?.current) {
+        mobileDocFileInputRef.current.value = "";
+      }
+
+      if (desktopDocFileInputRef?.current) {
+        desktopDocFileInputRef.current.value = "";
+      }
     } finally {
       setDocSaving(false);
     }

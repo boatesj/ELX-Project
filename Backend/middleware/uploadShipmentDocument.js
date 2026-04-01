@@ -1,3 +1,4 @@
+const path = require("path");
 const multer = require("multer");
 
 const storage = multer.memoryStorage();
@@ -12,14 +13,34 @@ const allowedMimeTypes = new Set([
   "application/vnd.ms-excel",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "text/plain",
+  "application/octet-stream",
+]);
+
+const allowedExtensions = new Set([
+  ".pdf",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".txt",
 ]);
 
 const fileFilter = (_req, file, cb) => {
-  if (!file || !file.mimetype) {
+  if (!file) {
     return cb(new Error("Invalid file upload."));
   }
 
-  if (!allowedMimeTypes.has(file.mimetype)) {
+  const mimeType = String(file.mimetype || "").toLowerCase();
+  const ext = path.extname(String(file.originalname || "")).toLowerCase();
+
+  const mimeAllowed = allowedMimeTypes.has(mimeType);
+  const extAllowed = allowedExtensions.has(ext);
+
+  if (!mimeAllowed && !extAllowed) {
     return cb(
       new Error(
         "Unsupported file type. Allowed: PDF, Word, Excel, images, plain text.",
