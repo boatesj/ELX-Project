@@ -2,6 +2,7 @@
 const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
 const User = require("../models/User");
+const path = require("path");
 
 // ✅ Mail dispatcher (local util abstraction)
 // Controllers should not depend on BackgroundServices folder structure.
@@ -1157,6 +1158,53 @@ async function addDocument(req, res) {
   }
 }
 
+async function uploadDocument(req, res) {
+  try {
+    const { id } = req.params;
+    const name = String(req.body?.name || "").trim();
+    const file = req.file;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid shipment id" });
+    }
+
+    if (!file) {
+      return res.status(400).json({ message: "No file uploaded." });
+    }
+
+    const shipment = await Shipment.findOne({ _id: id, isDeleted: false });
+
+    if (!shipment) {
+      return res.status(404).json({ message: "Shipment not found" });
+    }
+
+    const docName = name || file.originalname || "Uploaded document";
+    const fileUrl = `/uploads/shipment-docs/${file.filename}`;
+
+    const docEntry = {
+      name: docName,
+      fileUrl,
+      uploadedAt: new Date(),
+      uploadedBy: req?.user?.id || undefined,
+    };
+
+    shipment.documents.push(docEntry);
+    await shipment.save();
+
+    return res.status(200).json({
+      message: "Document uploaded to shipment successfully.",
+      data: shipment.documents,
+      document: docEntry,
+    });
+  } catch (err) {
+    console.error("Error uploading document to shipment:", err);
+    return res.status(500).json({
+      message: "Failed to upload document",
+      error: err.message,
+    });
+  }
+}
+
 async function updateStatus(req, res) {
   try {
     const { id } = req.params;
@@ -1879,6 +1927,7 @@ module.exports = {
   deleteShipment,
   addTrackingEvent,
   addDocument,
+  uploadDocument,
   updateStatus,
   getDashboardStats,
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { authRequest } from "../requestMethods";
 
@@ -295,6 +295,9 @@ const Shipment = () => {
   // Document section state
   const [newDocName, setNewDocName] = useState("");
   const [newDocUrl, setNewDocUrl] = useState("");
+  const [newDocFile, setNewDocFile] = useState(null);
+  const mobileDocFileInputRef = useRef(null);
+  const desktopDocFileInputRef = useRef(null);
   const [docSaving, setDocSaving] = useState(false);
   const [docError, setDocError] = useState("");
 
@@ -729,6 +732,43 @@ const Shipment = () => {
     }
   };
 
+  const handleUploadDocument = async (inputRef) => {
+    try {
+      if (!newDocFile) {
+        inputRef?.current?.click();
+        return;
+      }
+
+      setDocError("");
+      setDocSaving(true);
+
+      const formData = new FormData();
+      formData.append("file", newDocFile);
+      formData.append("name", newDocName || "");
+
+      const res = await authRequest.post(
+        `/shipments/${shipmentId}/documents/upload`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        },
+      );
+
+      const docs = res?.data?.data || [];
+
+      setShipment((prev) => ({ ...(prev || {}), documents: docs }));
+
+      setNewDocFile(null);
+      setNewDocName("");
+    } catch (err) {
+      console.error(err);
+      setDocError(err?.response?.data?.message || "Failed to upload document.");
+    } finally {
+      setDocSaving(false);
+    }
+  };
   // ---------------- QUOTE: UI handlers ----------------
   const quoteTotals = useMemo(() => {
     return computeUiTotals(quoteForm.lineItems);
@@ -2506,7 +2546,13 @@ const Shipment = () => {
                   className="text-xs py-1.5"
                   placeholder="Public file URL (e.g. S3, Cloudinary, SharePoint link)"
                 />
-                <div className="flex justify-end">
+                <input
+                  ref={mobileDocFileInputRef}
+                  type="file"
+                  onChange={(e) => setNewDocFile(e.target.files?.[0] || null)}
+                  className="text-xs"
+                />
+                <div className="flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={handleAddDocument}
@@ -2514,6 +2560,15 @@ const Shipment = () => {
                     className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#FFA500] hover:text-black transition disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {docSaving ? "Saving…" : "Add document"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleUploadDocument(mobileDocFileInputRef)}
+                    disabled={docSaving}
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md bg-[#FFA500] text-black hover:bg-[#1A2930] hover:text-white transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {docSaving ? "Uploading…" : "Upload file"}
                   </button>
                 </div>
               </div>
@@ -2585,7 +2640,13 @@ const Shipment = () => {
                   className="text-xs py-1.5"
                   placeholder="Public file URL (e.g. S3, Cloudinary, SharePoint link)"
                 />
-                <div className="flex justify-end">
+                <input
+                  ref={desktopDocFileInputRef}
+                  type="file"
+                  onChange={(e) => setNewDocFile(e.target.files?.[0] || null)}
+                  className="text-xs"
+                />
+                <div className="flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={handleAddDocument}
@@ -2593,6 +2654,15 @@ const Shipment = () => {
                     className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#FFA500] hover:text-black transition disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {docSaving ? "Saving…" : "Add document"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleUploadDocument(desktopDocFileInputRef)}
+                    disabled={docSaving}
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md bg-[#FFA500] text-black hover:bg-[#1A2930] hover:text-white transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {docSaving ? "Uploading…" : "Upload file"}
                   </button>
                 </div>
               </div>

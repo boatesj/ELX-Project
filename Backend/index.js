@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const helmet = require("helmet");
+const path = require("path");
 
 // Try to require morgan only if installed
 let morgan = null;
@@ -109,6 +110,8 @@ app.use(helmet());
 app.use(apiLimiter);
 
 if (process.env.NODE_ENV === "development" && morgan) app.use(morgan("dev"));
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // --------------------
 // HEALTH CHECK
