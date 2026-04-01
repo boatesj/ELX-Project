@@ -1165,7 +1165,6 @@ function uploadBufferToCloudinary(fileBuffer, options = {}) {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: "ellcworth/shipment-docs",
-        resource_type: "auto",
         ...options,
       },
       (error, result) => {
@@ -1201,9 +1200,8 @@ async function uploadDocument(req, res) {
     const docName = name || file.originalname || "Uploaded document";
 
     const uploadedFile = await uploadBufferToCloudinary(file.buffer, {
-      public_id: `${Date.now()}-${String(file.originalname || "document")
-        .replace(/\s+/g, "-")
-        .replace(/[^a-zA-Z0-9._-]/g, "")}`,
+      public_id: buildSafePublicId(file.originalname || "document"),
+      resource_type: getCloudinaryResourceType(file),
     });
 
     const docEntry = {
