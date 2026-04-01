@@ -12,6 +12,7 @@ const {
   deleteShipment,
   addTrackingEvent,
   addDocument,
+  uploadDocument,
   updateStatus,
   getDashboardStats,
   respondToQuote,
@@ -29,6 +30,7 @@ const {
 
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { handleValidation } = require("../middleware/validate");
+const uploadShipmentDocument = require("../middleware/uploadShipmentDocument");
 const {
   validateObjectIdParam,
   validateTrackingEvent,
@@ -284,7 +286,7 @@ router.post(
 
 /**
  * @route   POST /shipments/:id/documents
- * @desc    Add document to shipment
+ * @desc    Add document to shipment by public URL
  * @access  Admin only
  */
 router.post(
@@ -295,6 +297,21 @@ router.post(
   validateDocument,
   handleValidation,
   addDocument,
+);
+
+/**
+ * @route   POST /shipments/:id/documents/upload
+ * @desc    Upload document file to shipment
+ * @access  Admin only
+ */
+router.post(
+  "/:id/documents/upload",
+  requireAuth,
+  requireRole("admin"),
+  validateObjectIdParam("id"),
+  handleValidation,
+  uploadShipmentDocument.single("file"),
+  uploadDocument,
 );
 
 /**

@@ -734,6 +734,11 @@ const Shipment = () => {
 
   const handleUploadDocument = async (inputRef) => {
     try {
+      if (!shipmentId) {
+        setDocError("Shipment not found.");
+        return;
+      }
+
       if (!newDocFile) {
         inputRef?.current?.click();
         return;
@@ -762,13 +767,23 @@ const Shipment = () => {
 
       setNewDocFile(null);
       setNewDocName("");
+      setNewDocUrl("");
+
+      if (mobileDocFileInputRef?.current) {
+        mobileDocFileInputRef.current.value = "";
+      }
+
+      if (desktopDocFileInputRef?.current) {
+        desktopDocFileInputRef.current.value = "";
+      }
     } catch (err) {
-      console.error(err);
+      console.error("❌ Error uploading document:", err.response?.data || err);
       setDocError(err?.response?.data?.message || "Failed to upload document.");
     } finally {
       setDocSaving(false);
     }
   };
+
   // ---------------- QUOTE: UI handlers ----------------
   const quoteTotals = useMemo(() => {
     return computeUiTotals(quoteForm.lineItems);
@@ -2549,7 +2564,13 @@ const Shipment = () => {
                 <input
                   ref={mobileDocFileInputRef}
                   type="file"
-                  onChange={(e) => setNewDocFile(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setNewDocFile(file);
+                    if (file && !newDocName.trim()) {
+                      setNewDocName(file.name);
+                    }
+                  }}
                   className="text-xs"
                 />
                 <div className="flex justify-end gap-2">
@@ -2643,7 +2664,13 @@ const Shipment = () => {
                 <input
                   ref={desktopDocFileInputRef}
                   type="file"
-                  onChange={(e) => setNewDocFile(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setNewDocFile(file);
+                    if (file && !newDocName.trim()) {
+                      setNewDocName(file.name);
+                    }
+                  }}
                   className="text-xs"
                 />
                 <div className="flex justify-end gap-2">
