@@ -13,21 +13,20 @@ const ADMIN_TOKEN_KEY = "elx_admin_token";
 const LEGACY_TOKEN_KEY = "token";
 
 /**
- * ROOT axios client (no auth)
+ * Public / unauthenticated API client
  * Use for:
  * - /auth/*
- * - /health
- * - /docs
+ * - public API endpoints under /api/v1/*
  */
 export const rootRequest = axios.create({
-  baseURL: API_ROOT_URL,
+  baseURL: API_V1_BASE_URL,
 });
 
 /**
- * Public axios client (no auth) — ROOT
+ * Public axios client (no auth)
  */
 export const publicRequest = axios.create({
-  baseURL: API_ROOT_URL,
+  baseURL: API_V1_BASE_URL,
 });
 
 /**
