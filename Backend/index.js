@@ -214,6 +214,7 @@ app.use(
 // ROUTES
 // --------------------
 app.use("/auth", authLimiter, authRoute);
+app.use("/api/v1/auth", authLimiter, authRoute);
 
 // Canonical (v1) — plural URLs, singular filenames
 app.use("/api/v1/users", userRoute);
