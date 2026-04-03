@@ -1,12 +1,14 @@
 import axios from "axios";
 
-const API_ROOT_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_ROOT_URL = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+).replace(/\/+$/, "");
 
 const API_V1_BASE_URL = `${API_ROOT_URL}/api/v1`;
 
-const ADMIN_API_BASE_URL =
-  import.meta.env.VITE_ADMIN_API_BASE_URL || "http://localhost:8000/admin";
+const ADMIN_API_BASE_URL = (
+  import.meta.env.VITE_ADMIN_API_BASE_URL || `${API_V1_BASE_URL}/admin`
+).replace(/\/+$/, "");
 
 // Admin-scoped keys
 const ADMIN_TOKEN_KEY = "elx_admin_token";
@@ -37,8 +39,7 @@ export const authRequest = axios.create({
 });
 
 /**
- * Legacy admin-only client.
- * Keep for backward compatibility where needed.
+ * Admin-only endpoints — canonical /api/v1/admin/*
  */
 export const adminRequest = axios.create({
   baseURL: ADMIN_API_BASE_URL,
