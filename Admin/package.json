@@ -16,6 +16,7 @@
     "@mui/styled-engine-sc": "^7.3.5",
     "@mui/x-charts": "^8.18.0",
     "@mui/x-data-grid": "^8.27.5",
+    "axios": "^1.14.0",
     "country-list": "^2.4.1",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",
