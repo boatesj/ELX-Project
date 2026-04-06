@@ -3,7 +3,8 @@ import PageShell from "../components/PageShell";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const TOKEN_KEY = "token"; // change to "accessToken" if that's what you store
+const ADMIN_TOKEN_KEY = "elx_admin_token";
+const LEGACY_TOKEN_KEY = "token"; // change to "accessToken" if that's what you store
 
 const Chip = ({ children }) => (
   <span className="text-[11px] px-3 py-1 rounded-full bg-white/5 text-gray-200 border border-white/10">
@@ -180,9 +181,11 @@ export default function Calendar() {
       setLoading(true);
 
       const [db, hol] = await Promise.all([
-        apiRequest(`/admin/calendar/events?from=${range.from}&to=${range.to}`),
         apiRequest(
-          `/admin/calendar/holidays?country=GB&year=${new Date().getFullYear()}`
+          `/api/v1/admin/calendar/events?from=${range.from}&to=${range.to}`,
+        ),
+        apiRequest(
+          `/api/v1/admin/calendar/holidays?country=GB&year=${new Date().getFullYear()}`,
         ),
       ]);
 
@@ -199,7 +202,7 @@ export default function Calendar() {
           source: "holiday",
           shipmentId: null,
           raw: h,
-        }))
+        })),
       );
 
       if (!quiet && banner.type !== "success") {
@@ -233,7 +236,7 @@ export default function Calendar() {
 
       const today = range.today;
 
-      await apiRequest(`/admin/calendar/events`, {
+      await apiRequest(`/api/v1/admin/calendar/events`, {
         method: "POST",
         body: {
           title: `Action today — ${e.title}`,
@@ -286,7 +289,7 @@ export default function Calendar() {
 
       setLoading(true);
 
-      await apiRequest(`/admin/calendar/events`, {
+      await apiRequest(`/api/v1/admin/calendar/events`, {
         method: "POST",
         body: {
           title: createForm.title.trim(),
@@ -318,7 +321,7 @@ export default function Calendar() {
   const onSync = async () => {
     try {
       setLoading(true);
-      const r = await apiRequest(`/admin/calendar/sync-from-shipments`, {
+      const r = await apiRequest(`/api/v1/admin/calendar/sync-from-shipments`, {
         method: "POST",
       });
 
@@ -347,7 +350,7 @@ export default function Calendar() {
         return;
       }
 
-      const url = `${API_BASE_URL}/admin/calendar/ical?from=${range.from}&to=${range.to}`;
+      const url = `${API_BASE_URL}/api/v1/admin/calendar/ical?from=${range.from}&to=${range.to}`;
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -401,8 +404,8 @@ export default function Calendar() {
               date: r.date,
               title: r.title,
               shipmentId: r.shipmentId,
-            })
-          )
+            }),
+          ),
       );
 
       let created = 0;
@@ -423,7 +426,7 @@ export default function Calendar() {
           continue;
         }
 
-        await apiRequest(`/admin/calendar/events`, {
+        await apiRequest(`/api/v1/admin/calendar/events`, {
           method: "POST",
           body: {
             title,
@@ -462,14 +465,16 @@ export default function Calendar() {
 
     const ok = window.confirm(
       `Delete this calendar item?\n\n${e.title}\n${e.date} • ${safeTime(
-        e.time
-      )}`
+        e.time,
+      )}`,
     );
     if (!ok) return;
 
     try {
       setLoading(true);
-      await apiRequest(`/admin/calendar/events/${e.id}`, { method: "DELETE" });
+      await apiRequest(`/api/v1/admin/calendar/events/${e.id}`, {
+        method: "DELETE",
+      });
 
       setBanner({ type: "success", text: "Event deleted." });
       setOpenEvent(null);
@@ -488,8 +493,8 @@ export default function Calendar() {
     banner.type === "error"
       ? "bg-red-500/10 border-red-500/20 text-red-200"
       : banner.type === "success"
-      ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-200"
-      : "bg-white/5 border-white/10 text-gray-200";
+        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-200"
+        : "bg-white/5 border-white/10 text-gray-200";
 
   return (
     <div className="min-h-[calc(100dvh-64px)] bg-[#0B1118]">
