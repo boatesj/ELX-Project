@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import PageShell from "../components/PageShell";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
+).replace(/\/+$/, "");
+
 const ADMIN_TOKEN_KEY = "elx_admin_token";
 const LEGACY_TOKEN_KEY = "token"; // change to "accessToken" if that's what you store
 
@@ -96,7 +98,7 @@ function addDaysYmd(ymd, days) {
 }
 
 async function apiRequest(path, { method = "GET", body, headers } = {}) {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = getStoredToken();
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method,
@@ -341,7 +343,7 @@ export default function Calendar() {
     try {
       setLoading(true);
 
-      const token = localStorage.getItem(TOKEN_KEY);
+      const token = getStoredToken();
       if (!token) {
         setBanner({
           type: "error",
