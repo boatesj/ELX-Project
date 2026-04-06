@@ -16,6 +16,12 @@ const RootLayout = () => {
     location.pathname.startsWith("/editbooking") ||
     location.pathname.startsWith("/newbooking");
 
+  const headerOffsetClass = isHome
+    ? ""
+    : isCustomerRoute
+      ? "pt-[72px] md:pt-[72px] lg:pt-[72px]"
+      : "pt-[72px] md:pt-[122px] lg:pt-[122px]";
+
   return (
     <div
       className={`min-h-screen flex flex-col ${
@@ -25,9 +31,9 @@ const RootLayout = () => {
       {isCustomerRoute ? <NavbarCustomer /> : <NavbarPublic />}
 
       <main
-        className={`flex-1 ${
-          isHome ? "" : "pt-[84px] md:pt-[150px] lg:pt-[160px]"
-        } ${isCustomerRoute ? "bg-[#1A2930]" : ""}`}
+        className={`flex-1 ${headerOffsetClass} ${
+          isCustomerRoute ? "bg-[#1A2930]" : "bg-[#EDECEC]"
+        }`}
       >
         <Outlet />
       </main>
