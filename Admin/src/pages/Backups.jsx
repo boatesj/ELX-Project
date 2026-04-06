@@ -1,4 +1,3 @@
-import { useMemo, useState } from "react";
 import PageShell from "../components/PageShell";
 
 const Pill = ({ children }) => (
@@ -24,7 +23,7 @@ const Card = ({ title, subtitle, children, right }) => (
 
 const Button = ({ variant = "primary", ...props }) => {
   const base =
-    "rounded-xl px-4 py-2.5 text-[13px] font-semibold transition-all active:scale-[0.99]";
+    "rounded-xl px-4 py-2.5 text-[13px] font-semibold transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed";
   const styles =
     variant === "primary"
       ? "bg-[#FFA500] text-[#0B1118] hover:brightness-110 shadow-[0_10px_30px_rgba(255,165,0,0.18)]"
@@ -38,131 +37,79 @@ const Button = ({ variant = "primary", ...props }) => {
 };
 
 export default function Backups() {
-  const [busy, setBusy] = useState(false);
-
-  const backups = useMemo(
-    () => [
-      {
-        id: "b1",
-        createdAt: "2025-12-14 23:05",
-        size: "48.2 MB",
-        type: "Auto",
-        status: "Success",
-      },
-      {
-        id: "b2",
-        createdAt: "2025-12-13 23:05",
-        size: "47.9 MB",
-        type: "Auto",
-        status: "Success",
-      },
-      {
-        id: "b3",
-        createdAt: "2025-12-12 23:05",
-        size: "47.6 MB",
-        type: "Auto",
-        status: "Success",
-      },
-      {
-        id: "b4",
-        createdAt: "2025-12-12 10:21",
-        size: "47.6 MB",
-        type: "Manual",
-        status: "Success",
-      },
-    ],
-    []
-  );
-
-  const runBackup = async () => {
-    setBusy(true);
-    // hook this to your API later
-    setTimeout(() => setBusy(false), 900);
-  };
-
   return (
     <div className="min-h-[calc(100dvh-64px)] bg-[#0B1118]">
       <PageShell
         title="Backups"
-        subtitle="Protect your data. Export snapshots and keep recovery clean."
-        right={<Pill>Encrypted</Pill>}
+        subtitle="Backup controls are not yet wired to the production backend."
+        right={<Pill>Coming soon</Pill>}
       >
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <Card
-            title="Backup health"
-            subtitle="Last successful backup and retention policy"
-            right={<Pill>Healthy</Pill>}
+            title="Backup status"
+            subtitle="This admin page is currently informational only"
+            right={<Pill>Not live</Pill>}
           >
             <div className="space-y-3">
-              <div className="flex items-center justify-between text-[13px]">
-                <span className="text-gray-400">Last backup</span>
-                <span className="text-gray-100 font-semibold">
-                  2025-12-14 23:05
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[13px]">
-                <span className="text-gray-400">Retention</span>
-                <span className="text-gray-100 font-semibold">30 days</span>
-              </div>
-              <div className="flex items-center justify-between text-[13px]">
-                <span className="text-gray-400">Storage region</span>
-                <span className="text-gray-100 font-semibold">EU</span>
+              <div className="rounded-2xl bg-[#0B1118] border border-white/10 p-4">
+                <p className="text-gray-100 text-[13px] font-semibold">
+                  Current state
+                </p>
+                <p className="text-gray-400 text-[12px] mt-2">
+                  Manual backup, restore, and snapshot download actions have not
+                  yet been connected to real backend endpoints.
+                </p>
               </div>
 
               <div className="pt-2 flex flex-col gap-2">
-                <Button onClick={runBackup} disabled={busy}>
-                  {busy ? "Running backup..." : "Run manual backup"}
+                <Button disabled>Run manual backup</Button>
+                <Button variant="ghost" disabled>
+                  Download latest snapshot
                 </Button>
-                <Button variant="ghost">Download latest snapshot</Button>
               </div>
             </div>
           </Card>
 
           <div className="lg:col-span-2">
             <Card
-              title="Backup history"
-              subtitle="Recent snapshots (hook to your API later)"
-              right={<Button variant="ghost">Export CSV</Button>}
+              title="Recovery notes"
+              subtitle="Keep production behaviour clear and non-misleading"
+              right={<Pill>Safe UI</Pill>}
             >
-              <div className="overflow-x-auto">
-                <table className="min-w-[720px] w-full text-left">
-                  <thead>
-                    <tr className="text-[11px] uppercase tracking-[0.18em] text-gray-400">
-                      <th className="py-3 pr-4">Created</th>
-                      <th className="py-3 pr-4">Type</th>
-                      <th className="py-3 pr-4">Size</th>
-                      <th className="py-3 pr-4">Status</th>
-                      <th className="py-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-[13px]">
-                    {backups.map((b) => (
-                      <tr key={b.id} className="border-t border-white/5">
-                        <td className="py-3 pr-4 text-gray-100">
-                          {b.createdAt}
-                        </td>
-                        <td className="py-3 pr-4 text-gray-300">{b.type}</td>
-                        <td className="py-3 pr-4 text-gray-300">{b.size}</td>
-                        <td className="py-3 pr-4">
-                          <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-200 text-[12px]">
-                            {b.status}
-                          </span>
-                        </td>
-                        <td className="py-3">
-                          <div className="flex gap-2">
-                            <Button variant="ghost">Download</Button>
-                            <Button variant="ghost">Restore</Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <div className="space-y-3">
+                <div className="rounded-2xl bg-[#0B1118] border border-white/10 p-4">
+                  <p className="text-gray-100 text-[13px] font-semibold">
+                    Why this is disabled
+                  </p>
+                  <p className="text-gray-400 text-[12px] mt-2">
+                    The previous version displayed backup actions, but they were
+                    only placeholders and did not trigger any real server-side
+                    backup process.
+                  </p>
+                </div>
 
-              <p className="text-[11px] text-gray-500 mt-4">
-                Restore should be admin-protected (confirm modal + audit log).
-              </p>
+                <div className="rounded-2xl bg-[#0B1118] border border-white/10 p-4">
+                  <p className="text-gray-100 text-[13px] font-semibold">
+                    Next implementation step
+                  </p>
+                  <p className="text-gray-400 text-[12px] mt-2">
+                    Wire this page to real admin backup endpoints for: create
+                    backup, list snapshots, download snapshot, and restore
+                    snapshot.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-[#0B1118] border border-white/10 p-4">
+                  <p className="text-gray-100 text-[13px] font-semibold">
+                    Go-live recommendation
+                  </p>
+                  <p className="text-gray-400 text-[12px] mt-2">
+                    Keep this page honest in production for now, then implement
+                    real backup operations as a separate post-launch admin
+                    hardening task.
+                  </p>
+                </div>
+              </div>
             </Card>
           </div>
         </div>
