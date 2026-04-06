@@ -19,8 +19,8 @@ const RootLayout = () => {
   const headerOffsetClass = isHome
     ? ""
     : isCustomerRoute
-      ? "pt-[72px] md:pt-[72px] lg:pt-[72px]"
-      : "pt-[72px] md:pt-[122px] lg:pt-[122px]";
+      ? "pt-[68px] md:pt-[72px] lg:pt-[72px]"
+      : "pt-[64px] md:pt-[122px] lg:pt-[122px]";
 
   return (
     <div
