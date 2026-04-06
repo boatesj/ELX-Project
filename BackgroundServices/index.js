@@ -18,6 +18,18 @@ if (!DB) {
   throw new Error("No Mongo URI found (set MONGO_URI or DB)");
 }
 
+const remindersEnabled =
+  String(process.env.REMINDERS_ENABLED || "true").toLowerCase() === "true";
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({
+    ok: true,
+    service: "backgroundservices",
+    remindersEnabled,
+    mongoReadyState: mongoose.connection.readyState,
+  });
+});
+
 mongoose
   .connect(DB)
   .then(() => {
@@ -28,19 +40,30 @@ mongoose
   });
 
 // --- TASK SCHEDULER ---
+const runJobs = async () => {
+  console.log("⏰ Running scheduled background tasks...");
+  try {
+    await sendWelcomeMail();
+    await PendingShipmentEmail();
+    await DeliveredShipmentEmail();
+    console.log("✅ All background email jobs completed successfully.");
+  } catch (err) {
+    console.error("❌ Error running scheduled tasks:", err);
+  }
+};
+
 const run = () => {
-  // Run every minute for testing
+  if (!remindersEnabled) {
+    console.log("ℹ️ Background jobs are disabled (REMINDERS_ENABLED=false).");
+    return;
+  }
+
+  // Run every minute for testing / live polling
   cron.schedule("* * * * *", async () => {
-    console.log("⏰ Running scheduled background tasks...");
-    try {
-      await sendWelcomeMail();
-      await PendingShipmentEmail();
-      await DeliveredShipmentEmail();
-      console.log("✅ All background email jobs completed successfully.");
-    } catch (err) {
-      console.error("❌ Error running scheduled tasks:", err);
-    }
+    await runJobs();
   });
+
+  console.log("✅ Cron scheduler started (runs every minute).");
 };
 
 run();
