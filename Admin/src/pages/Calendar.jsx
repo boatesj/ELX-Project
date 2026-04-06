@@ -8,6 +8,14 @@ const API_BASE_URL = (
 const ADMIN_TOKEN_KEY = "elx_admin_token";
 const LEGACY_TOKEN_KEY = "token"; // change to "accessToken" if that's what you store
 
+function getStoredToken() {
+  return (
+    localStorage.getItem(ADMIN_TOKEN_KEY) ||
+    localStorage.getItem(LEGACY_TOKEN_KEY) ||
+    null
+  );
+}
+
 const Chip = ({ children }) => (
   <span className="text-[11px] px-3 py-1 rounded-full bg-white/5 text-gray-200 border border-white/10">
     {children}
