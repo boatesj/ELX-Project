@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -48,6 +49,29 @@ const SERVICES = [
   },
 ];
 
+const SEO = {
+  container: {
+    title: "Container Shipping UK to West Africa | Ellcworth Express",
+    desc: "FCL and LCL container shipping from the UK to Ghana and West Africa. Full and shared containers with milestone tracking.",
+  },
+  roro: {
+    title: "RoRo Vehicle Shipping UK to Ghana | Ellcworth Express",
+    desc: "Ship cars, vans, trucks and rolling stock from the UK to Ghana and West Africa via RoRo — reliable sailings and documentation guidance.",
+  },
+  air: {
+    title: "Air Freight UK to West Africa | Ellcworth Express",
+    desc: "Urgent air freight from the UK to West Africa. Priority uplift for time-critical cargo with visible progress tracking.",
+  },
+  documents: {
+    title: "Secure Document Shipping UK | Ellcworth Express",
+    desc: "Controlled handling for certificates, cheques, and sensitive paperwork. Accountable document logistics from the UK.",
+  },
+  repacking: {
+    title: "Repacking & Consolidation Service UK | Ellcworth Express",
+    desc: "Consolidate multiple UK deliveries into one export shipment — checked, repacked, and organised for West Africa.",
+  },
+};
+
 export default function ServiceDetail() {
   const { id } = useParams();
 
@@ -84,6 +108,14 @@ export default function ServiceDetail() {
 
   return (
     <section className="relative -mt-[84px] min-h-[calc(100vh-84px)] bg-[#071013] md:-mt-[150px] md:min-h-[calc(100vh-150px)] lg:-mt-[160px] lg:min-h-[calc(100vh-160px)]">
+      <Helmet>
+        <title>{SEO[id]?.title ?? "Service | Ellcworth Express"}</title>
+        <meta name="description" content={SEO[id]?.desc ?? ""} />
+        <link
+          rel="canonical"
+          href={`https://www.ellcworth.com/services/${id}`}
+        />
+      </Helmet>
       <div className="mx-auto max-w-5xl px-4 pt-[104px] pb-12 md:px-6 md:pt-[174px] md:pb-14 lg:px-8 lg:pt-[184px]">
         <div className="mx-auto max-w-4xl">
           <Link
