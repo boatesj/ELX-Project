@@ -1,3 +1,5 @@
+import { Helmet } from "react-helmet-async";
+
 import { Link, useNavigate } from "react-router-dom";
 import {
   FaShip,
@@ -113,6 +115,17 @@ export default function Services() {
 
   return (
     <div className="w-full">
+      <Helmet>
+        <title>
+          RoRo, Container & Air Freight to West Africa | Ellcworth Express
+        </title>
+        <meta
+          name="description"
+          content="Container shipping, RoRo vehicle export, air freight, document logistics and repacking — UK to West Africa shipping services from Ellcworth Express."
+        />
+        <link rel="canonical" href="https://www.ellcworth.com/services" />
+      </Helmet>
+
       {/* ===== HERO ===== */}
       <section className="relative -mt-[120px] overflow-hidden border-b border-white/10 md:-mt-[150px] lg:-mt-[160px]">
         <div className="bg-[#071013] bg-[radial-gradient(900px_450px_at_20%_0%,rgba(255,165,0,0.18),transparent_55%),radial-gradient(700px_420px_at_90%_10%,rgba(56,189,248,0.10),transparent_55%),radial-gradient(800px_520px_at_55%_100%,rgba(16,185,129,0.08),transparent_60%)]">

@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import Header from "../components/Header";
 import BusinessAccountSection from "../components/BusinessAccountSection";
 import QuoteSection from "../components/QuoteSection";
@@ -12,6 +13,15 @@ const OFFSET_CLASSES =
 const Home = () => {
   return (
     <div>
+      <Helmet>
+        <title>Ellcworth Express | UK to West Africa Shipping</title>
+        <meta
+          name="description"
+          content="Reliable UK to West Africa shipping. RoRo vehicle shipping, container freight, and air cargo — handled with care, clarity, and speed."
+        />
+        <link rel="canonical" href="https://www.ellcworth.com/" />
+      </Helmet>
+
       {/* Header anchor target for /#Header */}
       <section id="Header" className={OFFSET_CLASSES}>
         <Header />
