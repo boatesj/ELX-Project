@@ -551,15 +551,39 @@ const QuoteSection = () => {
               </button>
 
               {/* GDPR opt-in — unticked by default */}
-              <label className="inline-flex items-start gap-2.5 mt-4 cursor-pointer group">
+              <label className="
+                inline-flex items-center justify-center gap-2.5
+                mt-4 mx-auto
+                px-4 py-2.5
+                rounded-full
+                border cursor-pointer
+                transition-all duration-200
+                max-w-sm w-full
+                group
+                " style={{
+                  borderColor: marketingOptIn ? '#FFA500' : '#D1D5DB',
+                  background: marketingOptIn ? 'rgba(255,165,0,0.06)' : 'transparent',
+                }}>
+                <div className={`
+                  w-4 h-4 rounded
+                  border-2 flex items-center justify-center
+                  shrink-0 transition-all duration-200
+                  ${marketingOptIn ? 'bg-[#FFA500] border-[#FFA500]' : 'border-gray-300 bg-white'}
+                `}>
+                  {marketingOptIn && (
+                    <svg className="w-2.5 h-2.5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
                 <input
                   type="checkbox"
                   checked={marketingOptIn}
                   onChange={(e) => setMarketingOptIn(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-[#FFA500] cursor-pointer"
+                  className="sr-only"
                 />
-                <span className="text-xs md:text-sm text-gray-500 text-left group-hover:text-gray-700 transition">
-                  Keep me updated with shipping offers, route news, and tips from Ellcworth Express.
+                <span className={`text-xs text-center transition-colors duration-200 ${marketingOptIn ? 'text-gray-700' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                  Keep me updated with offers &amp; shipping news
                 </span>
               </label>
 
