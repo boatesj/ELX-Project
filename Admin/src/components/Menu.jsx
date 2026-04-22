@@ -10,6 +10,7 @@ import {
   FaChartBar,
   FaClipboard,
   FaCalendarAlt,
+  FaEnvelope,
 } from "react-icons/fa";
 import { NavLink, useNavigate } from "react-router-dom";
 
@@ -174,8 +175,21 @@ function Menu({ onNavigate }) {
               className={linkClass}
               onClick={handleNavClick}
             >
-              <FaCalendarAlt className="text-[18px]" />
+    
+          <FaCalendarAlt className="text-[18px]" />
               <span>Calendar</span>
+            </NavLink>
+          </li>
+
+          {/* SECTION: MARKETING */}
+          <li className="px-4 mt-4 mb-1 text-[11px] uppercase tracking-[0.18em] text-gray-400">
+            Marketing
+          </li>
+
+          <li>
+            <NavLink to="/marketing" className={linkClass} onClick={handleNavClick}>
+              <FaEnvelope className="text-[18px]" />
+              <span>Campaigns</span>
             </NavLink>
           </li>
         </ul>
