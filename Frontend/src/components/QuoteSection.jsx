@@ -68,6 +68,7 @@ const QuoteSection = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [createdRef, setCreatedRef] = useState("");
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
 
   const serviceLabel = useMemo(
     () => getServiceLabel(activeService),
@@ -316,10 +317,22 @@ const QuoteSection = () => {
       setSubmitted(true);
       setCreatedRef(ref);
 
+      // Silently subscribe if opted in — fire and forget, never block the quote
+      if (marketingOptIn && payload?.shipper?.email) {
+        const serviceTagMap = { container: "container", roro: "roro", air: "air" };
+        publicRequest.post("/marketing/subscribers", {
+          email: payload.shipper.email,
+          name:  payload.shipper.name  || "",
+          phone: payload.shipper.phone || "",
+          source: "quote_form",
+          tags: [serviceTagMap[activeService] || "general"],
+        }).catch(() => {}); // silent — never surface subscribe errors to the user
+      }
+
       if (formEl && typeof formEl.reset === "function") {
         formEl.reset();
       }
-
+      setMarketingOptIn(false);
       window.setTimeout(() => setSubmitted(false), 6500);
     } catch (err) {
       const api = err?.response?.data;
@@ -536,6 +549,19 @@ const QuoteSection = () => {
                   ? "Submitting..."
                   : `Start your ${serviceLabel} quote`}
               </button>
+
+              {/* GDPR opt-in — unticked by default */}
+              <label className="inline-flex items-start gap-2.5 mt-4 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={marketingOptIn}
+                  onChange={(e) => setMarketingOptIn(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 accent-[#FFA500] cursor-pointer"
+                />
+                <span className="text-xs md:text-sm text-gray-500 text-left group-hover:text-gray-700 transition">
+                  Keep me updated with shipping offers, route news, and tips from Ellcworth Express.
+                </span>
+              </label>
 
               <p className="text-xs md:text-sm text-gray-500 mt-3">
                 We usually respond within one business day. If your shipment is
