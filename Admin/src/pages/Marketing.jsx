@@ -305,9 +305,98 @@ const TEMPLATES = {
     <div style="text-align:center;margin:32px 0;">
       <a href="https://ellcworth.com/#quote" style="display:inline-block;background:#FFA500;color:#000;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.14em;padding:14px 32px;border-radius:50px;text-decoration:none;">Get a Quote</a>
     </div>
-    <p style="font-size:13px;color:#6b7280;line-height:1.6;border-top:1px solid #1f2937;padding-top:20px;margin:0;">
-      You're receiving this because you opted in at ellcworth.com.<br/>
-      <a href="https://ellcworth.com" style="color:#FFA500;">ellcworth.com</a> · cs@ellcworth.com
+    <p style="font-size:12px;color:#6b7280;line-height:1.8;border-top:1px solid #1f2937;padding-top:20px;margin:0;">
+      © Ellcworth Express Ltd · <a href="https://ellcworth.com" style="color:#FFA500;text-decoration:none;">ellcworth.com</a> · <a href="mailto:cs@ellcworth.com" style="color:#6b7280;text-decoration:none;">cs@ellcworth.com</a><br/>
+      You are receiving this email because you opted in to marketing communications from Ellcworth Express.
+    </p>
+  </div>
+</div>`,
+  },
+  container: {
+    subject: "📦 Container Shipping Rates — Ellcworth Express",
+    body: `<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0f14;color:#e5e7eb;border-radius:12px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#0c2340 0%,#0f1a20 100%);padding:40px 36px;text-align:center;border-bottom:2px solid #38bdf8;">
+    <p style="font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#9ca3af;margin:0 0 8px;">Ellcworth Express · Container Shipping</p>
+    <h1 style="font-size:26px;font-weight:700;color:#ffffff;margin:0 0 8px;">FCL & LCL Freight Solutions</h1>
+    <p style="font-size:14px;color:#38bdf8;margin:0;">UK to West Africa — Reliable. Competitive. On Time.</p>
+  </div>
+  <div style="padding:36px;">
+    <p style="font-size:16px;color:#e5e7eb;margin:0 0 16px;">Hi {{name}},</p>
+    <p style="font-size:15px;color:#9ca3af;line-height:1.7;margin:0 0 24px;">We have updated container rates on our UK to West Africa routes. Whether you need a full container (FCL) or shared space (LCL), we have flexible options to suit your cargo and budget.</p>
+    <div style="background:#111827;border:1px solid #1f2937;border-radius:10px;padding:20px;margin:0 0 24px;">
+      <p style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#38bdf8;margin:0 0 12px;">Container Options</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;color:#d1d5db;">
+        <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px 0;">20ft FCL</td><td style="padding:8px 0;text-align:right;color:#ffffff;font-weight:600;">From £XXX</td></tr>
+        <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px 0;">40ft FCL</td><td style="padding:8px 0;text-align:right;color:#ffffff;font-weight:600;">From £XXX</td></tr>
+        <tr><td style="padding:8px 0;">LCL (per CBM)</td><td style="padding:8px 0;text-align:right;color:#ffffff;font-weight:600;">From £XXX</td></tr>
+      </table>
+    </div>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="https://ellcworth.com/#quote" style="display:inline-block;background:#FFA500;color:#000;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.14em;padding:14px 32px;border-radius:50px;text-decoration:none;">Get a Container Quote</a>
+    </div>
+    <p style="font-size:12px;color:#6b7280;line-height:1.8;border-top:1px solid #1f2937;padding-top:20px;margin:0;">
+      © Ellcworth Express Ltd · <a href="https://ellcworth.com" style="color:#FFA500;text-decoration:none;">ellcworth.com</a> · <a href="mailto:cs@ellcworth.com" style="color:#6b7280;text-decoration:none;">cs@ellcworth.com</a><br/>
+      You are receiving this email because you opted in to marketing communications from Ellcworth Express.
+    </p>
+  </div>
+</div>`,
+  },
+  roro: {
+    subject: "🚗 RoRo Vehicle Shipping — Ellcworth Express",
+    body: `<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0f14;color:#e5e7eb;border-radius:12px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#1a0f2e 0%,#0f1a20 100%);padding:40px 36px;text-align:center;border-bottom:2px solid #a78bfa;">
+    <p style="font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#9ca3af;margin:0 0 8px;">Ellcworth Express · RoRo Shipping</p>
+    <h1 style="font-size:26px;font-weight:700;color:#ffffff;margin:0 0 8px;">Vehicle Shipping Made Easy</h1>
+    <p style="font-size:14px;color:#a78bfa;margin:0;">Cars, 4x4s, Vans & Commercial Vehicles</p>
+  </div>
+  <div style="padding:36px;">
+    <p style="font-size:16px;color:#e5e7eb;margin:0 0 16px;">Hi {{name}},</p>
+    <p style="font-size:15px;color:#9ca3af;line-height:1.7;margin:0 0 24px;">Shipping your vehicle to West Africa? Our RoRo service offers safe, cost-effective transport from major UK ports to destinations including Tema, Lagos, Cotonou, and more.</p>
+    <div style="background:#111827;border:1px solid #1f2937;border-radius:10px;padding:20px;margin:0 0 24px;">
+      <p style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#a78bfa;margin:0 0 12px;">Why Choose Our RoRo Service</p>
+      <ul style="color:#d1d5db;font-size:14px;line-height:2;margin:0;padding-left:20px;">
+        <li>Competitive rates from Tilbury, Sheerness & Southampton</li>
+        <li>Runners and non-runners accepted</li>
+        <li>Full tracking from port to destination</li>
+        <li>Experienced customs clearance team</li>
+      </ul>
+    </div>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="https://ellcworth.com/#quote" style="display:inline-block;background:#FFA500;color:#000;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.14em;padding:14px 32px;border-radius:50px;text-decoration:none;">Get a RoRo Quote</a>
+    </div>
+    <p style="font-size:12px;color:#6b7280;line-height:1.8;border-top:1px solid #1f2937;padding-top:20px;margin:0;">
+      © Ellcworth Express Ltd · <a href="https://ellcworth.com" style="color:#FFA500;text-decoration:none;">ellcworth.com</a> · <a href="mailto:cs@ellcworth.com" style="color:#6b7280;text-decoration:none;">cs@ellcworth.com</a><br/>
+      You are receiving this email because you opted in to marketing communications from Ellcworth Express.
+    </p>
+  </div>
+</div>`,
+  },
+  air: {
+    subject: "✈️ Air Freight Services — Ellcworth Express",
+    body: `<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0f14;color:#e5e7eb;border-radius:12px;overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#0f2a1a 0%,#0f1a20 100%);padding:40px 36px;text-align:center;border-bottom:2px solid #34d399;">
+    <p style="font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#9ca3af;margin:0 0 8px;">Ellcworth Express · Air Freight</p>
+    <h1 style="font-size:26px;font-weight:700;color:#ffffff;margin:0 0 8px;">Fast. Secure. Door to Door.</h1>
+    <p style="font-size:14px;color:#34d399;margin:0;">Documents · Parcels · Commercial Freight</p>
+  </div>
+  <div style="padding:36px;">
+    <p style="font-size:16px;color:#e5e7eb;margin:0 0 16px;">Hi {{name}},</p>
+    <p style="font-size:15px;color:#9ca3af;line-height:1.7;margin:0 0 24px;">When speed matters, our air freight service delivers. From same-day document collection to full commercial freight, we connect the UK to major African airports with speed and reliability.</p>
+    <div style="background:#111827;border:1px solid #1f2937;border-radius:10px;padding:20px;margin:0 0 24px;">
+      <p style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#34d399;margin:0 0 12px;">Air Freight Services</p>
+      <ul style="color:#d1d5db;font-size:14px;line-height:2;margin:0;padding-left:20px;">
+        <li>Express document delivery — next business day</li>
+        <li>Parcel & small package service</li>
+        <li>Full commercial air freight</li>
+        <li>Dangerous goods handling available</li>
+      </ul>
+    </div>
+    <div style="text-align:center;margin:32px 0;">
+      <a href="https://ellcworth.com/#quote" style="display:inline-block;background:#FFA500;color:#000;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.14em;padding:14px 32px;border-radius:50px;text-decoration:none;">Get an Air Freight Quote</a>
+    </div>
+    <p style="font-size:12px;color:#6b7280;line-height:1.8;border-top:1px solid #1f2937;padding-top:20px;margin:0;">
+      © Ellcworth Express Ltd · <a href="https://ellcworth.com" style="color:#FFA500;text-decoration:none;">ellcworth.com</a> · <a href="mailto:cs@ellcworth.com" style="color:#6b7280;text-decoration:none;">cs@ellcworth.com</a><br/>
+      You are receiving this email because you opted in to marketing communications from Ellcworth Express.
     </p>
   </div>
 </div>`,
@@ -332,9 +421,9 @@ const TEMPLATES = {
     <div style="text-align:center;margin:32px 0;">
       <a href="https://ellcworth.com/#quote" style="display:inline-block;background:#FFA500;color:#000;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.14em;padding:14px 32px;border-radius:50px;text-decoration:none;">Get a Quote Today</a>
     </div>
-    <p style="font-size:13px;color:#6b7280;line-height:1.6;border-top:1px solid #1f2937;padding-top:20px;margin:0;">
-      You're receiving this because you opted in at ellcworth.com.<br/>
-      <a href="https://ellcworth.com" style="color:#FFA500;">ellcworth.com</a> · cs@ellcworth.com
+    <p style="font-size:12px;color:#6b7280;line-height:1.8;border-top:1px solid #1f2937;padding-top:20px;margin:0;">
+      © Ellcworth Express Ltd · <a href="https://ellcworth.com" style="color:#FFA500;text-decoration:none;">ellcworth.com</a> · <a href="mailto:cs@ellcworth.com" style="color:#6b7280;text-decoration:none;">cs@ellcworth.com</a><br/>
+      You are receiving this email because you opted in to marketing communications from Ellcworth Express.
     </p>
   </div>
 </div>`,
@@ -358,8 +447,20 @@ function CampaignTab() {
     setResult(null); setError("");
   };
 
-  const toggleTag = (t) =>
-    setTags((prev) => prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]);
+  const toggleTag = (t) => {
+    setTags((prev) => {
+      const next = prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t];
+      // Auto-load matching template when a single service tag is selected
+      const serviceTags = ["container", "roro", "air"];
+      const selected = next.filter((x) => serviceTags.includes(x));
+      if (selected.length === 1 && TEMPLATES[selected[0]]) {
+        setTemplate(selected[0]);
+        setSubject(TEMPLATES[selected[0]].subject);
+        setHtmlBody(TEMPLATES[selected[0]].body);
+      }
+      return next;
+    });
+  };
 
   const handleSend = async () => {
     if (!subject.trim() || !htmlBody.trim()) { setError("Subject and email body are required."); return; }
