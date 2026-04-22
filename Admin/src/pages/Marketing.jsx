@@ -38,6 +38,7 @@ const TABS = [
   { id: "subscribers", label: "Subscribers" },
   { id: "campaign",    label: "Send Campaign" },
   { id: "add",         label: "+ Add Subscriber" },
+  { id: "import",      label: "⬆ Import CSV" },
 ];
 
 const Marketing = () => {
@@ -85,6 +86,7 @@ const Marketing = () => {
       {tab === "subscribers" && <SubscribersTab />}
       {tab === "campaign"    && <CampaignTab />}
       {tab === "add"         && <AddSubscriberTab onSuccess={() => setTab("subscribers")} />}
+      {tab === "import"      && <ImportTab onSuccess={() => setTab("subscribers")} />}
     </div>
   );
 };
@@ -759,6 +761,194 @@ function AddSubscriberTab({ onSuccess }) {
           {saving ? "Adding…" : "Add Subscriber"}
         </button>
       </form>
+    </div>
+  );
+}
+
+
+// ─── IMPORT TAB ─────────────────────────────────────────────────────────────
+
+function ImportTab({ onSuccess }) {
+  const [file, setFile]           = useState(null);
+  const [preview, setPreview]     = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [result, setResult]       = useState(null);
+  const [error, setError]         = useState("");
+  const fileInputRef              = useRef(null);
+
+  const handleFile = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+    setResult(null);
+    setError("");
+
+    // Parse CSV preview
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const lines = ev.target.result.split("\n").filter(Boolean);
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/"/g, ""));
+      const rows = lines.slice(1, 6).map((line) => {
+        const vals = line.split(",").map((v) => v.trim().replace(/"/g, ""));
+        return Object.fromEntries(headers.map((h, i) => [h, vals[i] || ""]));
+      });
+      setPreview(rows);
+    };
+    reader.readAsText(f);
+  };
+
+  const handleImport = async () => {
+    if (!file) return;
+    setImporting(true); setError(""); setResult(null);
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const lines = ev.target.result.split("\n").filter(Boolean);
+        const headers = lines[0].split(",").map((h) => h.trim().toLowerCase().replace(/"/g, ""));
+
+        const subscribers = lines.slice(1).map((line) => {
+          const vals = line.split(",").map((v) => v.trim().replace(/"/g, ""));
+          const row  = Object.fromEntries(headers.map((h, i) => [h, vals[i] || ""]));
+          return {
+            email:  row.email  || row["e-mail"] || "",
+            name:   row.name   || row.fullname  || row["full name"] || "",
+            phone:  row.phone  || row.telephone || row.mobile || "",
+            source: "import",
+            tags:   row.tags   ? row.tags.split("|").map((t) => t.trim()) : ["general"],
+          };
+        }).filter((s) => s.email.includes("@"));
+
+        if (!subscribers.length) {
+          setError("No valid email addresses found in the CSV.");
+          setImporting(false);
+          return;
+        }
+
+        // Send in batches of 50
+        let added = 0; let skipped = 0; let failed = 0;
+        const batches = [];
+        for (let i = 0; i < subscribers.length; i += 50) {
+          batches.push(subscribers.slice(i, i + 50));
+        }
+
+        for (const batch of batches) {
+          const results = await Promise.allSettled(
+            batch.map((sub) =>
+              fetch(`${MARKETING_API}/subscribers`, {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify(sub),
+              }).then((r) => r.json())
+            )
+          );
+          results.forEach((r) => {
+            if (r.status === "fulfilled") {
+              if (r.value.message?.includes("Already")) skipped++;
+              else added++;
+            } else {
+              failed++;
+            }
+          });
+        }
+
+        setResult({ added, skipped, failed, total: subscribers.length });
+        if (added > 0) setTimeout(onSuccess, 3000);
+      } catch (err) {
+        setError(err.message || "Import failed.");
+      } finally {
+        setImporting(false);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <div className="max-w-2xl">
+      {/* Instructions */}
+      <div className="bg-[#020617] border border-[#1f2937] rounded-2xl p-5 mb-6">
+        <p className="text-xs uppercase tracking-widest text-gray-400 mb-3">CSV Format</p>
+        <p className="text-sm text-gray-300 mb-3">
+          Upload a <code className="text-[#FFA500]">.csv</code> file with the following columns.
+          Only <code className="text-[#FFA500]">email</code> is required.
+        </p>
+        <div className="bg-[#0a0f14] border border-[#1f2937] rounded-lg px-4 py-3 font-mono text-xs text-gray-400 mb-3">
+          email, name, phone, tags<br/>
+          john@example.com, John Smith, +44 7700 000000, roro|general<br/>
+          jane@example.com, Jane Doe, , container
+        </div>
+        <p className="text-xs text-gray-500">
+          For multiple tags use <code className="text-[#FFA500]">|</code> as separator.
+          Valid tags: <code className="text-[#FFA500]">container · roro · air · general</code>
+        </p>
+      </div>
+
+      {/* Upload area */}
+      <div
+        onClick={() => fileInputRef.current?.click()}
+        className={`
+          border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition mb-4
+          ${file ? "border-[#FFA500]/50 bg-[#FFA500]/5" : "border-[#1f2937] hover:border-gray-500 bg-[#020617]"}
+        `}
+      >
+        <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
+        <svg className={`w-8 h-8 mx-auto mb-3 ${file ? "text-[#FFA500]" : "text-gray-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        {file ? (
+          <p className="text-sm font-semibold text-[#FFA500]">{file.name}</p>
+        ) : (
+          <>
+            <p className="text-sm font-semibold text-gray-300">Click to upload a CSV file</p>
+            <p className="text-xs text-gray-500 mt-1">Max 5MB</p>
+          </>
+        )}
+      </div>
+
+      {/* Preview */}
+      {preview.length > 0 && (
+        <div className="mb-4 bg-[#020617] border border-[#1f2937] rounded-2xl overflow-hidden">
+          <p className="text-xs uppercase tracking-widest text-gray-400 px-4 py-3 border-b border-[#1f2937]">
+            Preview — first {preview.length} rows
+          </p>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-[#1f2937] text-gray-500">
+                {Object.keys(preview[0]).map((h) => (
+                  <th key={h} className="text-left px-4 py-2 uppercase tracking-wider">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {preview.map((row, i) => (
+                <tr key={i} className="border-b border-[#1f2937]/50">
+                  {Object.values(row).map((v, j) => (
+                    <td key={j} className="px-4 py-2 text-gray-300">{v || "—"}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {error  && <div className="mb-4 px-4 py-3 rounded-xl bg-red-900/30 border border-red-500/40 text-red-300 text-sm">{error}</div>}
+
+      {result && (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-emerald-900/30 border border-emerald-500/40 text-emerald-300 text-sm">
+          ✅ Import complete — <span className="font-semibold">{result.added} added</span>,{" "}
+          {result.skipped} already existed, {result.failed} failed
+          {" "}(of {result.total} total rows)
+        </div>
+      )}
+
+      <button
+        onClick={handleImport}
+        disabled={!file || importing}
+        className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#FFA500] text-black font-semibold text-sm uppercase tracking-[0.14em] shadow-lg shadow-[#FFA500]/20 hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        {importing ? "Importing…" : `Import ${preview.length ? "CSV" : "Subscribers"}`}
+      </button>
     </div>
   );
 }
