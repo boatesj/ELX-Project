@@ -436,10 +436,26 @@ function CampaignTab() {
   const [tags, setTags]         = useState([]);
   const [template, setTemplate] = useState("blank");
   const [preview, setPreview]   = useState(false);
-  const [sending, setSending]     = useState(false);
-  const [result, setResult]       = useState(null);
-  const [error, setError]         = useState("");
-  const [uploading, setUploading] = useState(false);
+  const [sending, setSending]       = useState(false);
+  const [result, setResult]         = useState(null);
+  const [error, setError]           = useState("");
+  const [uploading, setUploading]   = useState(false);
+  const [allSubs, setAllSubs]       = useState([]);
+
+  // Fetch subscriber list once so we can show live audience counts
+  useEffect(() => {
+    fetch(`${MARKETING_API}/subscribers`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((d) => setAllSubs(d.subscribers || []))
+      .catch(() => {});
+  }, []);
+
+  // Live audience count based on selected tags
+  const audienceCount = useMemo(() => {
+    const active = allSubs.filter((s) => !s.unsubscribed && s.optedIn);
+    if (!tags.length) return active.length;
+    return active.filter((s) => tags.some((t) => s.tags?.includes(t))).length;
+  }, [allSubs, tags]);
   const textareaRef               = useRef(null);
   const fileInputRef              = useRef(null);
 
@@ -547,15 +563,55 @@ function CampaignTab() {
         <label className="block text-xs uppercase tracking-widest text-gray-400 mb-1.5">
           Target audience <span className="normal-case text-gray-500">(leave blank = everyone)</span>
         </label>
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(TAG_META).map(([k, v]) => (
-            <button key={k} onClick={() => toggleTag(k)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
-                tags.includes(k) ? v.color : "bg-transparent border-[#1f2937] text-gray-500 hover:text-gray-300"
-              }`}>
-              {v.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {Object.entries(TAG_META).map(([k, v]) => {
+            const segCount = allSubs.filter(
+              (s) => !s.unsubscribed && s.optedIn && s.tags?.includes(k)
+            ).length;
+            return (
+              <button key={k} onClick={() => toggleTag(k)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                  tags.includes(k) ? v.color : "bg-transparent border-[#1f2937] text-gray-500 hover:text-gray-300"
+                }`}>
+                {v.label}
+                <span className={`
+                  inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold
+                  ${tags.includes(k) ? "bg-white/20 text-white" : "bg-[#1f2937] text-gray-400"}
+                `}>
+                  {segCount}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Live audience summary */}
+        <div className={`
+          flex items-center gap-2.5 px-4 py-2.5 rounded-xl border text-sm transition-all
+          ${tags.length
+            ? "border-[#FFA500]/30 bg-[#FFA500]/5 text-[#FFA500]"
+            : "border-[#1f2937] bg-[#020617] text-gray-400"
+          }
+        `}>
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span>
+            {tags.length ? (
+              <>
+                <span className="font-semibold">{audienceCount}</span>
+                {" "}subscriber{audienceCount !== 1 ? "s" : ""} tagged{" "}
+                <span className="font-semibold">{tags.join(", ")}</span>
+                {" "}will receive this campaign
+              </>
+            ) : (
+              <>
+                <span className="font-semibold">{audienceCount}</span>
+                {" "}active subscriber{audienceCount !== 1 ? "s" : ""} will receive this campaign
+                <span className="text-gray-500 ml-1">(all segments)</span>
+              </>
+            )}
+          </span>
         </div>
       </div>
 
