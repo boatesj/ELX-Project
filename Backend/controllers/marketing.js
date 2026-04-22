@@ -1,5 +1,7 @@
 const Subscriber = require("../models/Subscriber");
 const postmark = require("postmark");
+const cloudinary = require("../config/cloudinary");
+const streamifier = require("streamifier");
 
 const client = new postmark.ServerClient(process.env.POSTMARK_SERVER_TOKEN);
 
@@ -138,5 +140,42 @@ exports.sendCampaign = async (req, res) => {
   } catch (err) {
     console.error("sendCampaign error:", err);
     return res.status(500).json({ message: "Server error." });
+  }
+};
+
+// -----------------------------------------------
+// POST /api/v1/marketing/upload-image
+// Upload a campaign image to Cloudinary (admin only)
+// -----------------------------------------------
+exports.uploadImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file provided." });
+    }
+
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: "ellcworth/marketing",
+          resource_type: "image",
+          transformation: [{ width: 600, crop: "limit", quality: "auto" }],
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      streamifier.createReadStream(req.file.buffer).pipe(stream);
+    });
+
+    return res.status(200).json({
+      url: result.secure_url,
+      publicId: result.public_id,
+      width: result.width,
+      height: result.height,
+    });
+  } catch (err) {
+    console.error("uploadImage error:", err);
+    return res.status(500).json({ message: "Image upload failed." });
   }
 };
