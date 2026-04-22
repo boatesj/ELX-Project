@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
@@ -436,9 +436,45 @@ function CampaignTab() {
   const [tags, setTags]         = useState([]);
   const [template, setTemplate] = useState("blank");
   const [preview, setPreview]   = useState(false);
-  const [sending, setSending]   = useState(false);
-  const [result, setResult]     = useState(null);
-  const [error, setError]       = useState("");
+  const [sending, setSending]     = useState(false);
+  const [result, setResult]       = useState(null);
+  const [error, setError]         = useState("");
+  const [uploading, setUploading] = useState(false);
+  const textareaRef               = useRef(null);
+  const fileInputRef              = useRef(null);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", file);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${MARKETING_API}/upload-image`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Upload failed");
+      const tag = `<img src="${data.url}" alt="Campaign image" style="max-width:100%;height:auto;border-radius:8px;margin:16px 0;" />`;
+      const ta = textareaRef.current;
+      if (ta) {
+        const start = ta.selectionStart ?? htmlBody.length;
+        const end   = ta.selectionEnd   ?? htmlBody.length;
+        const next  = htmlBody.slice(0, start) + tag + htmlBody.slice(end);
+        setHtmlBody(next);
+      } else {
+        setHtmlBody((prev) => prev + tag);
+      }
+    } catch (err) {
+      setError(`Image upload failed: ${err.message}`);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const applyTemplate = (key) => {
     setTemplate(key);
@@ -526,16 +562,48 @@ function CampaignTab() {
       <div className="mb-4">
         <div className="flex items-center justify-between mb-1.5">
           <label className="text-xs uppercase tracking-widest text-gray-400">Email body (HTML)</label>
-          <button onClick={() => setPreview((p) => !p)} className="text-xs text-[#FFA500] hover:underline">
-            {preview ? "← Edit" : "Preview →"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading || preview}
+              className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-white border border-[#1f2937] hover:border-gray-500 rounded-lg px-3 py-1.5 transition disabled:opacity-40"
+            >
+              {uploading ? (
+                <>
+                  <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                  </svg>
+                  Uploading…
+                </>
+              ) : (
+                <>
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Insert Image
+                </>
+              )}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+            <button onClick={() => setPreview((p) => !p)} className="text-xs text-[#FFA500] hover:underline">
+              {preview ? "← Edit" : "Preview →"}
+            </button>
+          </div>
         </div>
         {preview ? (
           <div className="bg-white rounded-xl overflow-hidden border border-[#1f2937] min-h-[360px]">
             <iframe srcDoc={htmlBody} title="Email preview" className="w-full min-h-[360px] border-0" sandbox="allow-same-origin" />
           </div>
         ) : (
-          <textarea value={htmlBody} onChange={(e) => setHtmlBody(e.target.value)} rows={16}
+          <textarea ref={textareaRef} value={htmlBody} onChange={(e) => setHtmlBody(e.target.value)} rows={16}
             placeholder="Paste or write your HTML email body here. Use {{name}} for personalisation."
             className="w-full bg-[#020617] border border-[#1f2937] rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-[#FFA500]/50 transition placeholder:text-gray-600 resize-y" />
         )}
