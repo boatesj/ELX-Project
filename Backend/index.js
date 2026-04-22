@@ -28,6 +28,7 @@ const backupsRoute = require("./routes/backups");
 const analyticsRoute = require("./routes/analytics");
 const logsRoute = require("./routes/logs");
 const calendarRoute = require("./routes/calendar");
+const marketingRoute = require("./routes/marketing");
 
 const app = express();
 
@@ -248,6 +249,7 @@ app.use("/api/v1/admin/backups", backupsRoute);
 app.use("/api/v1/admin/analytics", analyticsRoute);
 app.use("/api/v1/admin/logs", logsRoute);
 app.use("/api/v1/admin/calendar", calendarRoute);
+app.use("/api/v1/marketing", marketingRoute);
 
 // --------------------
 // 404 (in JSON)
