@@ -444,18 +444,19 @@ const TEMPLATES = {
     body: "<p>Hi {{name}},</p><p>Write your message here...</p>",
   },
   promo: {
-    subject: "🚢 Exclusive Shipping Offer — Ellcworth Express",
+    subject: "🚢 May Shipping Deals — Air, Container & RoRo to West Africa",
     accent: "#FFA500",
     serviceLabel: "Container · RoRo · Air Freight",
     body: `<p>Hi {{name}},</p>
-<p>We have exciting new rates on selected routes this month. Whether you're moving vehicles, containers, or air freight — we're here to get your cargo there safely and on time.</p>
-<h2>This Month's Highlights</h2>
+<p>We're pleased to share some of our most competitive rates this May on key routes from the UK to West Africa. Whether you're moving cargo by air, sea, or vehicle — we have a solution that works for your timeline and budget.</p>
+<h2>This Month's Rates</h2>
 <ul>
-  <li>UK to West Africa — Competitive FCL rates</li>
-  <li>RoRo vehicle shipping — Tilbury to Tema from £XXX</li>
-  <li>Air freight — Next-day document service</li>
+  <li>✈️ <strong>Air Freight</strong> — 24-hour delivery to Accra (Kotoka International Airport)</li>
+  <li>📦 <strong>FCL Container</strong> — MSC 40ft High Cube from £2,500 (London Gateway → Tema)</li>
+  <li>🚗 <strong>RoRo Vehicle Shipping</strong> — from £500 (Sheerness / Teesport → Tema)</li>
 </ul>
-<p>Reply to this email or visit our website to get a personalised quote for your route.</p>`,
+<p>All rates are subject to availability and cargo details. Our team is ready to provide a full quotation tailored to your shipment — including customs clearance, documentation, and door delivery options where required.</p>
+<p>To secure these rates or request a full quote, click the button below or reply directly to this email. Our team responds within one business day.</p>`,
   },
   container: {
     subject: "📦 Container Shipping Rates — Ellcworth Express",
