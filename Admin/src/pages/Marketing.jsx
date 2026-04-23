@@ -43,6 +43,7 @@ function StatusDot({ active }) {
 const TABS = [
   { id: "subscribers", label: "Subscribers" },
   { id: "campaign",    label: "Send Campaign" },
+  { id: "history",     label: "📊 Campaign History" },
   { id: "add",         label: "+ Add Subscriber" },
   { id: "import",      label: "⬆ Import CSV" },
 ];
@@ -93,6 +94,7 @@ const Marketing = () => {
       {tab === "campaign"    && <CampaignTab />}
       {tab === "add"         && <AddSubscriberTab onSuccess={() => setTab("subscribers")} />}
       {tab === "import"      && <ImportTab onSuccess={() => setTab("subscribers")} />}
+      {tab === "history"     && <CampaignHistoryTab />}
     </div>
   );
 };
@@ -1138,6 +1140,246 @@ function ImportTab({ onSuccess }) {
       >
         {importing ? "Importing…" : `Import ${preview.length ? "CSV" : "Subscribers"}`}
       </button>
+    </div>
+  );
+}
+
+
+// ─── CAMPAIGN HISTORY TAB ────────────────────────────────────────────────────
+
+function CampaignHistoryTab() {
+  const [campaigns, setCampaigns]   = useState([]);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState("");
+  const [selected, setSelected]     = useState(null); // full campaign detail
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const fetchCampaigns = async () => {
+    setLoading(true); setError("");
+    try {
+      const res  = await fetch(`${MARKETING_API}/campaigns`, { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed to load campaigns");
+      setCampaigns(data.campaigns || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchDetail = async (id) => {
+    setLoadingDetail(true);
+    try {
+      const res  = await fetch(`${MARKETING_API}/campaigns/${id}`, { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed");
+      setSelected(data.campaign);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  useEffect(() => { fetchCampaigns(); }, []);
+
+  const openRate = (c) =>
+    c.sentCount ? Math.round((c.openCount / c.sentCount) * 100) : 0;
+
+  const rateColor = (rate) => {
+    if (rate >= 50) return "text-emerald-300";
+    if (rate >= 25) return "text-amber-300";
+    return "text-red-300";
+  };
+
+  // ── Detail drawer ──
+  if (selected) {
+    const rate = openRate(selected);
+    const opened = selected.recipients?.filter((r) => r.opened) || [];
+    const unopened = selected.recipients?.filter((r) => !r.opened) || [];
+
+    return (
+      <div>
+        <button
+          onClick={() => setSelected(null)}
+          className="inline-flex items-center gap-2 text-xs text-gray-400 hover:text-white mb-6 transition"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to campaigns
+        </button>
+
+        {/* Campaign summary */}
+        <div className="bg-[#020617] border border-[#1f2937] rounded-2xl p-6 mb-6">
+          <p className="text-xs uppercase tracking-widest text-gray-400 mb-1">Campaign</p>
+          <h2 className="text-lg font-semibold text-white mb-4">{selected.subject}</h2>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: "Sent",       value: selected.sentCount, color: "text-white" },
+              { label: "Opened",     value: selected.openCount, color: "text-emerald-300" },
+              { label: "Unopened",   value: selected.sentCount - selected.openCount, color: "text-gray-400" },
+              { label: "Open Rate",  value: `${rate}%`, color: rateColor(rate) },
+            ].map((s) => (
+              <div key={s.label} className="bg-[#0a0f14] border border-[#1f2937] rounded-xl px-4 py-3">
+                <span className="block text-[11px] uppercase tracking-widest text-gray-500">{s.label}</span>
+                <span className={`text-2xl font-bold ${s.color}`}>{s.value}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Open rate bar */}
+          <div className="mt-4">
+            <div className="flex justify-between text-xs text-gray-400 mb-1">
+              <span>Open rate</span>
+              <span className={rateColor(rate)}>{rate}%</span>
+            </div>
+            <div className="h-2 bg-[#1f2937] rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${rate}%`,
+                  background: rate >= 50 ? "#34d399" : rate >= 25 ? "#FFA500" : "#f87171",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Opened */}
+        {opened.length > 0 && (
+          <div className="mb-4">
+            <p className="text-xs uppercase tracking-widest text-emerald-400 mb-2">
+              ✅ Opened ({opened.length})
+            </p>
+            <div className="bg-[#020617] border border-[#1f2937] rounded-2xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#1f2937] text-[11px] uppercase tracking-widest text-gray-500">
+                    <th className="text-left px-5 py-3">Name</th>
+                    <th className="text-left px-5 py-3">Email</th>
+                    <th className="text-left px-5 py-3">First Opened</th>
+                    <th className="text-left px-5 py-3">Opens</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {opened.map((r, i) => (
+                    <tr key={i} className="border-b border-[#1f2937]/50 hover:bg-white/[0.02]">
+                      <td className="px-5 py-3 text-gray-100">{r.name || "—"}</td>
+                      <td className="px-5 py-3 text-gray-300">{r.email}</td>
+                      <td className="px-5 py-3 text-gray-400">
+                        {r.openedAt ? new Date(r.openedAt).toISOString().slice(0,16).replace("T"," ") : "—"}
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/40">
+                          {r.openCount}x
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Unopened */}
+        {unopened.length > 0 && (
+          <div>
+            <p className="text-xs uppercase tracking-widest text-gray-500 mb-2">
+              ⏳ Not yet opened ({unopened.length})
+            </p>
+            <div className="bg-[#020617] border border-[#1f2937] rounded-2xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#1f2937] text-[11px] uppercase tracking-widest text-gray-500">
+                    <th className="text-left px-5 py-3">Name</th>
+                    <th className="text-left px-5 py-3">Email</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {unopened.map((r, i) => (
+                    <tr key={i} className="border-b border-[#1f2937]/50 hover:bg-white/[0.02]">
+                      <td className="px-5 py-3 text-gray-400">{r.name || "—"}</td>
+                      <td className="px-5 py-3 text-gray-500">{r.email}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Campaign list ──
+  return (
+    <div>
+      {error && (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-red-900/30 border border-red-500/40 text-red-300 text-sm">{error}</div>
+      )}
+
+      {loading ? (
+        <div className="text-sm text-gray-500">Loading campaigns…</div>
+      ) : campaigns.length === 0 ? (
+        <div className="bg-[#020617] border border-[#1f2937] rounded-2xl p-8 text-center">
+          <p className="text-gray-400 text-sm">No campaigns sent yet.</p>
+          <p className="text-gray-600 text-xs mt-1">Send your first campaign from the Send Campaign tab.</p>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {campaigns.map((c) => {
+            const rate = openRate(c);
+            return (
+              <button
+                key={c._id}
+                onClick={() => fetchDetail(c._id)}
+                className="text-left bg-[#020617] border border-[#1f2937] rounded-2xl p-5 hover:bg-white/[0.02] hover:border-gray-600 transition group"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-100 truncate">{c.subject}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {c.createdAt ? new Date(c.createdAt).toISOString().slice(0,10) : "—"}
+                      {c.tags?.length ? ` · ${c.tags.join(", ")}` : " · all subscribers"}
+                    </p>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-600 group-hover:text-gray-300 transition shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+                  {[
+                    { label: "Sent",   value: c.sentCount, color: "text-white" },
+                    { label: "Opened", value: c.openCount, color: "text-emerald-300" },
+                    { label: "Rate",   value: `${rate}%`,  color: rateColor(rate) },
+                  ].map((s) => (
+                    <div key={s.label} className="bg-[#0a0f14] rounded-lg px-3 py-2">
+                      <span className="block text-[10px] uppercase tracking-widest text-gray-500">{s.label}</span>
+                      <span className={`text-lg font-bold ${s.color}`}>{s.value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Mini progress bar */}
+                <div className="mt-3 h-1.5 bg-[#1f2937] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${rate}%`,
+                      background: rate >= 50 ? "#34d399" : rate >= 25 ? "#FFA500" : "#f87171",
+                    }}
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

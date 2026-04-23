@@ -8,6 +8,9 @@ const {
   unsubscribe,
   sendCampaign,
   uploadImage,
+  getCampaigns,
+  getCampaign,
+  postmarkWebhook,
 } = require("../controllers/marketing");
 
 const { requireAuth, requireAdmin } = require("../middleware/auth");
@@ -25,5 +28,12 @@ router.delete("/subscribers/:id", requireAuth, requireAdmin, unsubscribe);
 router.post("/campaigns/send", requireAuth, requireAdmin, sendCampaign);
 
 router.post("/upload-image", requireAuth, requireAdmin, upload.single("image"), uploadImage);
+
+// Campaign history
+router.get("/campaigns", requireAuth, requireAdmin, getCampaigns);
+router.get("/campaigns/:id", requireAuth, requireAdmin, getCampaign);
+
+// Postmark webhook — public, no auth (Postmark calls this)
+router.post("/webhooks/postmark", postmarkWebhook);
 
 module.exports = router;
