@@ -1,4 +1,10 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
+import Link from "@tiptap/extension-link";
+import TextAlign from "@tiptap/extension-text-align";
+import { TextStyle } from "@tiptap/extension-text-style";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
@@ -283,161 +289,319 @@ function SubscribersTab() {
   );
 }
 
+
+// ─── RICH EMAIL EDITOR ──────────────────────────────────────────────────────
+
+const TOOLBAR_BTN = "p-1.5 rounded hover:bg-white/10 transition text-gray-300 hover:text-white disabled:opacity-30";
+const TOOLBAR_ACTIVE = "bg-white/15 text-white";
+
+function ToolbarBtn({ onClick, active, disabled, title, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`${TOOLBAR_BTN} ${active ? TOOLBAR_ACTIVE : ""}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function RichEditor({ content, onChange, onImageUpload, uploading }) {
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Image.configure({ inline: false, allowBase64: false }),
+      Link.configure({ openOnClick: false }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      TextStyle,
+    ],
+    content,
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML());
+    },
+    editorProps: {
+      attributes: {
+        class: "outline-none min-h-[280px] text-gray-200 text-sm leading-relaxed px-5 py-4",
+      },
+    },
+  });
+
+  // Sync external content changes (e.g. template switch) into editor
+  useEffect(() => {
+    if (!editor) return;
+    if (editor.getHTML() !== content) {
+      editor.commands.setContent(content || "", false);
+    }
+  }, [content, editor]);
+
+  if (!editor) return null;
+
+  const addLink = () => {
+    const url = window.prompt("Enter URL:", "https://");
+    if (url) editor.chain().focus().setLink({ href: url }).run();
+  };
+
+  return (
+    <div className="border border-[#1f2937] rounded-xl overflow-hidden bg-[#020617]">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-0.5 px-2 py-2 border-b border-[#1f2937] bg-[#0a0f14]">
+
+        {/* History */}
+        <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+        </ToolbarBtn>
+        <ToolbarBtn onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} title="Redo">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"/></svg>
+        </ToolbarBtn>
+
+        <div className="w-px h-5 bg-white/10 mx-1" />
+
+        {/* Headings */}
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive("heading", { level: 1 })} title="Heading 1">
+          <span className="text-xs font-bold">H1</span>
+        </ToolbarBtn>
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })} title="Heading 2">
+          <span className="text-xs font-bold">H2</span>
+        </ToolbarBtn>
+        <ToolbarBtn onClick={() => editor.chain().focus().setParagraph().run()} active={editor.isActive("paragraph")} title="Paragraph">
+          <span className="text-xs">¶</span>
+        </ToolbarBtn>
+
+        <div className="w-px h-5 bg-white/10 mx-1" />
+
+        {/* Formatting */}
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} title="Bold">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 4h8a4 4 0 010 8H6V4zm0 8h9a4 4 0 010 8H6v-8z"/></svg>
+        </ToolbarBtn>
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} title="Italic">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M10 4v3h2.21l-3.42 10H6v3h8v-3h-2.21l3.42-10H18V4h-8z"/></svg>
+        </ToolbarBtn>
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive("strike")} title="Strikethrough">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6.85 7.08C6.85 4.37 9.45 3 12.24 3c1.64 0 3 .49 3.9 1.28.77.65 1.46 1.73 1.46 3.24h-3.01c0-.31-.05-.59-.15-.85-.29-.86-1.2-1.28-2.25-1.28-1.86 0-2.34.94-2.34 1.70 0 .48.25.88.74 1.21.38.25.77.48 1.41.7H7.39c-.29-.3-.54-.63-.54-1.22zM21 12H3v2h9.62c.18.07.4.14.55.2 1.47.5 2.37 1.18 2.37 2.44 0 1.59-1.31 2.24-2.98 2.24-1.38 0-2.51-.49-3.08-1.47-.29-.47-.44-1.01-.44-1.72H6.04c0 .92.25 2.2 1.3 3.15C8.44 20.37 10.21 21 12.24 21c3.39 0 5.76-1.76 5.76-4.68 0-.55-.1-1.06-.28-1.52H21v-2z"/></svg>
+        </ToolbarBtn>
+
+        <div className="w-px h-5 bg-white/10 mx-1" />
+
+        {/* Lists */}
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} title="Bullet list">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </ToolbarBtn>
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")} title="Numbered list">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 6h13M7 12h13M7 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        </ToolbarBtn>
+
+        <div className="w-px h-5 bg-white/10 mx-1" />
+
+        {/* Alignment */}
+        <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign("left").run()} active={editor.isActive({ textAlign: "left" })} title="Align left">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h10M4 18h16"/></svg>
+        </ToolbarBtn>
+        <ToolbarBtn onClick={() => editor.chain().focus().setTextAlign("center").run()} active={editor.isActive({ textAlign: "center" })} title="Align center">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M7 12h10M4 18h16"/></svg>
+        </ToolbarBtn>
+
+        <div className="w-px h-5 bg-white/10 mx-1" />
+
+        {/* Link */}
+        <ToolbarBtn onClick={addLink} active={editor.isActive("link")} title="Add link">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        </ToolbarBtn>
+
+        {/* Image upload */}
+        <ToolbarBtn onClick={onImageUpload} disabled={uploading} title="Insert image">
+          {uploading ? (
+            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          )}
+        </ToolbarBtn>
+
+        <div className="w-px h-5 bg-white/10 mx-1" />
+
+        {/* Clear */}
+        <ToolbarBtn onClick={() => editor.chain().focus().clearContent().run()} title="Clear content">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </ToolbarBtn>
+      </div>
+
+      {/* Editor content */}
+      <EditorContent editor={editor} />
+    </div>
+  );
+}
+
 const TEMPLATES = {
-  blank: { subject: "", body: "" },
+  blank: {
+    subject: "",
+    accent: "#FFA500",
+    serviceLabel: "Container · RoRo · Air Freight",
+    body: "<p>Hi {{name}},</p><p>Write your message here...</p>",
+  },
   promo: {
     subject: "🚢 Exclusive Shipping Offer — Ellcworth Express",
-    body: `<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0f14;color:#e5e7eb;border-radius:12px;overflow:hidden;">
-  <div style="background:linear-gradient(135deg,#1a2930 0%,#0f1a20 100%);padding:40px 36px;text-align:center;border-bottom:2px solid #FFA500;">
-    <p style="font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#9ca3af;margin:0 0 8px;">Ellcworth Express</p>
-    <h1 style="font-size:28px;font-weight:700;color:#ffffff;margin:0 0 8px;">Shipping Made Simple</h1>
-    <p style="font-size:15px;color:#FFA500;margin:0;">Container · RoRo · Air Freight</p>
-  </div>
-  <div style="padding:36px;">
-    <p style="font-size:16px;color:#e5e7eb;margin:0 0 16px;">Hi {{name}},</p>
-    <p style="font-size:15px;color:#9ca3af;line-height:1.7;margin:0 0 24px;">We have exciting new rates on selected routes this month. Whether you're moving vehicles, containers, or air freight — we're here to get your cargo there safely and on time.</p>
-    <div style="background:#111827;border:1px solid #1f2937;border-radius:10px;padding:20px;margin:0 0 24px;">
-      <p style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#FFA500;margin:0 0 12px;">This Month's Highlights</p>
-      <ul style="color:#d1d5db;font-size:14px;line-height:2;margin:0;padding-left:20px;">
-        <li>UK to West Africa — Competitive FCL rates</li>
-        <li>RoRo vehicle shipping — Tilbury to Tema from £XXX</li>
-        <li>Air freight — Next-day document service</li>
-      </ul>
-    </div>
-    <div style="text-align:center;margin:32px 0;">
-      <a href="https://ellcworth.com/#quote" style="display:inline-block;background:#FFA500;color:#000;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.14em;padding:14px 32px;border-radius:50px;text-decoration:none;">Get a Quote</a>
-    </div>
-    <p style="font-size:12px;color:#6b7280;line-height:1.8;border-top:1px solid #1f2937;padding-top:20px;margin:0;">
-      © Ellcworth Express Ltd · <a href="https://ellcworth.com" style="color:#FFA500;text-decoration:none;">ellcworth.com</a> · <a href="mailto:cs@ellcworth.com" style="color:#6b7280;text-decoration:none;">cs@ellcworth.com</a><br/>
-      You are receiving this email because you opted in to marketing communications from Ellcworth Express.
-    </p>
-  </div>
-</div>`,
+    accent: "#FFA500",
+    serviceLabel: "Container · RoRo · Air Freight",
+    body: `<p>Hi {{name}},</p>
+<p>We have exciting new rates on selected routes this month. Whether you're moving vehicles, containers, or air freight — we're here to get your cargo there safely and on time.</p>
+<h2>This Month's Highlights</h2>
+<ul>
+  <li>UK to West Africa — Competitive FCL rates</li>
+  <li>RoRo vehicle shipping — Tilbury to Tema from £XXX</li>
+  <li>Air freight — Next-day document service</li>
+</ul>
+<p>Reply to this email or visit our website to get a personalised quote for your route.</p>`,
   },
   container: {
     subject: "📦 Container Shipping Rates — Ellcworth Express",
-    body: `<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0f14;color:#e5e7eb;border-radius:12px;overflow:hidden;">
-  <div style="background:linear-gradient(135deg,#0c2340 0%,#0f1a20 100%);padding:40px 36px;text-align:center;border-bottom:2px solid #38bdf8;">
-    <p style="font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#9ca3af;margin:0 0 8px;">Ellcworth Express · Container Shipping</p>
-    <h1 style="font-size:26px;font-weight:700;color:#ffffff;margin:0 0 8px;">FCL & LCL Freight Solutions</h1>
-    <p style="font-size:14px;color:#38bdf8;margin:0;">UK to West Africa — Reliable. Competitive. On Time.</p>
-  </div>
-  <div style="padding:36px;">
-    <p style="font-size:16px;color:#e5e7eb;margin:0 0 16px;">Hi {{name}},</p>
-    <p style="font-size:15px;color:#9ca3af;line-height:1.7;margin:0 0 24px;">We have updated container rates on our UK to West Africa routes. Whether you need a full container (FCL) or shared space (LCL), we have flexible options to suit your cargo and budget.</p>
-    <div style="background:#111827;border:1px solid #1f2937;border-radius:10px;padding:20px;margin:0 0 24px;">
-      <p style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#38bdf8;margin:0 0 12px;">Container Options</p>
-      <table style="width:100%;border-collapse:collapse;font-size:14px;color:#d1d5db;">
-        <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px 0;">20ft FCL</td><td style="padding:8px 0;text-align:right;color:#ffffff;font-weight:600;">From £XXX</td></tr>
-        <tr style="border-bottom:1px solid #1f2937;"><td style="padding:8px 0;">40ft FCL</td><td style="padding:8px 0;text-align:right;color:#ffffff;font-weight:600;">From £XXX</td></tr>
-        <tr><td style="padding:8px 0;">LCL (per CBM)</td><td style="padding:8px 0;text-align:right;color:#ffffff;font-weight:600;">From £XXX</td></tr>
-      </table>
-    </div>
-    <div style="text-align:center;margin:32px 0;">
-      <a href="https://ellcworth.com/#quote" style="display:inline-block;background:#FFA500;color:#000;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.14em;padding:14px 32px;border-radius:50px;text-decoration:none;">Get a Container Quote</a>
-    </div>
-    <p style="font-size:12px;color:#6b7280;line-height:1.8;border-top:1px solid #1f2937;padding-top:20px;margin:0;">
-      © Ellcworth Express Ltd · <a href="https://ellcworth.com" style="color:#FFA500;text-decoration:none;">ellcworth.com</a> · <a href="mailto:cs@ellcworth.com" style="color:#6b7280;text-decoration:none;">cs@ellcworth.com</a><br/>
-      You are receiving this email because you opted in to marketing communications from Ellcworth Express.
-    </p>
-  </div>
-</div>`,
+    accent: "#38bdf8",
+    serviceLabel: "FCL & LCL Container Freight",
+    body: `<p>Hi {{name}},</p>
+<p>We have updated container rates on our UK to West Africa routes. Whether you need a full container (FCL) or shared space (LCL), we have flexible options to suit your cargo and budget.</p>
+<h2>Container Options</h2>
+<ul>
+  <li>20ft FCL — From £XXX</li>
+  <li>40ft FCL — From £XXX</li>
+  <li>LCL (per CBM) — From £XXX</li>
+</ul>
+<p>Get in touch for a competitive quote on your route.</p>`,
   },
   roro: {
     subject: "🚗 RoRo Vehicle Shipping — Ellcworth Express",
-    body: `<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0f14;color:#e5e7eb;border-radius:12px;overflow:hidden;">
-  <div style="background:linear-gradient(135deg,#1a0f2e 0%,#0f1a20 100%);padding:40px 36px;text-align:center;border-bottom:2px solid #a78bfa;">
-    <p style="font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#9ca3af;margin:0 0 8px;">Ellcworth Express · RoRo Shipping</p>
-    <h1 style="font-size:26px;font-weight:700;color:#ffffff;margin:0 0 8px;">Vehicle Shipping Made Easy</h1>
-    <p style="font-size:14px;color:#a78bfa;margin:0;">Cars, 4x4s, Vans & Commercial Vehicles</p>
-  </div>
-  <div style="padding:36px;">
-    <p style="font-size:16px;color:#e5e7eb;margin:0 0 16px;">Hi {{name}},</p>
-    <p style="font-size:15px;color:#9ca3af;line-height:1.7;margin:0 0 24px;">Shipping your vehicle to West Africa? Our RoRo service offers safe, cost-effective transport from major UK ports to destinations including Tema, Lagos, Cotonou, and more.</p>
-    <div style="background:#111827;border:1px solid #1f2937;border-radius:10px;padding:20px;margin:0 0 24px;">
-      <p style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#a78bfa;margin:0 0 12px;">Why Choose Our RoRo Service</p>
-      <ul style="color:#d1d5db;font-size:14px;line-height:2;margin:0;padding-left:20px;">
-        <li>Competitive rates from Tilbury, Sheerness & Southampton</li>
-        <li>Runners and non-runners accepted</li>
-        <li>Full tracking from port to destination</li>
-        <li>Experienced customs clearance team</li>
-      </ul>
-    </div>
-    <div style="text-align:center;margin:32px 0;">
-      <a href="https://ellcworth.com/#quote" style="display:inline-block;background:#FFA500;color:#000;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.14em;padding:14px 32px;border-radius:50px;text-decoration:none;">Get a RoRo Quote</a>
-    </div>
-    <p style="font-size:12px;color:#6b7280;line-height:1.8;border-top:1px solid #1f2937;padding-top:20px;margin:0;">
-      © Ellcworth Express Ltd · <a href="https://ellcworth.com" style="color:#FFA500;text-decoration:none;">ellcworth.com</a> · <a href="mailto:cs@ellcworth.com" style="color:#6b7280;text-decoration:none;">cs@ellcworth.com</a><br/>
-      You are receiving this email because you opted in to marketing communications from Ellcworth Express.
-    </p>
-  </div>
-</div>`,
+    accent: "#a78bfa",
+    serviceLabel: "Vehicle Shipping — Cars, 4x4s & Commercial",
+    body: `<p>Hi {{name}},</p>
+<p>Shipping your vehicle to West Africa? Our RoRo service offers safe, cost-effective transport from major UK ports to destinations including Tema, Lagos, Cotonou, and more.</p>
+<h2>Why Choose Our RoRo Service</h2>
+<ul>
+  <li>Competitive rates from Tilbury, Sheerness & Southampton</li>
+  <li>Runners and non-runners accepted</li>
+  <li>Full tracking from port to destination</li>
+  <li>Experienced customs clearance team</li>
+</ul>
+<p>Contact us today for a RoRo quote on your vehicle.</p>`,
   },
   air: {
     subject: "✈️ Air Freight Services — Ellcworth Express",
-    body: `<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0f14;color:#e5e7eb;border-radius:12px;overflow:hidden;">
-  <div style="background:linear-gradient(135deg,#0f2a1a 0%,#0f1a20 100%);padding:40px 36px;text-align:center;border-bottom:2px solid #34d399;">
-    <p style="font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#9ca3af;margin:0 0 8px;">Ellcworth Express · Air Freight</p>
-    <h1 style="font-size:26px;font-weight:700;color:#ffffff;margin:0 0 8px;">Fast. Secure. Door to Door.</h1>
-    <p style="font-size:14px;color:#34d399;margin:0;">Documents · Parcels · Commercial Freight</p>
-  </div>
-  <div style="padding:36px;">
-    <p style="font-size:16px;color:#e5e7eb;margin:0 0 16px;">Hi {{name}},</p>
-    <p style="font-size:15px;color:#9ca3af;line-height:1.7;margin:0 0 24px;">When speed matters, our air freight service delivers. From same-day document collection to full commercial freight, we connect the UK to major African airports with speed and reliability.</p>
-    <div style="background:#111827;border:1px solid #1f2937;border-radius:10px;padding:20px;margin:0 0 24px;">
-      <p style="font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#34d399;margin:0 0 12px;">Air Freight Services</p>
-      <ul style="color:#d1d5db;font-size:14px;line-height:2;margin:0;padding-left:20px;">
-        <li>Express document delivery — next business day</li>
-        <li>Parcel & small package service</li>
-        <li>Full commercial air freight</li>
-        <li>Dangerous goods handling available</li>
-      </ul>
-    </div>
-    <div style="text-align:center;margin:32px 0;">
-      <a href="https://ellcworth.com/#quote" style="display:inline-block;background:#FFA500;color:#000;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.14em;padding:14px 32px;border-radius:50px;text-decoration:none;">Get an Air Freight Quote</a>
-    </div>
-    <p style="font-size:12px;color:#6b7280;line-height:1.8;border-top:1px solid #1f2937;padding-top:20px;margin:0;">
-      © Ellcworth Express Ltd · <a href="https://ellcworth.com" style="color:#FFA500;text-decoration:none;">ellcworth.com</a> · <a href="mailto:cs@ellcworth.com" style="color:#6b7280;text-decoration:none;">cs@ellcworth.com</a><br/>
-      You are receiving this email because you opted in to marketing communications from Ellcworth Express.
-    </p>
-  </div>
-</div>`,
+    accent: "#fcd34d",
+    serviceLabel: "Air Freight — Documents, Parcels & Cargo",
+    body: `<p>Hi {{name}},</p>
+<p>When speed matters, our air freight service delivers. From same-day document collection to full commercial freight, we connect the UK to major African airports with speed and reliability.</p>
+<h2>Air Freight Services</h2>
+<ul>
+  <li>Express document delivery — next business day</li>
+  <li>Parcel & small package service</li>
+  <li>Full commercial air freight</li>
+  <li>Dangerous goods handling available</li>
+</ul>
+<p>Contact us for a fast, competitive air freight quote.</p>`,
   },
   newsletter: {
     subject: "📦 Ellcworth Express — Shipping News & Updates",
-    body: `<div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0f14;color:#e5e7eb;border-radius:12px;overflow:hidden;">
-  <div style="background:#1a2930;padding:32px 36px;border-bottom:2px solid #FFA500;">
-    <p style="font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#9ca3af;margin:0 0 4px;">Newsletter</p>
-    <h1 style="font-size:24px;font-weight:700;color:#ffffff;margin:0;">Ellcworth Express</h1>
-  </div>
-  <div style="padding:36px;">
-    <p style="font-size:16px;color:#e5e7eb;margin:0 0 16px;">Hi {{name}},</p>
-    <p style="font-size:15px;color:#9ca3af;line-height:1.7;margin:0 0 24px;">Here's the latest from Ellcworth Express — industry updates, route news, and tips to make your next shipment smoother.</p>
-    <h2 style="font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:0.14em;color:#FFA500;margin:0 0 12px;">In This Issue</h2>
-    <p style="color:#9ca3af;font-size:14px;line-height:1.8;margin:0 0 24px;">
-      ✦ Port congestion update — Tema &amp; Lagos<br/>
-      ✦ New RoRo vessel schedule — Q3 departures<br/>
-      ✦ Customs documentation checklist<br/>
-      ✦ Customer spotlight
-    </p>
-    <div style="text-align:center;margin:32px 0;">
-      <a href="https://ellcworth.com/#quote" style="display:inline-block;background:#FFA500;color:#000;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.14em;padding:14px 32px;border-radius:50px;text-decoration:none;">Get a Quote Today</a>
-    </div>
-    <p style="font-size:12px;color:#6b7280;line-height:1.8;border-top:1px solid #1f2937;padding-top:20px;margin:0;">
-      © Ellcworth Express Ltd · <a href="https://ellcworth.com" style="color:#FFA500;text-decoration:none;">ellcworth.com</a> · <a href="mailto:cs@ellcworth.com" style="color:#6b7280;text-decoration:none;">cs@ellcworth.com</a><br/>
-      You are receiving this email because you opted in to marketing communications from Ellcworth Express.
-    </p>
-  </div>
-</div>`,
+    accent: "#FFA500",
+    serviceLabel: "Industry News & Updates",
+    body: `<p>Hi {{name}},</p>
+<p>Here's the latest from Ellcworth Express — industry updates, route news, and tips to make your next shipment smoother.</p>
+<h2>In This Issue</h2>
+<ul>
+  <li>Port congestion update — Tema & Lagos</li>
+  <li>New RoRo vessel schedule — Q3 departures</li>
+  <li>Customs documentation checklist</li>
+  <li>Customer spotlight</li>
+</ul>
+<p>Add your newsletter content here. Our team is always available to answer any questions about your shipment.</p>`,
   },
 };
+
+
+
+// ─── EMAIL WRAPPER ───────────────────────────────────────────────────────────
+// Wraps editable body content in the full branded Ellcworth email shell.
+// Used for Preview and Send — the Visual editor only shows the body.
+
+function wrapInTemplate(bodyHtml, accentColor = "#FFA500", serviceLabel = "Container · RoRo · Air Freight") {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="color-scheme" content="dark"/>
+  <style>
+    body { margin:0; padding:0; background:#04080a; }
+    .body-content p { font-size:15px; color:#c9d1d9; line-height:1.75; margin:0 0 18px; }
+    .body-content h1 { font-size:22px; font-weight:700; color:#ffffff; margin:0 0 14px; }
+    .body-content h2 { font-size:13px; font-weight:700; color:#FFA500; text-transform:uppercase; letter-spacing:0.14em; margin:28px 0 12px; border-bottom:1px solid #1f2937; padding-bottom:8px; }
+    .body-content ul { color:#c9d1d9; font-size:14px; line-height:2.1; margin:0 0 20px; padding-left:20px; }
+    .body-content ul li { margin-bottom:2px; }
+    .body-content a { color:#FFA500; text-decoration:none; }
+    .body-content strong { color:#ffffff; font-weight:600; }
+    .body-content img { max-width:100%; height:auto; border-radius:8px; margin:16px 0; display:block; }
+    .body-content table { width:100%; border-collapse:collapse; font-size:14px; color:#c9d1d9; margin:0 0 20px; }
+    .body-content table td { padding:10px 0; border-bottom:1px solid #1f2937; }
+    .body-content table td:last-child { text-align:right; color:#ffffff; font-weight:600; }
+  </style>
+</head>
+<body style="margin:0;padding:24px 12px;background:#04080a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+
+  <div style="max-width:600px;margin:0 auto;background:#0a0f14;border-radius:16px;overflow:hidden;border:1px solid #1f2937;box-shadow:0 24px 60px rgba(0,0,0,0.6);">
+
+    <!-- Top accent bar -->
+    <div style="height:3px;background:linear-gradient(90deg,${accentColor},${accentColor}88,transparent);"></div>
+
+    <!-- Header -->
+    <div style="background:linear-gradient(160deg,#1a2930 0%,#0d1b22 100%);padding:40px 40px 32px;text-align:center;">
+      <p style="font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:#6b7280;margin:0 0 10px;font-weight:600;">Ellcworth Express Ltd</p>
+      <div style="width:48px;height:2px;background:${accentColor};margin:0 auto 16px;border-radius:2px;"></div>
+      <p style="font-size:13px;color:${accentColor};margin:0;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">${serviceLabel}</p>
+    </div>
+
+    <!-- Body -->
+    <div class="body-content" style="padding:36px 40px;">
+      ${bodyHtml}
+    </div>
+
+    <!-- CTA -->
+    <div style="padding:4px 40px 36px;text-align:center;">
+      <a href="https://ellcworth.com/#quote"
+         style="display:inline-block;background:#FFA500;color:#000000;font-weight:700;
+                font-size:12px;text-transform:uppercase;letter-spacing:0.16em;
+                padding:14px 36px;border-radius:50px;text-decoration:none;
+                box-shadow:0 4px 20px rgba(255,165,0,0.35);">
+        Get a Quote
+      </a>
+    </div>
+
+    <!-- Divider -->
+    <div style="margin:0 40px;border-top:1px solid #1f2937;"></div>
+
+    <!-- Footer -->
+    <div style="padding:24px 40px;text-align:center;">
+      <p style="font-size:11px;color:#4b5563;line-height:1.9;margin:0;">
+        <strong style="color:#6b7280;font-weight:600;">Ellcworth Express Ltd</strong><br/>
+        <a href="https://ellcworth.com" style="color:#FFA500;text-decoration:none;font-weight:500;">ellcworth.com</a>
+        &nbsp;·&nbsp;
+        <a href="mailto:cs@ellcworth.com" style="color:#6b7280;text-decoration:none;">cs@ellcworth.com</a><br/><br/>
+        You are receiving this email because you opted in to marketing<br/>communications from Ellcworth Express.
+      </p>
+    </div>
+
+    <!-- Bottom accent bar -->
+    <div style="height:2px;background:linear-gradient(90deg,transparent,${accentColor}44,transparent);"></div>
+
+  </div>
+
+</body>
+</html>`;
+}
 
 function CampaignTab() {
   const [subject, setSubject]   = useState("");
   const [htmlBody, setHtmlBody] = useState("");
   const [tags, setTags]         = useState([]);
   const [template, setTemplate] = useState("blank");
-  const [preview, setPreview]   = useState(false);
+  const [mode, setMode]         = useState("visual"); // "visual" | "html" | "preview"
   const [sending, setSending]       = useState(false);
   const [result, setResult]         = useState(null);
   const [error, setError]           = useState("");
@@ -494,23 +658,27 @@ function CampaignTab() {
     }
   };
 
+  const [templateMeta, setTemplateMeta] = useState({ accent: "#FFA500", serviceLabel: "Container · RoRo · Air Freight" });
+
   const applyTemplate = (key) => {
     setTemplate(key);
     setSubject(TEMPLATES[key].subject);
     setHtmlBody(TEMPLATES[key].body);
+    setTemplateMeta({ accent: TEMPLATES[key].accent || "#FFA500", serviceLabel: TEMPLATES[key].serviceLabel || "" });
     setResult(null); setError("");
   };
 
   const toggleTag = (t) => {
     setTags((prev) => {
       const next = prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t];
-      // Auto-load matching template when a single service tag is selected
       const serviceTags = ["container", "roro", "air"];
       const selected = next.filter((x) => serviceTags.includes(x));
       if (selected.length === 1 && TEMPLATES[selected[0]]) {
+        const tpl = TEMPLATES[selected[0]];
         setTemplate(selected[0]);
-        setSubject(TEMPLATES[selected[0]].subject);
-        setHtmlBody(TEMPLATES[selected[0]].body);
+        setSubject(tpl.subject);
+        setHtmlBody(tpl.body);
+        setTemplateMeta({ accent: tpl.accent || "#FFA500", serviceLabel: tpl.serviceLabel || "" });
       }
       return next;
     });
@@ -521,10 +689,11 @@ function CampaignTab() {
     if (!window.confirm(`Send this campaign to all active subscribers${tags.length ? ` tagged: ${tags.join(", ")}` : ""}?\n\nThis cannot be undone.`)) return;
     setSending(true); setError(""); setResult(null);
     try {
+      const fullHtml = wrapInTemplate(htmlBody, templateMeta.accent, templateMeta.serviceLabel);
       const res = await fetch(`${MARKETING_API}/campaigns/send`, {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify({ subject, htmlBody, tags: tags.length ? tags : undefined }),
+        body: JSON.stringify({ subject, htmlBody: fullHtml, tags: tags.length ? tags : undefined }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Send failed");
@@ -619,31 +788,37 @@ function CampaignTab() {
 
       <div className="mb-4">
         <div className="flex items-center justify-between mb-1.5">
-          <label className="text-xs uppercase tracking-widest text-gray-400">Email body (HTML)</label>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading || preview}
-              className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-white border border-[#1f2937] hover:border-gray-500 rounded-lg px-3 py-1.5 transition disabled:opacity-40"
-            >
-              {uploading ? (
-                <>
-                  <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                  </svg>
-                  Uploading…
-                </>
-              ) : (
-                <>
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  Insert Image
-                </>
-              )}
-            </button>
+          <label className="text-xs uppercase tracking-widest text-gray-400">Email body</label>
+          <div className="flex items-center gap-1 bg-[#020617] border border-[#1f2937] rounded-lg p-0.5">
+            {[
+              { id: "visual",  label: "Visual" },
+              { id: "html",    label: "HTML" },
+              { id: "preview", label: "Preview" },
+            ].map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setMode(m.id)}
+                className={`px-3 py-1 rounded text-xs font-semibold transition ${
+                  mode === m.id
+                    ? "bg-[#FFA500] text-black"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {mode === "visual" && (
+          <>
+            <RichEditor
+              content={htmlBody}
+              onChange={setHtmlBody}
+              onImageUpload={() => fileInputRef.current?.click()}
+              uploading={uploading}
+            />
             <input
               ref={fileInputRef}
               type="file"
@@ -651,21 +826,35 @@ function CampaignTab() {
               className="hidden"
               onChange={handleImageUpload}
             />
-            <button onClick={() => setPreview((p) => !p)} className="text-xs text-[#FFA500] hover:underline">
-              {preview ? "← Edit" : "Preview →"}
-            </button>
-          </div>
-        </div>
-        {preview ? (
-          <div className="bg-white rounded-xl overflow-hidden border border-[#1f2937] min-h-[360px]">
-            <iframe srcDoc={htmlBody} title="Email preview" className="w-full min-h-[360px] border-0" sandbox="allow-same-origin" />
-          </div>
-        ) : (
-          <textarea ref={textareaRef} value={htmlBody} onChange={(e) => setHtmlBody(e.target.value)} rows={16}
-            placeholder="Paste or write your HTML email body here. Use {{name}} for personalisation."
-            className="w-full bg-[#020617] border border-[#1f2937] rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-[#FFA500]/50 transition placeholder:text-gray-600 resize-y" />
+          </>
         )}
-        <p className="text-xs text-gray-500 mt-1.5">Use <code className="text-[#FFA500]">{"{{name}}"}</code> to personalise the greeting for each subscriber.</p>
+
+        {mode === "html" && (
+          <textarea
+            ref={textareaRef}
+            value={htmlBody}
+            onChange={(e) => setHtmlBody(e.target.value)}
+            rows={16}
+            placeholder="Edit raw HTML here. Use {{name}} for personalisation."
+            className="w-full bg-[#020617] border border-[#1f2937] rounded-xl px-4 py-3 text-sm font-mono outline-none focus:border-[#FFA500]/50 transition placeholder:text-gray-600 resize-y"
+          />
+        )}
+
+        {mode === "preview" && (
+          <div className="bg-white rounded-xl overflow-hidden border border-[#1f2937] min-h-[400px]">
+            <iframe
+              srcDoc={wrapInTemplate(htmlBody, templateMeta.accent, templateMeta.serviceLabel)}
+              title="Email preview"
+              className="w-full min-h-[400px] border-0"
+              sandbox="allow-same-origin"
+            />
+          </div>
+        )}
+
+        <p className="text-xs text-gray-500 mt-1.5">
+          Use <code className="text-[#FFA500]">{"{{name}}"}</code> to personalise the greeting.
+          Switch to <span className="text-gray-300">HTML</span> for full control or <span className="text-gray-300">Preview</span> to see the final email.
+        </p>
       </div>
 
       {error  && <div className="mb-4 px-4 py-3 rounded-xl bg-red-900/30 border border-red-500/40 text-red-300 text-sm">{error}</div>}
