@@ -23,6 +23,7 @@ const TAG_META = {
   roro:      { label: "RoRo",      color: "bg-violet-500/15 text-violet-300 border-violet-500/40" },
   air:       { label: "Air",       color: "bg-amber-500/15 text-amber-300 border-amber-500/40" },
   general:   { label: "General",   color: "bg-slate-500/15 text-slate-300 border-slate-500/40" },
+  test:      { label: "Test",      color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40" },
 };
 
 function TagChip({ tag }) {
