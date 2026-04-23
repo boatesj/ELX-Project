@@ -488,19 +488,33 @@ const TEMPLATES = {
 <p>Contact us today for a RoRo quote on your vehicle.</p>`,
   },
   air: {
-    subject: "✈️ Air Freight Services — Ellcworth Express",
+    subject: "✈️ Priority Air Freight — Certified Same-Day UK to Accra | Ellcworth Express",
     accent: "#fcd34d",
-    serviceLabel: "Air Freight — Documents, Parcels & Cargo",
+    serviceLabel: "Priority Air Freight — UK to Accra",
     body: `<p>Hi {{name}},</p>
-<p>When speed matters, our air freight service delivers. From same-day document collection to full commercial freight, we connect the UK to major African airports with speed and reliability.</p>
-<h2>Air Freight Services</h2>
+
+<p>When your institution's documents, certificates, and executive cargo cannot wait — neither do we.</p>
+
+<p>Ellcworth Express operates a dedicated priority air freight service between the United Kingdom and Accra's Kotoka International Airport, purpose-built for the exacting standards of Ghana's leading institutions.</p>
+
+<p>Whether you are dispatching official university certificates, academic credentials, time-sensitive procurement documents, or high-value executive cargo — our service guarantees speed, security, and complete chain-of-custody visibility from collection to delivery.</p>
+
+<h2>Our Priority Air Freight Service</h2>
 <ul>
-  <li>Express document delivery — next business day</li>
-  <li>Parcel & small package service</li>
-  <li>Full commercial air freight</li>
-  <li>Dangerous goods handling available</li>
+  <li>✦ <strong>Same-day UK collection</strong> — we collect directly from your institution</li>
+  <li>✦ <strong>24-hour delivery</strong> to Kotoka International Airport, Accra</li>
+  <li>✦ <strong>Onward delivery</strong> to your institution available on request</li>
+  <li>✦ <strong>Real-time tracking</strong> from dispatch to final delivery</li>
+  <li>✦ <strong>Fully insured</strong>, tamper-evident secure packaging</li>
+  <li>✦ <strong>Dedicated account manager</strong> — one point of contact, always</li>
 </ul>
-<p>Contact us for a fast, competitive air freight quote.</p>`,
+
+<h2>Why Procurement Directors Choose Ellcworth Express</h2>
+<p>We understand that academic credentials and institutional documents carry legal and reputational weight. Our handling protocols are designed to meet the compliance requirements of Ghana's public institutions, with full documentation provided for customs clearance and institutional records.</p>
+
+<p><strong>No queues. No delays. No compromise.</strong></p>
+
+<p>To arrange a priority collection or discuss a regular service agreement for your institution, reply directly to this email or speak with our team today.</p>`,
   },
   newsletter: {
     subject: "📦 Ellcworth Express — Shipping News & Updates",
