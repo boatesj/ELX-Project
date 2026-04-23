@@ -32,7 +32,7 @@ const subscriberSchema = new mongoose.Schema(
     // Tag by service interest for targeted campaigns
     tags: {
       type: [String],
-      enum: ["container", "roro", "air", "general"],
+      enum: ["container", "roro", "air", "general", "test"],
       default: ["general"],
     },
 
