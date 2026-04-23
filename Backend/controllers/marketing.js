@@ -1,4 +1,5 @@
 const Subscriber = require("../models/Subscriber");
+const Campaign   = require("../models/Campaign");
 const postmark = require("postmark");
 const cloudinary = require("../config/cloudinary");
 const streamifier = require("streamifier");
@@ -100,46 +101,132 @@ exports.unsubscribe = async (req, res) => {
 exports.sendCampaign = async (req, res) => {
   try {
     const { subject, htmlBody, tags } = req.body;
-
     if (!subject || !htmlBody) {
       return res.status(400).json({ message: "Subject and htmlBody are required." });
     }
 
-    // Build recipient list — active, opted-in subscribers
     const filter = { unsubscribed: false, optedIn: true };
     if (tags && tags.length) filter.tags = { $in: tags };
-
     const subscribers = await Subscriber.find(filter);
 
     if (!subscribers.length) {
       return res.status(400).json({ message: "No active subscribers found for this campaign." });
     }
 
-    // Send individually so each can have a personalised unsubscribe link
+    // Send individually with open tracking enabled
     const results = await Promise.allSettled(
       subscribers.map((sub) =>
         client.sendEmail({
-          From: process.env.EMAIL_FROM,
-          To: sub.email,
-          Subject: subject,
-          HtmlBody: htmlBody.replace("{{name}}", sub.name || "there"),
-          ReplyTo: process.env.EMAIL_REPLY_TO,
+          From:          process.env.EMAIL_FROM,
+          To:            sub.email,
+          Subject:       subject,
+          HtmlBody:      htmlBody.split("{{name}}").join(sub.name || "there"),
+          ReplyTo:       process.env.EMAIL_REPLY_TO,
           MessageStream: "broadcast",
+          TrackOpens:    true,
         })
       )
     );
 
-    const sent = results.filter((r) => r.status === "fulfilled").length;
+    const sent   = results.filter((r) => r.status === "fulfilled").length;
     const failed = results.filter((r) => r.status === "rejected").length;
+
+    // Build recipient records with Postmark MessageIDs
+    const recipients = subscribers.map((sub, i) => {
+      const r = results[i];
+      return {
+        subscriberId: sub._id,
+        email:        sub.email,
+        name:         sub.name || "",
+        messageId:    r.status === "fulfilled" ? (r.value?.MessageID || "") : "",
+        opened:       false,
+        openedAt:     null,
+        openCount:    0,
+      };
+    });
+
+    // Save campaign record
+    const campaign = await Campaign.create({
+      subject,
+      tags:      tags || [],
+      sentCount: sent,
+      failCount: failed,
+      openCount: 0,
+      recipients,
+    });
 
     return res.status(200).json({
       message: `Campaign sent. ${sent} delivered, ${failed} failed.`,
       sent,
       failed,
+      campaignId: campaign._id,
     });
   } catch (err) {
     console.error("sendCampaign error:", err);
     return res.status(500).json({ message: "Server error." });
+  }
+};
+
+
+
+// -----------------------------------------------
+// GET /api/v1/marketing/campaigns
+// List all campaigns with open stats (admin only)
+// -----------------------------------------------
+exports.getCampaigns = async (req, res) => {
+  try {
+    const campaigns = await Campaign.find()
+      .select("-recipients")
+      .sort({ createdAt: -1 });
+    return res.status(200).json({ campaigns });
+  } catch (err) {
+    console.error("getCampaigns error:", err);
+    return res.status(500).json({ message: "Server error." });
+  }
+};
+
+// -----------------------------------------------
+// GET /api/v1/marketing/campaigns/:id
+// Get single campaign with full recipient list
+// -----------------------------------------------
+exports.getCampaign = async (req, res) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id);
+    if (!campaign) return res.status(404).json({ message: "Campaign not found." });
+    return res.status(200).json({ campaign });
+  } catch (err) {
+    console.error("getCampaign error:", err);
+    return res.status(500).json({ message: "Server error." });
+  }
+};
+
+// -----------------------------------------------
+// POST /api/v1/marketing/webhooks/postmark
+// Postmark open tracking webhook — no auth
+// -----------------------------------------------
+exports.postmarkWebhook = async (req, res) => {
+  try {
+    const { RecordType, MessageID } = req.body;
+    if (RecordType !== "Open" || !MessageID) {
+      return res.status(200).json({ ok: true });
+    }
+    const campaign = await Campaign.findOne({ "recipients.messageId": MessageID });
+    if (!campaign) return res.status(200).json({ ok: true });
+
+    const recipient = campaign.recipients.find((r) => r.messageId === MessageID);
+    if (!recipient) return res.status(200).json({ ok: true });
+
+    recipient.openCount += 1;
+    if (!recipient.opened) {
+      recipient.opened   = true;
+      recipient.openedAt = new Date();
+      campaign.openCount += 1;
+    }
+    await campaign.save();
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("postmarkWebhook error:", err);
+    return res.status(200).json({ ok: true });
   }
 };
 
