@@ -153,6 +153,8 @@ exports.sendCampaign = async (req, res) => {
       failCount: failed,
       openCount: 0,
       recipients,
+      dripEnabled: req.body.dripEnabled || false,
+      sentAt:      new Date(),
     });
 
     return res.status(200).json({

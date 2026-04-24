@@ -8,6 +8,7 @@ const mongoose = require("mongoose");
 const { sendWelcomeMail } = require("./EmailService/WelcomeEmail");
 const { PendingShipmentEmail } = require("./EmailService/PendingShipment");
 const { DeliveredShipmentEmail } = require("./EmailService/DeliveredShipment");
+const { DripSequenceEmail }     = require("./EmailService/DripSequenceEmail");
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ const runJobs = async () => {
     await sendWelcomeMail();
     await PendingShipmentEmail();
     await DeliveredShipmentEmail();
+    await DripSequenceEmail();
     console.log("✅ All background email jobs completed successfully.");
   } catch (err) {
     console.error("❌ Error running scheduled tasks:", err);
