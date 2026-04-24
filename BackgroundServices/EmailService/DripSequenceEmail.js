@@ -246,8 +246,8 @@ const DripSequenceEmail = async () => {
       for (const recipient of targets) {
         try {
           const html = touch === 2
-            ? buildTouch2Html(recipient.name)
-            : buildTouch3Html(recipient.name);
+            ? buildTouch2Html((recipient.name || "").split(" ")[0] || "there")
+            : buildTouch3Html((recipient.name || "").split(" ")[0] || "there");
 
           const subject = touch === 2
             ? "In case you missed this — Air Freight UK to Accra"
