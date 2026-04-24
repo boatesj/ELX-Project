@@ -268,3 +268,37 @@ exports.uploadImage = async (req, res) => {
     return res.status(500).json({ message: "Image upload failed." });
   }
 };
+
+// -----------------------------------------------
+// GET /api/v1/marketing/unsubscribe?email=...
+// Public one-click unsubscribe — no auth required
+// -----------------------------------------------
+exports.publicUnsubscribe = async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ message: "Email is required." });
+    }
+
+    const subscriber = await Subscriber.findOne({ email: email.toLowerCase().trim() });
+
+    if (!subscriber) {
+      // Return success anyway — don't reveal whether email exists (GDPR)
+      return res.status(200).json({ message: "Unsubscribed successfully." });
+    }
+
+    if (subscriber.unsubscribed) {
+      return res.status(200).json({ message: "Already unsubscribed." });
+    }
+
+    subscriber.unsubscribed    = true;
+    subscriber.unsubscribedAt  = new Date();
+    await subscriber.save();
+
+    console.log(`✅ Public unsubscribe: ${email}`);
+    return res.status(200).json({ message: "Unsubscribed successfully." });
+  } catch (err) {
+    console.error("publicUnsubscribe error:", err);
+    return res.status(500).json({ message: "Server error." });
+  }
+};
