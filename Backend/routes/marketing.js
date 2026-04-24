@@ -12,6 +12,7 @@ const {
   getCampaign,
   postmarkWebhook,
   publicUnsubscribe,
+  updateSubscriber,
 } = require("../controllers/marketing");
 
 const { requireAuth, requireAdmin } = require("../middleware/auth");
@@ -26,6 +27,7 @@ router.post("/subscribers", addSubscriber);
 // -----------------------------------------------
 router.get("/subscribers", requireAuth, requireAdmin, getSubscribers);
 router.delete("/subscribers/:id", requireAuth, requireAdmin, unsubscribe);
+router.patch("/subscribers/:id", requireAuth, requireAdmin, updateSubscriber);
 router.post("/campaigns/send", requireAuth, requireAdmin, sendCampaign);
 
 router.post("/upload-image", requireAuth, requireAdmin, upload.single("image"), uploadImage);

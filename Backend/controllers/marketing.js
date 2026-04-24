@@ -302,3 +302,30 @@ exports.publicUnsubscribe = async (req, res) => {
     return res.status(500).json({ message: "Server error." });
   }
 };
+
+// -----------------------------------------------
+// PATCH /api/v1/marketing/subscribers/:id
+// Update subscriber tags and name (admin only)
+// -----------------------------------------------
+exports.updateSubscriber = async (req, res) => {
+  try {
+    const subscriber = await Subscriber.findById(req.params.id);
+    if (!subscriber) {
+      return res.status(404).json({ message: "Subscriber not found." });
+    }
+
+    const { name, tags } = req.body;
+
+    if (name !== undefined) subscriber.name = name.trim();
+    if (tags !== undefined) {
+      const valid = ["container", "roro", "air", "general", "test"];
+      subscriber.tags = tags.filter((t) => valid.includes(t));
+    }
+
+    await subscriber.save();
+    return res.status(200).json({ message: "Subscriber updated.", subscriber });
+  } catch (err) {
+    console.error("updateSubscriber error:", err);
+    return res.status(500).json({ message: "Server error." });
+  }
+};
