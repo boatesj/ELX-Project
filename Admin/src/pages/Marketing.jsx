@@ -107,6 +107,43 @@ function SubscribersTab() {
   const [tagFilter, setTagFilter]     = useState("all");
   const [search, setSearch]           = useState("");
   const [removing, setRemoving]       = useState(null);
+  const [editingId, setEditingId]     = useState(null);
+  const [editForm, setEditForm]       = useState({ name: "", tags: [] });
+  const [saving, setSaving]           = useState(false);
+
+  const startEdit = (s) => {
+    setEditingId(s._id);
+    setEditForm({ name: s.name || "", tags: [...(s.tags || [])] });
+  };
+
+  const cancelEdit = () => { setEditingId(null); setEditForm({ name: "", tags: [] }); };
+
+  const toggleEditTag = (t) =>
+    setEditForm((prev) => ({
+      ...prev,
+      tags: prev.tags.includes(t) ? prev.tags.filter((x) => x !== t) : [...prev.tags, t],
+    }));
+
+  const handleSave = async (id) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${MARKETING_API}/subscribers/${id}`, {
+        method: "PATCH",
+        headers: authHeaders(),
+        body: JSON.stringify(editForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed to update");
+      setSubscribers((prev) =>
+        prev.map((s) => s._id === id ? { ...s, ...data.subscriber } : s)
+      );
+      cancelEdit();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const fetchSubscribers = async () => {
     setLoading(true); setError("");
@@ -235,17 +272,66 @@ function SubscribersTab() {
                   {s.createdAt ? new Date(s.createdAt).toISOString().slice(0, 10) : "—"}
                 </td>
                 <td className="px-5 py-3 text-right">
-                  {!s.unsubscribed && (
+                  <div className="flex items-center justify-end gap-2">
                     <button
-                      onClick={() => handleUnsubscribe(s._id)}
-                      disabled={removing === s._id}
-                      className="text-xs text-red-400 hover:text-red-300 border border-red-500/30 rounded-lg px-3 py-1 hover:bg-red-500/10 transition disabled:opacity-40"
+                      onClick={() => editingId === s._id ? cancelEdit() : startEdit(s)}
+                      className="text-xs text-[#FFA500] hover:text-white border border-[#FFA500]/30 rounded-lg px-3 py-1 hover:bg-[#FFA500]/10 transition"
                     >
-                      {removing === s._id ? "…" : "Unsub"}
+                      {editingId === s._id ? "Cancel" : "Edit"}
                     </button>
-                  )}
+                    {!s.unsubscribed && (
+                      <button
+                        onClick={() => handleUnsubscribe(s._id)}
+                        disabled={removing === s._id}
+                        className="text-xs text-red-400 hover:text-red-300 border border-red-500/30 rounded-lg px-3 py-1 hover:bg-red-500/10 transition disabled:opacity-40"
+                      >
+                        {removing === s._id ? "…" : "Unsub"}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
+              {editingId === s._id && (
+                <tr className="border-b border-[#FFA500]/20 bg-[#FFA500]/5">
+                  <td colSpan={7} className="px-5 py-4">
+                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+                      <div className="flex-1">
+                        <label className="block text-[11px] uppercase tracking-widest text-gray-400 mb-1">Name</label>
+                        <input
+                          type="text"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                          className="w-full bg-[#020617] border border-[#1f2937] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#FFA500]/50 transition"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] uppercase tracking-widest text-gray-400 mb-1">Tags</label>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(TAG_META).map(([k, v]) => (
+                            <button
+                              key={k}
+                              type="button"
+                              onClick={() => toggleEditTag(k)}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border transition ${
+                                editForm.tags.includes(k) ? v.color : "bg-transparent border-[#1f2937] text-gray-500 hover:text-gray-300"
+                              }`}
+                            >
+                              {v.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleSave(s._id)}
+                        disabled={saving}
+                        className="px-5 py-2 rounded-full bg-[#FFA500] text-black text-xs font-semibold uppercase tracking-wider hover:brightness-110 transition disabled:opacity-40 shrink-0"
+                      >
+                        {saving ? "Saving…" : "Save"}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
             ))}
           </tbody>
         </table>
@@ -275,16 +361,61 @@ function SubscribersTab() {
             </div>
             <div className="flex items-center justify-between mt-3">
               <span className="text-xs text-gray-500 capitalize">{(s.source || "").replace("_", " ")} · {s.createdAt ? new Date(s.createdAt).toISOString().slice(0, 10) : "—"}</span>
-              {!s.unsubscribed && (
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => handleUnsubscribe(s._id)}
-                  disabled={removing === s._id}
-                  className="text-xs text-red-400 hover:text-red-300 border border-red-500/30 rounded-lg px-3 py-1 hover:bg-red-500/10 transition disabled:opacity-40"
+                  onClick={() => editingId === s._id ? cancelEdit() : startEdit(s)}
+                  className="text-xs text-[#FFA500] hover:text-white border border-[#FFA500]/30 rounded-lg px-3 py-1 hover:bg-[#FFA500]/10 transition"
                 >
-                  {removing === s._id ? "…" : "Unsubscribe"}
+                  {editingId === s._id ? "Cancel" : "Edit"}
                 </button>
-              )}
+                {!s.unsubscribed && (
+                  <button
+                    onClick={() => handleUnsubscribe(s._id)}
+                    disabled={removing === s._id}
+                    className="text-xs text-red-400 hover:text-red-300 border border-red-500/30 rounded-lg px-3 py-1 hover:bg-red-500/10 transition disabled:opacity-40"
+                  >
+                    {removing === s._id ? "…" : "Unsub"}
+                  </button>
+                )}
+              </div>
             </div>
+            {editingId === s._id && (
+              <div className="mt-3 pt-3 border-t border-[#FFA500]/20 flex flex-col gap-3">
+                <div>
+                  <label className="block text-[11px] uppercase tracking-widest text-gray-400 mb-1">Name</label>
+                  <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                    className="w-full bg-[#0a0f14] border border-[#1f2937] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#FFA500]/50 transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] uppercase tracking-widest text-gray-400 mb-1">Tags</label>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(TAG_META).map(([k, v]) => (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => toggleEditTag(k)}
+                        className={`px-3 py-1 rounded-full text-xs font-semibold border transition ${
+                          editForm.tags.includes(k) ? v.color : "bg-transparent border-[#1f2937] text-gray-500 hover:text-gray-300"
+                        }`}
+                      >
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleSave(s._id)}
+                  disabled={saving}
+                  className="w-full py-2 rounded-full bg-[#FFA500] text-black text-xs font-semibold uppercase tracking-wider hover:brightness-110 transition disabled:opacity-40"
+                >
+                  {saving ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
