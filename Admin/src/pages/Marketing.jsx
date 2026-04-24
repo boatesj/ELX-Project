@@ -624,6 +624,7 @@ function CampaignTab() {
   const [result, setResult]         = useState(null);
   const [error, setError]           = useState("");
   const [uploading, setUploading]   = useState(false);
+  const [dripEnabled, setDripEnabled] = useState(false);
   const [allSubs, setAllSubs]       = useState([]);
 
   // Fetch subscriber list once so we can show live audience counts
@@ -711,7 +712,7 @@ function CampaignTab() {
       const res = await fetch(`${MARKETING_API}/campaigns/send`, {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify({ subject, htmlBody: fullHtml, tags: tags.length ? tags : undefined }),
+        body: JSON.stringify({ subject, htmlBody: fullHtml, tags: tags.length ? tags : undefined, dripEnabled }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.message || "Send failed");
@@ -878,6 +879,16 @@ function CampaignTab() {
       {error  && <div className="mb-4 px-4 py-3 rounded-xl bg-red-900/30 border border-red-500/40 text-red-300 text-sm">{error}</div>}
       {result && <div className="mb-4 px-4 py-3 rounded-xl bg-emerald-900/30 border border-emerald-500/40 text-emerald-300 text-sm">✅ {result.message}</div>}
 
+      {/* Drip sequence toggle */}
+      <div className="mb-5 flex items-start gap-3 p-4 rounded-xl border border-[#1f2937] bg-[#020617] cursor-pointer hover:border-gray-600 transition" onClick={() => setDripEnabled(p => !p)}>
+        <div className={`mt-0.5 w-10 h-5 rounded-full flex items-center transition-colors shrink-0 ${ dripEnabled ? "bg-[#FFA500]" : "bg-[#1f2937]" }`}>
+          <div className={`w-4 h-4 rounded-full bg-white shadow transition-transform mx-0.5 ${ dripEnabled ? "translate-x-5" : "translate-x-0" }`} />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-gray-100">Enable drip sequence</p>
+          <p className="text-xs text-gray-500 mt-0.5">Automatically follow up with non-openers at Day 3 and Day 7 after sending.</p>
+        </div>
+      </div>
       <button onClick={handleSend} disabled={sending || !subject.trim() || !htmlBody.trim()}
         className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#FFA500] text-black font-semibold text-sm uppercase tracking-[0.14em] shadow-lg shadow-[#FFA500]/20 hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed">
         {sending ? "Sending…" : "Send Campaign"}
@@ -1313,6 +1324,8 @@ function CampaignHistoryTab() {
                   <tr className="border-b border-[#1f2937] text-[11px] uppercase tracking-widest text-gray-500">
                     <th className="text-left px-5 py-3">Name</th>
                     <th className="text-left px-5 py-3">Email</th>
+                    <th className="text-center px-5 py-3">Day 3</th>
+                    <th className="text-center px-5 py-3">Day 7</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1320,6 +1333,8 @@ function CampaignHistoryTab() {
                     <tr key={i} className="border-b border-[#1f2937]/50 hover:bg-white/[0.02]">
                       <td className="px-5 py-3 text-gray-400">{r.name || "—"}</td>
                       <td className="px-5 py-3 text-gray-500">{r.email}</td>
+                      <td className="px-5 py-3 text-center">{r.touch2Sent ? <span className="text-amber-400 text-xs font-semibold">✓ Sent</span> : <span className="text-gray-600 text-xs">Pending</span>}</td>
+                      <td className="px-5 py-3 text-center">{r.touch3Sent ? <span className="text-amber-400 text-xs font-semibold">✓ Sent</span> : <span className="text-gray-600 text-xs">Pending</span>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1357,7 +1372,14 @@ function CampaignHistoryTab() {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-100 truncate">{c.subject}</p>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="font-semibold text-gray-100 truncate">{c.subject}</p>
+                      {c.dripEnabled && (
+                        <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-amber-500/10 text-amber-400 border-amber-500/30">
+                          ⚡ Drip
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-500 mt-0.5">
                       {c.createdAt ? new Date(c.createdAt).toISOString().slice(0,10) : "—"}
                       {c.tags?.length ? ` · ${c.tags.join(", ")}` : " · all subscribers"}
