@@ -253,9 +253,12 @@ const DripSequenceEmail = async () => {
             ? "In case you missed this — Air Freight UK to Accra"
             : "Last chance — limited capacity on UK to Accra flights";
 
-          await dispatchMail({ to: recipient.email, subject, html });
+          const info = await dispatchMail({ to: recipient.email, subject, html });
 
-          // Step 6 — flag this touch as sent so we never resend
+          // Step 6 — save Postmark MessageID so webhook can track opens on touches
+          if (info?.MessageID) recipient.messageId = info.MessageID;
+
+          // Step 7 — flag this touch as sent so we never resend
           if (touch === 2) recipient.touch2Sent = true;
           if (touch === 3) recipient.touch3Sent = true;
 
