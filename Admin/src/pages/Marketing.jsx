@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -251,7 +251,8 @@ function SubscribersTab() {
             ) : filtered.length === 0 ? (
               <tr><td colSpan={7} className="text-center py-10 text-gray-500 text-sm">No subscribers found.</td></tr>
             ) : filtered.map((s) => (
-              <tr key={s._id} className="border-b border-[#1f2937]/60 hover:bg-white/[0.02] transition">
+              <React.Fragment key={s._id}>
+              <tr className="border-b border-[#1f2937]/60 hover:bg-white/[0.02] transition">
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-2">
                     <StatusDot active={!s.unsubscribed} />
@@ -332,6 +333,7 @@ function SubscribersTab() {
                   </td>
                 </tr>
               )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
