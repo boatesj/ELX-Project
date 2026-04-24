@@ -11,6 +11,7 @@ const {
   getCampaigns,
   getCampaign,
   postmarkWebhook,
+  publicUnsubscribe,
 } = require("../controllers/marketing");
 
 const { requireAuth, requireAdmin } = require("../middleware/auth");
@@ -35,5 +36,8 @@ router.get("/campaigns/:id", requireAuth, requireAdmin, getCampaign);
 
 // Postmark webhook — public, no auth (Postmark calls this)
 router.post("/webhooks/postmark", postmarkWebhook);
+
+// Public unsubscribe — no auth (linked from emails)
+router.get("/unsubscribe", publicUnsubscribe);
 
 module.exports = router;

@@ -98,7 +98,7 @@ function buildTouch2Html(name) {
           <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
             <p style="margin:0;font-size:12px;color:#9ca3af;">
               You are receiving this because you opted in to updates from Ellcworth Express.
-              <a href="https://ellcworth.com/unsubscribe" style="color:#9ca3af;">Unsubscribe</a>
+              <a href="https://ellcworth.com/unsubscribe?email=${encodeURIComponent(recipient.email)}" style="color:#9ca3af;">Unsubscribe</a>
             </p>
           </td>
         </tr>
@@ -191,7 +191,7 @@ function buildTouch3Html(name) {
           <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
             <p style="margin:0;font-size:12px;color:#9ca3af;">
               You are receiving this because you opted in to updates from Ellcworth Express.
-              <a href="https://ellcworth.com/unsubscribe" style="color:#9ca3af;">Unsubscribe</a>
+              <a href="https://ellcworth.com/unsubscribe?email=${encodeURIComponent(recipient.email)}" style="color:#9ca3af;">Unsubscribe</a>
             </p>
           </td>
         </tr>
