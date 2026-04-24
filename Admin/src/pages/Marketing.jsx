@@ -828,9 +828,10 @@ function CampaignTab() {
       if (selected.length === 1 && TEMPLATES[selected[0]]) {
         const tpl = TEMPLATES[selected[0]];
         setTemplate(selected[0]);
-        setSubject(tpl.subject);
-        setHtmlBody(tpl.body);
         setTemplateMeta({ accent: tpl.accent || "#FFA500", serviceLabel: tpl.serviceLabel || "" });
+        // Only auto-fill subject/body if the user hasn't written anything yet
+        setSubject((prev) => prev.trim() ? prev : tpl.subject);
+        setHtmlBody((prev) => prev.trim() ? prev : tpl.body);
       }
       return next;
     });
