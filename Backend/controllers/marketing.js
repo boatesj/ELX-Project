@@ -120,7 +120,7 @@ exports.sendCampaign = async (req, res) => {
           From:          process.env.EMAIL_FROM,
           To:            sub.email,
           Subject:       subject,
-          HtmlBody:      htmlBody.split("{{name}}").join(sub.name || "there"),
+          HtmlBody:      htmlBody.split("{{name}}").join((sub.name || "there").split(" ")[0]),
           ReplyTo:       process.env.EMAIL_REPLY_TO,
           MessageStream: "broadcast",
           TrackOpens:    true,
