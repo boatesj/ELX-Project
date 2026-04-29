@@ -25,7 +25,7 @@ const Footer = () => {
               UK–Africa shipping support for containers, vehicles, air freight
               and secure documentation – with clear communication from booking
               to delivery.
-            </p>
+  
 
             <div className="mt-5 flex flex-wrap gap-2">
               <span className="text-[11px] px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">
@@ -46,6 +46,11 @@ const Footer = () => {
               Services
             </h3>
             <ul className="space-y-2 text-sm md:text-[15px]">
+              <li>
+                <Link to="/about" className="hover:text-[#FFA500] transition">
+                  About Ellcworth
+                </Link>
+              </li>
               <li>
                 <a href="#quote" className="hover:text-[#FFA500] transition">
                   Get a shipping quote
@@ -114,19 +119,19 @@ const Footer = () => {
           <p className="text-xs md:text-sm text-slate-500">
             © {new Date().getFullYear()} Ellcworth Express Ltd. All rights
             reserved.
-          </p>
+
 
           {/* Keep as buttons for now (no routing assumptions) */}
           <div className="flex flex-wrap gap-4 text-xs md:text-sm text-slate-500">
-            <button className="hover:text-[#FFA500] transition" type="button">
+            <Link to="/terms" className="hover:text-[#FFA500] transition">
               Terms &amp; conditions
-            </button>
-            <button className="hover:text-[#FFA500] transition" type="button">
+            </Link>
+            <Link to="/privacy" className="hover:text-[#FFA500] transition">
               Privacy policy
-            </button>
-            <button className="hover:text-[#FFA500] transition" type="button">
+            </Link>
+            <Link to="/cookies" className="hover:text-[#FFA500] transition">
               Cookies
-            </button>
+            </Link>
           </div>
         </div>
       </div>
