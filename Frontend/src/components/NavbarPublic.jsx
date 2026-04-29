@@ -235,6 +235,14 @@ const NavbarPublic = () => {
                 </button>
               </li>
             ))}
+            <li>
+              <Link
+                to="/about"
+                className="hover:text-black/70 transition"
+              >
+                About
+              </Link>
+            </li>
           </ul>
 
           {/* ✅ Conditional CTA */}
@@ -362,6 +370,12 @@ const NavbarPublic = () => {
               </div>
 
               <div className="mt-6 pt-6 border-t border-white/10">
+                <Link to="/about" onClick={closeMenu}>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/90 tracking-[0.14em] uppercase hover:bg-white/10 transition">
+                    About Ellcworth →
+                  </div>
+                </Link>
+
                 <Link to="/services" onClick={closeMenu}>
                   <div className="rounded-2xl border border-[#FFA500]/30 bg-[#FFA500]/10 px-4 py-3 text-sm font-semibold text-[#FFA500] tracking-[0.14em] uppercase hover:bg-[#FFA500]/15 transition">
                     View Services Directory →

@@ -1,28 +1,28 @@
-const partners = [
+const sectors = [
   {
-    name: "Universities of Ghana Overseas Office",
-    label: "Higher Education · Ghana",
-    short: "UG00",
+    icon: "🎓",
+    label: "Higher Education",
+    detail: "Universities & academic institutions",
   },
   {
-    name: "Norstrom Enterprises Ltd",
-    label: "Clearing and Forwarding",
-    short: "NEL",
+    icon: "🖨️",
+    label: "Secure Print",
+    detail: "Certificate & document printers",
   },
   {
-    name: "SecurePrint UK",
-    label: "Secure Document Printer · United Kingdom",
-    short: "SP UK",
+    icon: "🚗",
+    label: "Automotive Export",
+    detail: "Vehicle traders & exporters",
   },
   {
-    name: "Atlantic Vehicle Traders",
-    label: "Automotive Exporter · United Kingdom",
-    short: "AVT",
+    icon: "🚢",
+    label: "Freight Logistics",
+    detail: "Clearing & forwarding partners",
   },
   {
-    name: "Northern Freight Partners",
-    label: "Logistics Partner · Wales",
-    short: "NFP",
+    icon: "🏥",
+    label: "Healthcare",
+    detail: "Medical equipment & supplies",
   },
 ];
 
@@ -57,7 +57,7 @@ const SocialProofBoard = () => {
               Partners & Institutions
             </span>
             <h2 className="text-2xl md:text-[2rem] font-semibold tracking-tight text-[#111827] mb-2 uppercase">
-              Our partners rely on our expertise for secure UK–Africa cargo.
+              We work with organisations across these sectors.
             </h2>
             <p className="text-sm md:text-base text-gray-600 max-w-2xl">
               We support organisations across education, secure printing and
@@ -71,8 +71,7 @@ const SocialProofBoard = () => {
               Focused on lasting relationships, not just one-off transactions.
             </p>
             <p>
-              Many partners ship with us multiple times each year, validating
-              our commitment to reliability.
+              Case studies and named references available on request.
             </p>
           </div>
         </div>
@@ -84,48 +83,30 @@ const SocialProofBoard = () => {
             grid-cols-2 md:grid-cols-3 lg:grid-cols-5
           "
         >
-          {partners.map((partner) => (
+          {sectors.map((sector) => (
             <div
-              key={partner.name}
+              key={sector.label}
               className="
                 group
-                flex flex-col items-center justify-center
+                flex flex-col items-center justify-center text-center
                 rounded-2xl border border-gray-200
                 bg-[#F9FAFB]/90
-                px-4 py-4 md:px-5 md:py-5
+                px-4 py-5 md:px-5 md:py-6
                 shadow-sm
                 transition
                 hover:border-[#FFA500]/60 hover:bg-white
                 backdrop-blur-sm
               "
             >
-              {/* Mood-board logo placeholder */}
-              <div
-                className="
-                  mb-3 md:mb-4
-                  flex items-center justify-center
-                  h-10 md:h-11 w-full
-                  rounded-md
-                  bg-white
-                  border border-gray-200
-                  shadow-[0_1px_2px_rgba(0,0,0,0.04)]
-                "
-              >
-                <span className="text-[11px] md:text-xs font-semibold text-gray-700 tracking-[0.16em] uppercase">
-                  {partner.short}
-                </span>
+              <div className="mb-3 flex items-center justify-center h-11 w-11 rounded-full bg-[#1A2930] text-2xl">
+                {sector.icon}
               </div>
-
-              <div className="text-center">
-                <p className="text-xs md:text-sm font-semibold text-[#111827]">
-                  {partner.name}
-                </p>
-                {partner.label && (
-                  <p className="text-[11px] md:text-xs text-gray-500 mt-1">
-                    {partner.label}
-                  </p>
-                )}
-              </div>
+              <p className="text-xs md:text-sm font-semibold text-[#111827] mb-1">
+                {sector.label}
+              </p>
+              <p className="text-[11px] md:text-xs text-gray-500">
+                {sector.detail}
+              </p>
             </div>
           ))}
         </div>
@@ -133,9 +114,11 @@ const SocialProofBoard = () => {
         {/* Optional CTA line */}
         <div className="mt-8 md:mt-10 text-center text-xs md:text-sm text-gray-600">
           <span className="font-medium text-[#1A2930]">
-            Ready to establish reliable UK–Africa shipping?
+            Case studies and named references available on request.
           </span>{" "}
-          Contact us today to add Ellcworth to your approved vendor list.
+          <a href="mailto:cs@ellcworth.com" className="underline hover:text-[#FFA500] transition">
+            Contact us to find out more.
+          </a>
         </div>
       </div>
     </section>

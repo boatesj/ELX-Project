@@ -47,6 +47,11 @@ const Footer = () => {
             </h3>
             <ul className="space-y-2 text-sm md:text-[15px]">
               <li>
+                <Link to="/about" className="hover:text-[#FFA500] transition">
+                  About Ellcworth
+                </Link>
+              </li>
+              <li>
                 <a href="#quote" className="hover:text-[#FFA500] transition">
                   Get a shipping quote
                 </a>
@@ -118,15 +123,15 @@ const Footer = () => {
 
           {/* Keep as buttons for now (no routing assumptions) */}
           <div className="flex flex-wrap gap-4 text-xs md:text-sm text-slate-500">
-            <button className="hover:text-[#FFA500] transition" type="button">
+            <Link to="/terms" className="hover:text-[#FFA500] transition">
               Terms &amp; conditions
-            </button>
-            <button className="hover:text-[#FFA500] transition" type="button">
+            </Link>
+            <Link to="/privacy" className="hover:text-[#FFA500] transition">
               Privacy policy
-            </button>
-            <button className="hover:text-[#FFA500] transition" type="button">
+            </Link>
+            <Link to="/cookies" className="hover:text-[#FFA500] transition">
               Cookies
-            </button>
+            </Link>
           </div>
         </div>
       </div>

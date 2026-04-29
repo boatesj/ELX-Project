@@ -2,6 +2,20 @@ import { useState, useEffect } from "react";
 
 const slides = [
   {
+    image: "/ellc_hero4.png",
+    imageMobile: "/ellc_hero4-mobile.png",
+    alt: "Pallet of secure certificate boxes prepared for air freight to Ghana",
+    position: "center 45%",
+    mobilePosition: "center 55%",
+    badge: "Trusted by Ghana's Universities · 12 Years · Zero Failures",
+    title: "When graduation is 7 days away, there is no room for error.",
+    subtitle:
+      "Blank certificates. Air freight. UK to Accra — sealed and delivered.",
+    body: "Sealed in the UK. Cleared through customs. Delivered to campus. No delays. No excuses. No exceptions.",
+    ctaLabel: "Talk to our document team",
+    ctaHref: "#quote",
+  },
+  {
     image: "/ellc_hero1.png",
     imageMobile: "/ellc_hero1-mobile.png",
     alt: "Container vessel at sea carrying stacked shipping containers",
@@ -10,7 +24,7 @@ const slides = [
     badge: "Container Shipping · UK to West Africa",
     title: "A smarter way to ship containers from the UK to West Africa.",
     subtitle: "One point of contact for FCL and LCL moves",
-    body: "Tell us what you’re shipping and whether it’s going to Ghana or another West African destination, and we’ll coordinate carriers, paperwork and sailing schedules while keeping you updated from booking to arrival.",
+    body: "Tell us what you're shipping and whether it's going to Ghana or another West African destination, and we'll coordinate carriers, paperwork and sailing schedules while keeping you updated from booking to arrival.",
     ctaLabel: "Plan a container shipment",
     ctaHref: "#quote",
   },
@@ -34,24 +48,11 @@ const slides = [
     position: "center 40%",
     mobilePosition: "center 55%",
     badge: "RoRo Vehicle Shipping · UK to West Africa",
-    title: "Shipping your vehicle to West Africa shouldn’t be stressful.",
+    title: "Shipping your vehicle to West Africa shouldn't be stressful.",
     subtitle: "RoRo sailings for cars, vans, 4x4s, lorries and trucks",
     body: "You deliver the vehicle to port, and we handle the rest: export paperwork, RoRo booking and shipment updates until safe discharge at the destination port in Ghana or elsewhere in West Africa.",
     ctaLabel: "Get a RoRo vehicle quote",
     ctaHref: "#quote",
-  },
-  {
-    image: "/ellc_hero4.png",
-    imageMobile: "/ellc_hero4-mobile.png",
-    alt: "Pallet of secure document boxes labelled for global destinations",
-    position: "center 45%",
-    mobilePosition: "center 55%",
-    badge: "Secure Document Logistics",
-    title: "Sensitive documents handled securely from dispatch to delivery.",
-    subtitle: "For certificates, cheques and other secure print",
-    body: "We support printers, institutions and organisations moving high-value documents in secure packaging, with tracked and signed-for delivery where care, control and accountability matter.",
-    ctaLabel: "Talk to our document team",
-    ctaHref: "#contact",
   },
   {
     image: "/ellc_hero5.png",
@@ -62,9 +63,9 @@ const slides = [
     badge: "Repacking & Consolidation · UK Export Support",
     title: "Prepare your cargo properly before it leaves the UK.",
     subtitle: "Consolidation and repacking before shipment",
-    body: "Send supplier deliveries and online purchases to our warehouse, and we’ll check, photograph, repack and consolidate them into one secure export shipment for Ghana, West Africa or another destination you specify.",
+    body: "Send supplier deliveries and online purchases to our warehouse, and we'll check, photograph, repack and consolidate them into one secure export shipment for Ghana, West Africa or another destination you specify.",
     ctaLabel: "Arrange repacking support",
-    ctaHref: "#contact",
+    ctaHref: "#quote",
   },
 ];
 

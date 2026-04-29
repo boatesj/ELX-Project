@@ -6,6 +6,7 @@ import KeyDestinations from "../components/KeyDestinations";
 import TrustStories from "../components/TrustStories";
 import ServiceOverview from "../components/ServiceOverview";
 import SocialProofBoard from "../components/SocialProofBoard";
+import VesselTracker from "../components/VesselTracker";
 
 const OFFSET_CLASSES =
   "scroll-mt-[120px] md:scroll-mt-[150px] lg:scroll-mt-[160px]";
@@ -46,6 +47,9 @@ const Home = () => {
       <section id="booking" className={OFFSET_CLASSES}>
         <QuoteSection />
       </section>
+
+      {/* Vessel tracker */}
+      <VesselTracker />
 
       {/* Testimonials / Client Stories anchor target for /#testimonials */}
       <section id="testimonials" className={OFFSET_CLASSES}>

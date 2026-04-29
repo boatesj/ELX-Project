@@ -17,6 +17,7 @@ import EditBooking from "@/pages/customer/EditBooking.jsx";
 import RequireCustomerAuth from "@/components/auth/RequireCustomerAuth.jsx";
 import ResetPassword from "@/pages/auth/ResetPassword.jsx";
 import Unsubscribe from "@/pages/public/Unsubscribe.jsx";
+import About from "@/pages/public/About.jsx";
 
 const router = createBrowserRouter([
   {
@@ -28,6 +29,7 @@ const router = createBrowserRouter([
       // Public
       { path: "services", element: <Services /> },
       { path: "services/:id", element: <ServiceDetail /> },
+        { path: "/about", element: <About /> },
 
       // Auth
       { path: "login", element: <CustomerLogin /> },

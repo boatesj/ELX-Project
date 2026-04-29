@@ -8,6 +8,7 @@ import {
   FaFileSignature,
   FaBoxes,
   FaRegClipboard,
+  FaBolt,
 } from "react-icons/fa";
 
 const SERVICES = [
@@ -28,6 +29,13 @@ const SERVICES = [
     icon: FaPlaneDeparture,
     title: "Fast air freight",
     body: "Priority options for urgent cargo that can’t wait for a vessel.",
+  },
+  ,
+  {
+    id: "jit",
+    icon: FaBolt,
+    title: "Just In Time (JIT) Delivery",
+    body: "A dedicated end-to-end logistics solution for time-critical, high-integrity consignments on the UK to Ghana corridor.",
   },
   {
     id: "documents",
@@ -70,6 +78,10 @@ const SEO = {
     title: "Repacking & Consolidation Service UK | Ellcworth Express",
     desc: "Consolidate multiple UK deliveries into one export shipment — checked, repacked, and organised for West Africa.",
   },
+  jit: {
+    title: "Just In Time (JIT) Delivery UK to Ghana | Ellcworth Express",
+    desc: "Dedicated time-critical air freight for graduation certificates and high-integrity cargo. 12 years. Zero failures. UK to Ghana.",
+  },
 };
 
 export default function ServiceDetail() {
@@ -97,6 +109,219 @@ export default function ServiceDetail() {
               >
                 ← Back to Services
               </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // ── JIT full-page render ──
+  if (id === "jit") {
+    return (
+      <section className="relative -mt-[84px] min-h-[calc(100vh-84px)] bg-[#071013] md:-mt-[150px] md:min-h-[calc(100vh-150px)] lg:-mt-[160px] lg:min-h-[calc(100vh-160px)]">
+        <Helmet>
+          <title>
+            Just In Time (JIT) Delivery UK to Ghana | Ellcworth Express
+          </title>
+          <meta
+            name="description"
+            content="Dedicated time-critical air freight for graduation certificates and high-integrity cargo. 12 years. Zero failures. UK to Ghana."
+          />
+          <link rel="canonical" href="https://www.ellcworth.com/services/jit" />
+        </Helmet>
+        <div className="mx-auto max-w-5xl px-4 pt-[104px] pb-16 md:px-6 md:pt-[174px] lg:px-8 lg:pt-[184px]">
+          <div className="mx-auto max-w-4xl">
+            <Link
+              to="/services"
+              className="inline-flex items-center gap-2 font-semibold text-[#FFA500] transition hover:opacity-90"
+            >
+              ← Back to Services
+            </Link>
+
+            {/* Header */}
+            <div className="mt-6 rounded-3xl border border-[#FFA500]/30 bg-[#0B1118] p-6 shadow-xl md:p-8">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[#FFA500]/10 border border-[#FFA500]/30 text-[#FFA500]">
+                  <FaBolt className="text-[18px]" />
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#FFA500]">
+                    Air Freight · Critical Tier
+                  </p>
+                  <h1 className="mt-1 text-2xl font-semibold tracking-tight text-white md:text-3xl">
+                    Just In Time (JIT) Delivery
+                  </h1>
+                  <p className="mt-2 text-gray-300">
+                    UK to Ghana · Time-Critical Cargo
+                  </p>
+                </div>
+              </div>
+
+              {/* Headline */}
+              <div className="mt-8 border-t border-white/10 pt-8">
+                <p className="text-lg font-semibold text-white md:text-xl">
+                  When the production window has closed and the deadline has not
+                  — JIT absorbs the gap.
+                </p>
+              </div>
+            </div>
+
+            {/* The problem */}
+            <div className="mt-4 rounded-3xl border border-white/10 bg-[#0B1118] p-6 md:p-8">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#FFA500] mb-4">
+                The Problem
+              </p>
+              <div className="space-y-4 text-gray-300 leading-relaxed">
+                <p>
+                  Graduation is fixed. The venue is booked. The families have
+                  travelled. There is no version of events in which the ceremony
+                  is postponed because certificates did not arrive.
+                </p>
+                <p>
+                  And yet the production process does not always cooperate.
+                  Printers run late. Approvals take longer than expected. Design
+                  revisions go to the wire. By the time blank certificates are
+                  ready for collection, the window that once seemed manageable
+                  has compressed into something that looks, on paper,
+                  impossible.
+                </p>
+                <p>
+                  The procurement director does not need a freight company that
+                  will try its best. They need one that will not fail.
+                </p>
+              </div>
+            </div>
+
+            {/* How JIT came about */}
+            <div className="mt-4 rounded-3xl border border-white/10 bg-[#0B1118] p-6 md:p-8">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#FFA500] mb-4">
+                How JIT Came About
+              </p>
+              <div className="space-y-4 text-gray-300 leading-relaxed">
+                <p>
+                  Ellcworth Express has been handling exactly this consignment —
+                  for exactly this deadline — for over 12 years. What began as a
+                  single urgent assignment became a repeat engagement. Then a
+                  pattern. Then a process refined over a decade of not once
+                  missing a graduation deadline.
+                </p>
+                <p>
+                  JIT was not designed in a boardroom. It was built in the
+                  field, shaped by the real pressures procurement directors face
+                  every year — and by our absolute refusal to let any one of
+                  them down.
+                </p>
+                <p>
+                  When you hand a JIT consignment to Ellcworth, the deadline
+                  transfers with it. It becomes our problem to solve — and our
+                  record to protect.
+                </p>
+              </div>
+            </div>
+
+            {/* Service components */}
+            <div className="mt-4 rounded-3xl border border-[#FFA500]/30 bg-[#0B1118] p-6 md:p-8">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#FFA500] mb-6">
+                What Every JIT Consignment Includes
+              </p>
+              <div className="space-y-4">
+                {[
+                  {
+                    title: "Immediate assessment",
+                    body: "We confirm viability and commit within the hour. No waiting. No ambiguity.",
+                  },
+                  {
+                    title: "Direct collection",
+                    body: "From your UK printer or supplier — we come to them, on your timeline.",
+                  },
+                  {
+                    title: "Tamper-evident packaging",
+                    body: "Full chain-of-custody documentation from collection to delivery confirmation.",
+                  },
+                  {
+                    title: "Priority air freight",
+                    body: "Carrier space confirmed before your consignment moves. No standby. No compromise.",
+                  },
+                  {
+                    title: "ICUMS customs clearance",
+                    body: "Managed by in-country agents who know the Ghana customs system — not generalists learning it at your expense.",
+                  },
+                  {
+                    title: "Last-mile delivery",
+                    body: "To campus or your nominated Ghana address — confirmed and photographed on arrival.",
+                  },
+                  {
+                    title: "Single point of contact",
+                    body: "Reachable and accountable from collection to delivery. You will always know where your consignment is.",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.title}
+                    className="flex gap-4 items-start border-b border-white/5 pb-4 last:border-0 last:pb-0"
+                  >
+                    <div className="flex-shrink-0 h-6 w-6 rounded-full bg-[#FFA500]/10 border border-[#FFA500]/30 flex items-center justify-center mt-0.5">
+                      <FaBolt className="text-[#FFA500] text-[10px]" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-white">{item.title}</p>
+                      <p className="mt-1 text-sm text-gray-400 leading-relaxed">
+                        {item.body}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* The record */}
+            <div className="mt-4 rounded-3xl border border-white/10 bg-[#0B1118] p-6 md:p-8">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                {[
+                  { stat: "12+", label: "Years on this corridor" },
+                  { stat: "0", label: "Deadlines missed" },
+                  { stat: "100%", label: "Consignment integrity" },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <p className="text-3xl md:text-4xl font-bold text-[#FFA500]">
+                      {item.stat}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-400 uppercase tracking-[0.14em]">
+                      {item.label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-6 text-center text-sm text-gray-400 italic">
+                Not because we got lucky — because we built a process that does
+                not leave room for luck.
+              </p>
+            </div>
+
+            {/* CTA */}
+            <div className="mt-4 rounded-3xl border border-[#FFA500]/30 bg-[#FFA500]/5 p-6 md:p-8">
+              <p className="text-white font-semibold text-lg mb-2">
+                If your deadline is already close — contact us now.
+              </p>
+              <p className="text-gray-400 text-sm mb-6">
+                JIT is available to universities, examination bodies, secure
+                print houses and organisations moving time-critical cargo
+                between the UK and West Africa.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <a
+                  href="mailto:cs@ellcworth.com"
+                  className="inline-flex justify-center rounded-full bg-[#FFA500] px-6 py-3 text-sm font-semibold text-[#1A2930] hover:opacity-95 transition"
+                >
+                  Contact our JIT team
+                </a>
+                <Link
+                  to="/#booking"
+                  className="inline-flex justify-center rounded-full border border-[#FFA500]/60 px-6 py-3 text-sm font-semibold text-[#FFA500] hover:bg-[#FFA500]/10 transition"
+                >
+                  Book a shipment
+                </Link>
+              </div>
             </div>
           </div>
         </div>
