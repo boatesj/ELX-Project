@@ -29,7 +29,7 @@ const router = createBrowserRouter([
       // Public
       { path: "services", element: <Services /> },
       { path: "services/:id", element: <ServiceDetail /> },
-        { path: "about", element: <About /> },
+        { path: "/about", element: <About /> },
 
       // Auth
       { path: "login", element: <CustomerLogin /> },

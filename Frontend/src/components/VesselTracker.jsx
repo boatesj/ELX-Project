@@ -76,7 +76,7 @@ const VesselTracker = () => {
 
         {/* CTA below map */}
         <div className="mt-6 text-center">
-          
+          <a
             href="#quote"
             className="
               inline-flex items-center gap-2

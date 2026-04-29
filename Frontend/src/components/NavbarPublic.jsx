@@ -235,14 +235,15 @@ const NavbarPublic = () => {
                 </button>
               </li>
             ))}
+            <li>
+              <Link
+                to="/about"
+                className="hover:text-black/70 transition"
+              >
+                About
+              </Link>
+            </li>
           </ul>
-
-          <Link
-            to="/about"
-            className="text-xs md:text-sm font-semibold text-[#1A2930] tracking-[0.12em] hover:text-black/70 transition capitalize"
-          >
-            About
-          </Link>
 
           {/* ✅ Conditional CTA */}
           {isCustomerSignedIn ? (
