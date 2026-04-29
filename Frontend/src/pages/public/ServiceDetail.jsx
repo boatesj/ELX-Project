@@ -89,33 +89,6 @@ export default function ServiceDetail() {
 
   const service = useMemo(() => SERVICES.find((s) => s.id === id), [id]);
 
-  if (!service) {
-    return (
-      <section className="relative -mt-[84px] min-h-[calc(100vh-84px)] bg-[#071013] md:-mt-[150px] md:min-h-[calc(100vh-150px)] lg:-mt-[160px] lg:min-h-[calc(100vh-160px)]">
-        <div className="mx-auto max-w-5xl px-4 pt-[104px] pb-12 md:px-6 md:pt-[174px] md:pb-14 lg:px-8 lg:pt-[184px]">
-          <div className="mx-auto max-w-4xl rounded-3xl border border-white/10 bg-[#0B1118] p-6 shadow-xl md:p-8">
-            <p className="text-lg font-semibold text-white">
-              Service not found.
-            </p>
-            <p className="mt-2 text-sm text-gray-300">
-              The service you’re looking for may have moved. Choose a service
-              from the list and we’ll guide you through the next steps.
-            </p>
-
-            <div className="mt-5">
-              <Link
-                className="inline-flex items-center gap-2 font-semibold text-[#FFA500] transition hover:opacity-90"
-                to="/services"
-              >
-                ← Back to Services
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   // ── JIT full-page render ──
   if (id === "jit") {
     return (
@@ -322,6 +295,33 @@ export default function ServiceDetail() {
                   Book a shipment
                 </Link>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!service) {
+    return (
+      <section className="relative -mt-[84px] min-h-[calc(100vh-84px)] bg-[#071013] md:-mt-[150px] md:min-h-[calc(100vh-150px)] lg:-mt-[160px] lg:min-h-[calc(100vh-160px)]">
+        <div className="mx-auto max-w-5xl px-4 pt-[104px] pb-12 md:px-6 md:pt-[174px] md:pb-14 lg:px-8 lg:pt-[184px]">
+          <div className="mx-auto max-w-4xl rounded-3xl border border-white/10 bg-[#0B1118] p-6 shadow-xl md:p-8">
+            <p className="text-lg font-semibold text-white">
+              Service not found.
+            </p>
+            <p className="mt-2 text-sm text-gray-300">
+              The service you’re looking for may have moved. Choose a service
+              from the list and we’ll guide you through the next steps.
+            </p>
+
+            <div className="mt-5">
+              <Link
+                className="inline-flex items-center gap-2 font-semibold text-[#FFA500] transition hover:opacity-90"
+                to="/services"
+              >
+                ← Back to Services
+              </Link>
             </div>
           </div>
         </div>
