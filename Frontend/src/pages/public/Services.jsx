@@ -56,6 +56,20 @@ const SERVICES = [
     bestFor: "Urgent cargo where delays are not acceptable.",
   },
   {
+    id: "jit",
+    icon: FaBolt,
+    eyebrow: "Air Freight · Critical Tier",
+    title: "Just In Time (JIT) Delivery",
+    body: "When the production window has closed and the deadline has not — JIT absorbs the gap. Built for consignments where failure is not an option.",
+    highlights: [
+      "Deadline rescue service",
+      "End-to-end ownership",
+      "12 years · zero failures",
+    ],
+    bestFor: "Universities, examination bodies and organisations moving time-critical cargo when the window is already tight.",
+    jit: true,
+  },
+  {
     id: "documents",
     icon: FaFileSignature,
     eyebrow: "Secure print & certificates",
@@ -270,15 +284,17 @@ export default function Services() {
                 <Link
                   key={s.id}
                   to={`/services/${s.id}`}
-                  className="
+                  className={`
                     group rounded-3xl
-                    border border-white/10
-                    bg-gradient-to-b from-white/6 to-white/3
-                    hover:border-[#FFA500]/40
-                    hover:bg-white/5
+                    border
+                    bg-gradient-to-b
                     transition
                     shadow-[0_18px_60px_-28px_rgba(0,0,0,0.85)]
-                  "
+                    ${s.jit
+                      ? "border-[#FFA500]/40 from-[#FFA500]/8 to-[#FFA500]/3 hover:border-[#FFA500]/70"
+                      : "border-white/10 from-white/6 to-white/3 hover:border-[#FFA500]/40 hover:bg-white/5"
+                    }
+                  `}
                 >
                   <div className="p-5">
                     <div className="flex items-start justify-between gap-4">
