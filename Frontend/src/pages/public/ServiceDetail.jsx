@@ -30,7 +30,6 @@ const SERVICES = [
     title: "Fast air freight",
     body: "Priority options for urgent cargo that can’t wait for a vessel.",
   },
-  ,
   {
     id: "jit",
     icon: FaBolt,
@@ -87,7 +86,7 @@ const SEO = {
 export default function ServiceDetail() {
   const { id } = useParams();
 
-  const service = useMemo(() => SERVICES.find((s) => s.id === id), [id]);
+  const service = useMemo(() => id === "jit" ? null : SERVICES.find((s) => s.id === id), [id]);
 
   // ── JIT full-page render ──
   if (id === "jit") {
