@@ -226,7 +226,7 @@ const About = () => {
             get in touch and we will tell you exactly what we can do.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            
+            <a
               href="mailto:cs@ellcworth.com"
               className="inline-flex items-center justify-center rounded-full bg-[#FFA500] text-black px-8 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-[#ffb733] transition shadow-md"
             >
