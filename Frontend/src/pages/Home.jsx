@@ -6,7 +6,6 @@ import KeyDestinations from "../components/KeyDestinations";
 import TrustStories from "../components/TrustStories";
 import ServiceOverview from "../components/ServiceOverview";
 import SocialProofBoard from "../components/SocialProofBoard";
-import PreFooterCTA from "../components/PreFooterCTA";
 
 const OFFSET_CLASSES =
   "scroll-mt-[120px] md:scroll-mt-[150px] lg:scroll-mt-[160px]";
@@ -53,9 +52,6 @@ const Home = () => {
         <TrustStories />
         <SocialProofBoard />
       </section>
-
-        {/* Pre-footer CTA */}
-        <PreFooterCTA />
     </div>
   );
 };
