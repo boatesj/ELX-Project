@@ -11,6 +11,14 @@ const About = () => {
           content="For over 12 years Ellcworth Express has shipped critical cargo from the UK to West Africa — including blank degree certificates for Ghana's leading universities. Never missed a deadline."
         />
         <link rel="canonical" href="https://www.ellcworth.com/about" />
+        <meta property="og:title" content="About Ellcworth Express | UK to West Africa Freight Specialists" />
+        <meta property="og:description" content="12 years shipping critical cargo from the UK to West Africa — including blank degree certificates for Ghana's leading universities. Never missed a deadline." />
+        <meta property="og:url" content="https://www.ellcworth.com/about" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://www.ellcworth.com/ellc_hero1.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="About Ellcworth Express | UK to West Africa Freight Specialists" />
+        <meta name="twitter:description" content="12 years shipping critical cargo from the UK to West Africa — including blank degree certificates for Ghana's leading universities. Never missed a deadline." />
       </Helmet>
 
       {/* ── Hero ── */}
