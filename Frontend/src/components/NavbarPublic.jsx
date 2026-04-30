@@ -10,7 +10,6 @@ import {
 } from "react-icons/fa";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-// ✅ Customer-only keys (must match CustomerLogin.jsx)
 const CUSTOMER_SESSION_KEY = "elx_customer_session_v1";
 const CUSTOMER_TOKEN_KEY = "elx_customer_token";
 const CUSTOMER_USER_KEY = "elx_customer_user";
@@ -38,7 +37,6 @@ function readCustomerSession() {
 
   const session = safeJsonParse(localStorage.getItem(CUSTOMER_SESSION_KEY));
 
-  // Expiry enforcement
   if (session?.expiresAt) {
     const exp = new Date(session.expiresAt).getTime();
     if (!Number.isNaN(exp) && Date.now() > exp) {
@@ -56,6 +54,17 @@ function readCustomerSession() {
   return { token: token || null, user };
 }
 
+const NAV_LINKS = [
+  { label: "Home",             hash: "Header" },
+  { label: "Our Services",     hash: "services" },
+  { label: "About",            to: "/about" },
+  { label: "For Institutions", to: "/institutional" },
+  { label: "JIT Air Freight",  to: "/services/jit" },
+  { label: "Why Us",           hash: "whyus" },
+  { label: "Book a Shipment",  hash: "booking" },
+  { label: "Client Stories",   hash: "testimonials" },
+];
+
 const NavbarPublic = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [customerAuth, setCustomerAuth] = useState(() => readCustomerSession());
@@ -65,12 +74,9 @@ const NavbarPublic = () => {
 
   const isHome = location.pathname === "/";
 
-  // ✅ customer is signed in if token exists and role is NOT admin (customer role in DB may be "user")
   const isCustomerSignedIn = useMemo(() => {
     if (!customerAuth?.token) return false;
-    const role = String(customerAuth?.user?.role || "")
-      .toLowerCase()
-      .trim();
+    const role = String(customerAuth?.user?.role || "").toLowerCase().trim();
     if (role === "admin") return false;
     return true;
   }, [customerAuth]);
@@ -81,75 +87,46 @@ const NavbarPublic = () => {
     customerAuth?.user?.email ||
     "My Account";
 
-  const links = useMemo(
-    () => [
-      { label: "Home", hash: "Header" },
-      { label: "Our Services", hash: "services" },
-      { label: "Why Us", hash: "whyus" },
-      { label: "Repack & Consolidation", hash: "repackaging" },
-      { label: "Book a Shipment", hash: "booking" },
-      { label: "Client Stories", hash: "testimonials" },
-    ],
-    []
-  );
-
   const closeMenu = () => setMenuOpen(false);
 
-  // Keep auth in sync across tabs/windows
   useEffect(() => {
     const onStorage = () => setCustomerAuth(readCustomerSession());
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // Corporate UX: lock body scroll when drawer is open
   useEffect(() => {
     if (!menuOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
+    return () => { document.body.style.overflow = prev; };
   }, [menuOpen]);
 
-  // Close on ESC
   useEffect(() => {
     if (!menuOpen) return;
-    const onKey = (e) => {
-      if (e.key === "Escape") closeMenu();
-    };
+    const onKey = (e) => { if (e.key === "Escape") closeMenu(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
-  // Hybrid navigation:
-  // - If on home, smooth-scroll to hash.
-  // - If not on home, navigate to "/#hash".
   const goToSection = (hash) => {
     closeMenu();
-
     if (isHome) {
       const el = document.getElementById(hash);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
-
     navigate(`/#${hash}`);
   };
 
-  // When landing on "/#something", perform the scroll after route loads.
   useEffect(() => {
     if (!isHome) return;
-
     const hash = location.hash?.replace("#", "");
     if (!hash) return;
-
-    // A slightly safer defer: let layout paint, then scroll
     const raf = requestAnimationFrame(() => {
       const el = document.getElementById(hash);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     });
-
     return () => cancelAnimationFrame(raf);
   }, [isHome, location.hash]);
 
@@ -162,17 +139,14 @@ const NavbarPublic = () => {
 
   return (
     <header className="w-full z-20 fixed top-0 left-0">
-      {/* ===== Top bar ===== */}
       <div className="w-full bg-[#1A2930] text-white border-b border-white/10">
         <div className="container mx-auto flex justify-between items-center py-2.5 px-4 md:px-8 lg:px-16">
-          {/* Logo + brand */}
           <Link to="/" className="flex items-center gap-3 group">
             <img
               src={assets.logo_w}
               alt="Ellcworth Express logo"
               className="w-11 h-auto md:w-14 transition-transform duration-150 group-hover:scale-[1.02]"
             />
-
             <div className="flex flex-col leading-tight">
               <span className="font-brand text-sm sm:text-base md:text-xl font-bold tracking-[0.18em] text-white">
                 ELLCWORTH <span className="text-[#FFA500]">EXPRESS</span>
@@ -183,33 +157,23 @@ const NavbarPublic = () => {
             </div>
           </Link>
 
-          {/* Contact info (desktop only) */}
           <div className="hidden md:flex items-center gap-7 text-xs md:text-sm font-medium tracking-[0.12em] text-white/90">
             <div className="flex items-center gap-2">
               <FaEnvelope className="text-[#FFA500]" />
-              <a href="mailto:cs@ellcworth.com" className="hover:text-white">
-                cs@ellcworth.com
-              </a>
+              <a href="mailto:cs@ellcworth.com" className="hover:text-white">cs@ellcworth.com</a>
             </div>
             <div className="flex items-center gap-2">
               <FaPhone className="text-[#FFA500]" />
-              <a href="tel:+442089796054" className="hover:text-white">
-                +44 20 8979 6054
-              </a>
+              <a href="tel:+442089796054" className="hover:text-white">+44 20 8979 6054</a>
             </div>
-
-            {/* ✅ Signed-in indicator (desktop only, subtle) */}
             {isCustomerSignedIn ? (
               <div className="hidden lg:flex items-center gap-2 text-white/85">
                 <FaUserCircle className="text-[#FFA500]" />
-                <span className="text-[12px] tracking-[0.12em] uppercase">
-                  {customerName}
-                </span>
+                <span className="text-[12px] tracking-[0.12em] uppercase">{customerName}</span>
               </div>
             ) : null}
           </div>
 
-          {/* Burger (mobile only) */}
           <button
             onClick={() => setMenuOpen(true)}
             className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition"
@@ -220,32 +184,22 @@ const NavbarPublic = () => {
         </div>
       </div>
 
-      {/* ===== Main nav (desktop) ===== */}
       <div className="w-full bg-[#FFA500] hidden md:block border-b border-black/10">
         <div className="container mx-auto flex items-center justify-between py-3 px-4 md:px-8 lg:px-16">
           <ul className="flex gap-7 text-xs md:text-sm font-semibold text-[#1A2930] tracking-[0.12em] capitalize">
-            {links.map((l) => (
-              <li key={l.hash}>
-                <button
-                  type="button"
-                  onClick={() => goToSection(l.hash)}
-                  className="hover:text-black/70 transition"
-                >
-                  {l.label}
-                </button>
+            {NAV_LINKS.map((l) => (
+              <li key={l.label}>
+                {l.to ? (
+                  <Link to={l.to} className="hover:text-black/70 transition">{l.label}</Link>
+                ) : (
+                  <button type="button" onClick={() => goToSection(l.hash)} className="hover:text-black/70 transition">
+                    {l.label}
+                  </button>
+                )}
               </li>
             ))}
-            <li>
-              <Link
-                to="/about"
-                className="hover:text-black/70 transition"
-              >
-                About
-              </Link>
-            </li>
           </ul>
 
-          {/* ✅ Conditional CTA */}
           {isCustomerSignedIn ? (
             <div className="flex items-center gap-3">
               <Link to="/myshipments">
@@ -253,7 +207,6 @@ const NavbarPublic = () => {
                   My Shipments
                 </button>
               </Link>
-
               <button
                 type="button"
                 onClick={handleCustomerLogout}
@@ -274,45 +227,23 @@ const NavbarPublic = () => {
         </div>
       </div>
 
-      {/* ===== Mobile menu overlay ===== */}
       {menuOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
-          {/* overlay */}
-          <button
-            aria-label="Close menu overlay"
-            onClick={closeMenu}
-            className="absolute inset-0 bg-black/60"
-          />
-
-          {/* drawer */}
-          <div
-            className="
-              absolute top-0 right-0 h-full w-[88%] max-w-[380px]
-              bg-[#0B1118]
-              border-l border-white/10
-              shadow-[0_24px_80px_rgba(0,0,0,0.75)]
-            "
-          >
-            {/* drawer header */}
+          <button aria-label="Close menu overlay" onClick={closeMenu} className="absolute inset-0 bg-black/60" />
+          <div className="absolute top-0 right-0 h-full w-[88%] max-w-[380px] bg-[#0B1118] border-l border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.75)] flex flex-col">
             <div className="px-5 py-5 border-b border-white/10 bg-gradient-to-b from-[#0E1B20] to-[#0B1118]">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[11px] tracking-[0.22em] uppercase text-white/60">
-                    Ellcworth Express
-                  </p>
+                  <p className="text-[11px] tracking-[0.22em] uppercase text-white/60">Ellcworth Express</p>
                   <p className="text-white font-semibold tracking-[0.16em]">
                     PUBLIC SITE <span className="text-[#FFA500]">MENU</span>
                   </p>
                   {isCustomerSignedIn ? (
                     <p className="mt-2 text-[11px] text-white/70 tracking-[0.16em] uppercase">
-                      Signed in:{" "}
-                      <span className="text-[#FFA500] font-semibold">
-                        {customerName}
-                      </span>
+                      Signed in: <span className="text-[#FFA500] font-semibold">{customerName}</span>
                     </p>
                   ) : null}
                 </div>
-
                 <button
                   onClick={closeMenu}
                   className="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition"
@@ -321,80 +252,63 @@ const NavbarPublic = () => {
                   <FaTimes />
                 </button>
               </div>
-
               <div className="mt-4 grid grid-cols-2 gap-3">
-                <a
-                  href="mailto:cs@ellcworth.com"
-                  className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/90 hover:bg-white/10 transition"
-                >
+                <a href="mailto:cs@ellcworth.com" className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/90 hover:bg-white/10 transition">
                   <span className="text-[#FFA500] font-semibold">Email</span>
-                  <div className="mt-1 text-[11px] text-white/70">
-                    cs@ellcworth.com
-                  </div>
+                  <div className="mt-1 text-[11px] text-white/70">cs@ellcworth.com</div>
                 </a>
-                <a
-                  href="tel:+442089796054"
-                  className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/90 hover:bg-white/10 transition"
-                >
+                <a href="tel:+442089796054" className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/90 hover:bg-white/10 transition">
                   <span className="text-[#FFA500] font-semibold">Call</span>
-                  <div className="mt-1 text-[11px] text-white/70">
-                    +44 20 8979 6054
-                  </div>
+                  <div className="mt-1 text-[11px] text-white/70">+44 20 8979 6054</div>
                 </a>
               </div>
             </div>
 
-            {/* drawer body */}
-            <nav className="px-5 py-6">
+            <nav className="px-5 py-6 overflow-y-auto flex-1">
               <div className="space-y-2">
-                {links.map((l) => (
-                  <button
-                    key={l.hash}
-                    type="button"
-                    onClick={() => goToSection(l.hash)}
-                    className="
-                      w-full text-left
-                      rounded-2xl
-                      border border-white/10
-                      bg-white/5
-                      px-4 py-3
-                      text-sm font-semibold
-                      tracking-[0.14em] uppercase
-                      text-white/90
-                      hover:bg-white/10 transition
-                    "
-                  >
-                    {l.label}
-                  </button>
-                ))}
+                {NAV_LINKS.map((l) =>
+                  l.to ? (
+                    <Link
+                      key={l.label}
+                      to={l.to}
+                      onClick={closeMenu}
+                      className="block rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold tracking-[0.14em] uppercase text-white/90 hover:bg-white/10 transition"
+                    >
+                      {l.label} →
+                    </Link>
+                  ) : (
+                    <button
+                      key={l.label}
+                      type="button"
+                      onClick={() => goToSection(l.hash)}
+                      className="w-full text-left rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold tracking-[0.14em] uppercase text-white/90 hover:bg-white/10 transition"
+                    >
+                      {l.label}
+                    </button>
+                  )
+                )}
               </div>
 
-              <div className="mt-6 pt-6 border-t border-white/10">
-                <Link to="/about" onClick={closeMenu}>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/90 tracking-[0.14em] uppercase hover:bg-white/10 transition">
-                    About Ellcworth →
-                  </div>
+              <div className="mt-6 pt-6 border-t border-white/10 space-y-3">
+                <Link
+                  to="/services"
+                  onClick={closeMenu}
+                  className="block rounded-2xl border border-[#FFA500]/30 bg-[#FFA500]/10 px-4 py-3 text-sm font-semibold text-[#FFA500] tracking-[0.14em] uppercase hover:bg-[#FFA500]/15 transition"
+                >
+                  View Services Directory →
                 </Link>
 
-                <Link to="/services" onClick={closeMenu}>
-                  <div className="rounded-2xl border border-[#FFA500]/30 bg-[#FFA500]/10 px-4 py-3 text-sm font-semibold text-[#FFA500] tracking-[0.14em] uppercase hover:bg-[#FFA500]/15 transition">
-                    View Services Directory →
-                  </div>
-                </Link>
-
-                {/* ✅ Conditional customer actions */}
                 {isCustomerSignedIn ? (
                   <>
                     <Link to="/myshipments" onClick={closeMenu}>
-                      <div className="mt-3 rounded-2xl bg-[#FFA500] text-[#1A2930] px-4 py-3 text-sm font-semibold text-center tracking-[0.14em] uppercase hover:opacity-90 transition">
+                      <div className="rounded-2xl bg-[#FFA500] text-[#1A2930] px-4 py-3 text-sm font-semibold text-center tracking-[0.14em] uppercase hover:opacity-90 transition">
                         My Shipments
                       </div>
                     </Link>
-
                     <button
                       type="button"
                       onClick={handleCustomerLogout}
-                      className="mt-3 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-center tracking-[0.14em] uppercase text-white/90 hover:bg-white/10 transition inline-flex items-center justify-center gap-2"
+                      className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-semibold text-center tracking-[0.14em] uppercase text-white/90 hover:bg-white/10 transition inline-flex items-center justify-center gap-2"
                     >
                       <FaSignOutAlt />
                       Logout
@@ -402,7 +316,7 @@ const NavbarPublic = () => {
                   </>
                 ) : (
                   <Link to="/login" onClick={closeMenu}>
-                    <div className="mt-3 rounded-2xl bg-[#FFA500] text-[#1A2930] px-4 py-3 text-sm font-semibold text-center tracking-[0.14em] uppercase hover:opacity-90 transition">
+                    <div className="rounded-2xl bg-[#FFA500] text-[#1A2930] px-4 py-3 text-sm font-semibold text-center tracking-[0.14em] uppercase hover:opacity-90 transition">
                       Customer Login
                     </div>
                   </Link>

@@ -83,6 +83,14 @@ const Institutional = () => {
           content="Ellcworth Express ships for universities, NGOs and UK exporters to Africa — sealed, documented, on time. Book a 15-minute call to discuss your institutional shipping needs."
         />
         <link rel="canonical" href="https://www.ellcworth.com/institutional" />
+        <meta property="og:title" content="Institutional Shipping Services | Ellcworth Express" />
+        <meta property="og:description" content="Ellcworth Express ships for universities, NGOs and UK exporters to Africa — sealed, documented, on time. 12 years. Zero institutional deadlines missed." />
+        <meta property="og:url" content="https://www.ellcworth.com/institutional" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://www.ellcworth.com/ellc_hero1.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Institutional Shipping Services | Ellcworth Express" />
+        <meta name="twitter:description" content="Ellcworth Express ships for universities, NGOs and UK exporters to Africa — sealed, documented, on time. 12 years. Zero institutional deadlines missed." />
       </Helmet>
 
       {/* ── Hero ── */}

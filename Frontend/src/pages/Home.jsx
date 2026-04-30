@@ -21,6 +21,14 @@ const Home = () => {
           content="Reliable UK to West Africa shipping. RoRo vehicle shipping, container freight, and air cargo — handled with care, clarity, and speed."
         />
         <link rel="canonical" href="https://www.ellcworth.com/" />
+        <meta property="og:title" content="Ellcworth Express | UK to West Africa Freight Specialists" />
+        <meta property="og:description" content="12 years shipping containers, vehicles and sensitive cargo from the UK to Ghana, Nigeria and West Africa. Sealed, documented, on time." />
+        <meta property="og:url" content="https://www.ellcworth.com/" />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://www.ellcworth.com/ellc_hero1.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Ellcworth Express | UK to West Africa Freight Specialists" />
+        <meta name="twitter:description" content="12 years shipping containers, vehicles and sensitive cargo from the UK to Ghana, Nigeria and West Africa. Sealed, documented, on time." />
       </Helmet>
 
       {/* Header anchor target for /#Header */}
