@@ -18,6 +18,7 @@ import RequireCustomerAuth from "@/components/auth/RequireCustomerAuth.jsx";
 import ResetPassword from "@/pages/auth/ResetPassword.jsx";
 import Unsubscribe from "@/pages/public/Unsubscribe.jsx";
 import About from "@/pages/public/About.jsx";
+import Institutional from "@/pages/public/Institutional.jsx";
 
 const router = createBrowserRouter([
   {
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
       // Public
       { path: "services", element: <Services /> },
       { path: "services/:id", element: <ServiceDetail /> },
+        { path: "institutional", element: <Institutional /> },
         { path: "/about", element: <About /> },
 
       // Auth
