@@ -19,6 +19,7 @@ import ResetPassword from "@/pages/auth/ResetPassword.jsx";
 import Unsubscribe from "@/pages/public/Unsubscribe.jsx";
 import About from "@/pages/public/About.jsx";
 import Institutional from "@/pages/public/Institutional.jsx";
+import GhanaDestination from "@/pages/public/Ghana.jsx";
 
 const router = createBrowserRouter([
   {
@@ -31,6 +32,7 @@ const router = createBrowserRouter([
       { path: "services", element: <Services /> },
       { path: "services/:id", element: <ServiceDetail /> },
         { path: "institutional", element: <Institutional /> },
+        { path: "destinations/ghana", element: <GhanaDestination /> },
         { path: "/about", element: <About /> },
 
       // Auth
