@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 const STATS = [
   { value: "£750", label: "RoRo from", sub: "per vehicle / unit" },
-  { value: "£2,500", label: "FCL from", sub: "20ft container" },
+  { value: "£1,500", label: "FCL from", sub: "20ft container" },
   { value: "15–21", label: "Transit days", sub: "UK ports → Tema" },
   { value: "100%", label: "ICUMS compliant", sub: "end-to-end clearance" },
 ];
@@ -20,8 +20,8 @@ const SERVICES = [
   {
     icon: "📦",
     title: "FCL — Full Container Load",
-    price: "From £2,500",
-    description: "Your cargo fills a 20ft or 40ft container — sealed, secured, and shipped under your bill of lading. Preferred for household goods, commercial stock, and mixed cargo where security and condition matter.",
+    price: "20ft from £1,500 · 40ft from £2,500",
+    description: "Your cargo fills a dedicated container — sealed, secured, shipped under your bill of lading. 20ft from £1,500, 40ft from £2,500. Preferred for household goods, commercial stock, institutional equipment, and mixed cargo where security and condition matter.",
     suited: ["Household removals", "Retail stock", "Industrial parts", "Personal effects"],
   },
   {
@@ -91,16 +91,16 @@ const GhanaDestination = () => {
     <div className="bg-[#EDECEC]">
       <Helmet>
         <title>Shipping to Ghana from the UK | Ellcworth Express Ltd</title>
-        <meta name="description" content="Ship to Ghana from the UK with Ellcworth Express. RoRo from £750, FCL from £2,500. Tema Port specialists. Full ICUMS customs clearance handled end-to-end." />
+        <meta name="description" content="Ship to Ghana from the UK with Ellcworth Express. RoRo from £750, FCL from £1,500. Tema Port specialists. Full ICUMS customs clearance handled end-to-end." />
         <link rel="canonical" href="https://www.ellcworth.com/destinations/ghana" />
         <meta property="og:title" content="Shipping to Ghana from the UK | Ellcworth Express Ltd" />
-        <meta property="og:description" content="RoRo from £750. FCL from £2,500. Tema Port specialists with full ICUMS customs clearance." />
+        <meta property="og:description" content="RoRo from £750. FCL from £1,500. Tema Port specialists with full ICUMS customs clearance." />
         <meta property="og:url" content="https://www.ellcworth.com/destinations/ghana" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://www.ellcworth.com/ellc_hero1.png" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Shipping to Ghana from the UK | Ellcworth Express Ltd" />
-        <meta name="twitter:description" content="RoRo from £750. FCL from £2,500. Tema Port specialists with full ICUMS customs clearance." />
+        <meta name="twitter:description" content="RoRo from £750. FCL from £1,500. Tema Port specialists with full ICUMS customs clearance." />
       </Helmet>
 
       <section className="relative w-full bg-[#1A2930] text-white py-24 md:py-32 overflow-hidden">
@@ -121,7 +121,7 @@ const GhanaDestination = () => {
             Shipping to Ghana<br /><span className="text-[#FFA500]">from the UK</span>
           </h1>
           <p className="text-lg md:text-xl text-gray-300 max-w-2xl mb-8">
-            Ellcworth Express Ltd moves cargo from the UK to Ghana every week — vehicles via RoRo from £750, containers from £2,500. Sea freight to Tema Port, air freight to Kotoka, customs cleared end-to-end under Ghana's ICUMS system.
+            Ellcworth Express Ltd moves cargo from the UK to Ghana every week — vehicles via RoRo from £750, containers from £1,500. Sea freight to Tema Port, air freight to Kotoka, customs cleared end-to-end under Ghana's ICUMS system.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <a href="/#quote" className="inline-flex items-center justify-center rounded-full bg-[#FFA500] text-black px-8 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-[#ffb733] transition shadow-md">Get a Quote</a>
@@ -149,9 +149,9 @@ const GhanaDestination = () => {
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">The UK–Ghana Corridor</span>
           <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">The most active freight corridor we serve.</h2>
           <div className="prose prose-slate max-w-none text-gray-700 space-y-5 text-base md:text-lg leading-relaxed">
-            <p>Ghana is one of the busiest shipping corridors from the UK. Demand is driven by the diaspora community sending vehicles and household goods home, by UK exporters supplying Ghanaian retailers and construction projects, and by institutional buyers procuring equipment for agriculture, mining, and infrastructure.</p>
+            <p>Ghana is one of the busiest shipping corridors from the UK. Demand comes from four directions: the diaspora community sending vehicles and household goods home; UK exporters supplying Ghanaian retailers and construction projects; institutional buyers procuring equipment for agriculture, mining, and infrastructure; and Ghanaian universities, hospitals, and research institutions sourcing degree certificates, lab equipment, library collections, and IT hardware from UK suppliers.</p>
             <p>Tema Port — Ghana's principal deep-water port on the Atlantic coast, 25km east of Accra — handles the vast majority of containerised and RoRo cargo from the UK. It connects directly to the national road network, making onward delivery to Accra, Kumasi, Takoradi, and beyond straightforward once port formalities are complete.</p>
-            <p>Ellcworth Express Ltd has built its West Africa operation around this corridor. We manage the full journey: UK collection or depot drop-off, export documentation, sea or air freight booking, Ghana customs clearance under ICUMS, and Tema-to-door delivery through our local agent network. You do not need to manage multiple parties. We hold the chain.</p>
+            <p>Ellcworth Express Ltd has built its West Africa operation around this corridor. We serve individual shippers, commercial exporters, and institutions alike. We manage the full journey: UK collection or depot drop-off, export documentation, sea or air freight booking, Ghana customs clearance under ICUMS, and Tema-to-door delivery through our local agent network. One team. One chain. No handoffs.</p>
           </div>
         </div>
       </section>
@@ -272,7 +272,7 @@ const GhanaDestination = () => {
       <section className="py-16 md:py-20 bg-[#1A2930] text-white">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8 text-center">
           <h2 className="text-2xl md:text-3xl font-semibold uppercase mb-4">Ready to ship to Ghana?</h2>
-          <p className="text-gray-300 mb-8 max-w-xl mx-auto">RoRo from £750. FCL from £2,500. Full ICUMS customs clearance included. Quote returned within 24 hours.</p>
+          <p className="text-gray-300 mb-8 max-w-xl mx-auto">RoRo from £750. FCL from £1,500 (20ft) or £2,500 (40ft). Full ICUMS customs clearance included. Quote returned within 24 hours.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a href="mailto:cs@ellcworth.com" className="inline-flex items-center justify-center rounded-full bg-[#FFA500] text-black px-8 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-[#ffb733] transition shadow-md">cs@ellcworth.com</a>
             <a href="/#quote" className="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/5 text-white px-8 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-white/10 transition">Get a Quote</a>

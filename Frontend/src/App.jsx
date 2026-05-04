@@ -20,6 +20,9 @@ import Unsubscribe from "@/pages/public/Unsubscribe.jsx";
 import About from "@/pages/public/About.jsx";
 import Institutional from "@/pages/public/Institutional.jsx";
 import GhanaDestination from "@/pages/public/Ghana.jsx";
+import Terms from "@/pages/public/Terms.jsx";
+import Privacy from "@/pages/public/Privacy.jsx";
+import Cookies from "@/pages/public/Cookies.jsx";
 
 const router = createBrowserRouter([
   {
@@ -34,6 +37,9 @@ const router = createBrowserRouter([
         { path: "institutional", element: <Institutional /> },
         { path: "destinations/ghana", element: <GhanaDestination /> },
         { path: "/about", element: <About /> },
+        { path: "terms", element: <Terms /> },
+        { path: "privacy", element: <Privacy /> },
+        { path: "cookies", element: <Cookies /> },
 
       // Auth
       { path: "login", element: <CustomerLogin /> },
