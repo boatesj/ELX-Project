@@ -11,7 +11,7 @@ const PORTS = [
     name: "Felixstowe",
     country: "United Kingdom",
     type: "Origin",
-    description: "UK\'s largest container port. Primary departure point for FCL cargo to West Africa.",
+    description: "UK's largest container port. Primary departure point for FCL cargo to West Africa.",
     coords: [-1.3513, 51.9614],
     flag: "🇬🇧",
   },
@@ -47,12 +47,12 @@ const PORTS = [
     name: "Tema Port",
     country: "Ghana",
     type: "Destination",
-    description: "Ghana\'s principal deep-water port. Our primary West Africa destination — containers, RoRo, and institutional cargo.",
+    description: "Ghana's principal deep-water port. Our primary West Africa destination — containers, RoRo, and institutional cargo.",
     coords: [-0.0077, 5.6441],
     flag: "🇬🇭",
   },
   {
-    id: "kotoka",
+    id: "accra",
     name: "Accra International Airport",
     country: "Ghana",
     type: "Destination",
@@ -65,7 +65,7 @@ const PORTS = [
     name: "Apapa Port (Lagos)",
     country: "Nigeria",
     type: "Destination",
-    description: "Nigeria\'s main container and RoRo port. We ship to Apapa and Tin Can Island.",
+    description: "Nigeria's main container and RoRo port. We ship to Apapa and Tin Can Island.",
     coords: [3.3792, 6.4432],
     flag: "🇳🇬",
   },
@@ -90,7 +90,7 @@ const PORTS = [
   {
     id: "abidjan",
     name: "Abidjan",
-    country: "Côte d\'Ivoire",
+    country: "Cote d'Ivoire",
     type: "Destination",
     description: "Francophone West Africa gateway. Available on request.",
     coords: [-4.0083, 5.3364],
@@ -104,7 +104,6 @@ const DEST_COLOUR = "#38BDF8";
 const ShipmentMap = () => {
   const mapContainer = useRef(null);
   const map = useRef(null);
-  const popupRef = useRef(null);
 
   useEffect(() => {
     if (map.current) return;
@@ -122,7 +121,6 @@ const ShipmentMap = () => {
     map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
     map.current.on("load", () => {
-      // Draw route lines from each UK port to each destination
       const origins = PORTS.filter((p) => p.type === "Origin");
       const destinations = PORTS.filter((p) => p.type === "Destination");
 
@@ -157,7 +155,6 @@ const ShipmentMap = () => {
         },
       });
 
-      // Add markers
       PORTS.forEach((port) => {
         const isOrigin = port.type === "Origin";
         const colour = isOrigin ? ORIGIN_COLOUR : DEST_COLOUR;
@@ -168,17 +165,13 @@ const ShipmentMap = () => {
           height: ${isOrigin ? "12px" : "14px"};
           border-radius: 50%;
           background: ${colour};
-          border: 2px solid ${isOrigin ? "#0B141A" : "#0B141A"};
+          border: 2px solid #0B141A;
           box-shadow: 0 0 0 3px ${colour}33;
           cursor: pointer;
           transition: transform 0.15s ease;
         `;
-        el.addEventListener("mouseenter", () => {
-          el.style.transform = "scale(1.4)";
-        });
-        el.addEventListener("mouseleave", () => {
-          el.style.transform = "scale(1)";
-        });
+        el.addEventListener("mouseenter", () => { el.style.transform = "scale(1.4)"; });
+        el.addEventListener("mouseleave", () => { el.style.transform = "scale(1)"; });
 
         const popup = new mapboxgl.Popup({
           offset: 16,
@@ -203,9 +196,7 @@ const ShipmentMap = () => {
           .setPopup(popup)
           .addTo(map.current);
 
-        el.addEventListener("click", () => {
-          popup.addTo(map.current);
-        });
+        el.addEventListener("click", () => { popup.addTo(map.current); });
       });
     });
 
@@ -225,7 +216,6 @@ const ShipmentMap = () => {
         <link rel="canonical" href="https://www.ellcworth.com/map" />
       </Helmet>
 
-      {/* Hero */}
       <section className="relative w-full bg-[#1A2930] text-white py-16 md:py-20 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(255,165,0,0.08),transparent_60%)]" />
         <div className="relative mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
@@ -238,7 +228,6 @@ const ShipmentMap = () => {
           <p className="text-gray-300 max-w-xl text-base md:text-lg leading-relaxed">
             UK departure ports and West Africa destinations. Click any marker for details.
           </p>
-          {/* Legend */}
           <div className="flex flex-wrap gap-6 mt-6">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-[#FFA500] inline-block" />
@@ -252,12 +241,10 @@ const ShipmentMap = () => {
         </div>
       </section>
 
-      {/* Map */}
       <section className="w-full" style={{ height: "600px" }}>
         <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
       </section>
 
-      {/* Port list */}
       <section className="py-16 bg-[#0B141A]">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <h2 className="text-xl font-semibold uppercase text-white mb-8">All ports & connections</h2>
@@ -266,10 +253,7 @@ const ShipmentMap = () => {
               const isOrigin = port.type === "Origin";
               const colour = isOrigin ? "#FFA500" : "#38BDF8";
               return (
-                <div
-                  key={port.id}
-                  className="rounded-2xl border border-white/10 bg-[#1A2930] px-5 py-5 flex gap-4"
-                >
+                <div key={port.id} className="rounded-2xl border border-white/10 bg-[#1A2930] px-5 py-5 flex gap-4">
                   <span className="text-2xl flex-shrink-0">{port.flag}</span>
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -290,7 +274,6 @@ const ShipmentMap = () => {
         </div>
       </section>
 
-      {/* CTA */}
       <section className="py-12 bg-[#1A2930]">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8 text-center">
           <h2 className="text-xl md:text-2xl font-semibold uppercase text-white mb-3">
@@ -313,6 +296,7 @@ const ShipmentMap = () => {
           </div>
         </div>
       </section>
+
     </div>
   );
 };
