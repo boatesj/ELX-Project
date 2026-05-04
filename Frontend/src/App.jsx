@@ -23,6 +23,7 @@ import GhanaDestination from "@/pages/public/Ghana.jsx";
 import Terms from "@/pages/public/Terms.jsx";
 import Privacy from "@/pages/public/Privacy.jsx";
 import Cookies from "@/pages/public/Cookies.jsx";
+import ShipmentMap from "@/pages/public/ShipmentMap.jsx";
 
 const router = createBrowserRouter([
   {
@@ -40,6 +41,7 @@ const router = createBrowserRouter([
         { path: "terms", element: <Terms /> },
         { path: "privacy", element: <Privacy /> },
         { path: "cookies", element: <Cookies /> },
+        { path: "map", element: <ShipmentMap /> },
 
       // Auth
       { path: "login", element: <CustomerLogin /> },
