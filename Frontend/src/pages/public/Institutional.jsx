@@ -303,14 +303,28 @@ const Institutional = () => {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {["Ghana", "Nigeria", "Kenya", "Other Africa"].map((dest) => (
-              <div
-                key={dest}
-                className="rounded-xl border border-gray-200 bg-[#F9FAFB] px-4 py-4 text-center"
-              >
-                <p className="font-semibold text-[#1A2930] text-sm">{dest}</p>
-              </div>
-            ))}
+            {["Ghana", "Nigeria", "Kenya", "Other Africa"].map((dest) => {
+              const href = dest === "Ghana" ? "/destinations/ghana" : null;
+              const inner = (
+                <p className="font-semibold text-[#1A2930] text-sm group-hover:text-[#FFA500] transition">{dest}</p>
+              );
+              return href ? (
+                <Link
+                  key={dest}
+                  to={href}
+                  className="group rounded-xl border border-gray-200 bg-[#F9FAFB] px-4 py-4 text-center hover:border-[#FFA500]/50 transition"
+                >
+                  {inner}
+                </Link>
+              ) : (
+                <div
+                  key={dest}
+                  className="rounded-xl border border-gray-200 bg-[#F9FAFB] px-4 py-4 text-center"
+                >
+                  {inner}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
