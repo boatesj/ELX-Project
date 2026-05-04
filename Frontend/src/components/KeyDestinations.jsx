@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import {
   FaShip,
   FaCarSide,
@@ -15,6 +16,7 @@ const DESTINATIONS = [
     body: "For commercial cargo and household moves that need reliable sailings, export guidance, and clear communication.",
     routes: ["Tema · Takoradi", "Lagos (Apapa / Tin Can)", "Freetown · Banjul"],
     ctaLabel: "View container routes",
+    href: "/destinations/ghana",
     icon: FaShip,
   },
   {
@@ -24,6 +26,7 @@ const DESTINATIONS = [
     body: "Ideal for single vehicles and trade customers who need predictable, port-to-port movements.",
     routes: ["Tema", "Lagos", "Cotonou", "Abidjan"],
     ctaLabel: "Check RoRo options",
+    href: "/destinations/ghana",
     icon: FaCarSide,
   },
   {
@@ -146,6 +149,22 @@ const KeyDestinations = () => {
                 </div>
 
                 <div className="mt-auto pt-2">
+                {item.href ? (
+                  <Link
+                    to={item.href}
+                    className="
+                      inline-flex items-center text-sm md:text-[15px] font-semibold
+                      text-[#FFA500]
+                      group-hover:text-[#ffd27a]
+                      transition
+                    "
+                  >
+                    {item.ctaLabel}
+                    <span className="ml-1.5 text-base md:text-lg translate-y-[1px] group-hover:translate-x-0.5 transition-transform">
+                      &rarr;
+                    </span>
+                  </Link>
+                ) : (
                   <a
                     href="#quote"
                     className="
@@ -157,9 +176,10 @@ const KeyDestinations = () => {
                   >
                     {item.ctaLabel}
                     <span className="ml-1.5 text-base md:text-lg translate-y-[1px] group-hover:translate-x-0.5 transition-transform">
-                      →
+                      &rarr;
                     </span>
                   </a>
+                )}
                 </div>
               </article>
             );
