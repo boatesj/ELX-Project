@@ -36,6 +36,7 @@ const DESTINATIONS = [
     body: "Smaller but urgent shipments that need to reach teams or customers in days, not weeks.",
     routes: ["Accra", "Lagos", "Nairobi"],
     ctaLabel: "Explore air routes",
+    href: "/#quote",
     icon: FaPlaneDeparture,
   },
   {
@@ -45,6 +46,7 @@ const DESTINATIONS = [
     body: "Built for institutions and banks that need tamper-evident, signed-for document movements.",
     routes: ["Universities", "Professional bodies", "Financial institutions"],
     ctaLabel: "Secure document support",
+    href: "/#quote",
     icon: FaFileSignature,
   },
   {
@@ -54,6 +56,7 @@ const DESTINATIONS = [
     body: "Send UK deliveries to our warehouse; we’ll check, photograph, repack and ship as a single export.",
     routes: ["UK warehouse → West Africa", "Personal effects & e-commerce"],
     ctaLabel: "Arrange consolidation",
+    href: "/#quote",
     icon: FaBoxes,
   },
   {
@@ -63,6 +66,7 @@ const DESTINATIONS = [
     body: "We help you prepare compliant export paperwork—EORI checks, valuations, vehicle docs, commercial invoices and destination rules—so your shipment moves without unnecessary delays.",
     routes: ["Ghana · Nigeria", "Sierra Leone", "Benin · Côte d’Ivoire"],
     ctaLabel: "Get customs guidance",
+    href: "/#quote",
     icon: FaRegClipboard,
   },
 ];
@@ -86,9 +90,11 @@ const KeyDestinations = () => {
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] md:text-xs font-semibold tracking-[0.16em] uppercase mb-3">
             Step 2 · Destinations & services
           </span>
+
           <h2 className="text-3xl md:text-[2.5rem] font-semibold tracking-tight text-white mb-3 uppercase">
             Key destinations & services
           </h2>
+
           <p className="text-base md:text-lg text-slate-200">
             From single vehicles to secure documents and full containers,
             Ellcworth connects UK shippers to high-demand African routes with
@@ -100,6 +106,7 @@ const KeyDestinations = () => {
         <div className="grid gap-6 md:gap-7 md:grid-cols-2 lg:grid-cols-3">
           {DESTINATIONS.map((item) => {
             const Icon = item.icon;
+
             return (
               <article
                 key={item.id}
@@ -121,6 +128,7 @@ const KeyDestinations = () => {
                   <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#F9FAFB] px-3 py-1 text-[11px] md:text-xs font-semibold tracking-[0.14em] uppercase">
                     {item.badge}
                   </span>
+
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#0f172a] text-[#FFA500] shadow-inner shadow-black/40">
                     <Icon className="text-lg" />
                   </div>
@@ -138,6 +146,7 @@ const KeyDestinations = () => {
                   <p className="text-[11px] md:text-xs font-semibold text-slate-400 uppercase tracking-[0.18em] mb-1.5">
                     Typical destinations
                   </p>
+
                   <ul className="space-y-1.5 text-sm md:text-base text-slate-100">
                     {item.routes.map((route) => (
                       <li key={route} className="flex items-center gap-1.5">
@@ -149,43 +158,48 @@ const KeyDestinations = () => {
                 </div>
 
                 <div className="mt-auto pt-2">
-                {item.href ? (
-                  <Link
-                    to={item.href}
-                    className="
-                      inline-flex items-center text-sm md:text-[15px] font-semibold
-                      text-[#FFA500]
-                      group-hover:text-[#ffd27a]
-                      transition
-                    "
-                  >
-                    {item.ctaLabel}
-                    <span className="ml-1.5 text-base md:text-lg translate-y-[1px] group-hover:translate-x-0.5 transition-transform">
-                      &rarr;
-                    </span>
-                  </Link>
-                ) : (
-                  <a
-                    href="#quote"
-                    className="
-                      inline-flex items-center text-sm md:text-[15px] font-semibold
-                      text-[#FFA500]
-                      group-hover:text-[#ffd27a]
-                      transition
-                    "
-                  >
-                    {item.ctaLabel}
-                    <span className="ml-1.5 text-base md:text-lg translate-y-[1px] group-hover:translate-x-0.5 transition-transform">
-                      &rarr;
-                    </span>
-                  </a>
-                )}
+                  {item.href?.startsWith("/") ? (
+                    <Link
+                      to={item.href}
+                      className="
+                        inline-flex items-center text-sm md:text-[15px] font-semibold
+                        text-[#FFA500]
+                        group-hover:text-[#ffd27a]
+                        transition
+                      "
+                    >
+                      {item.ctaLabel}
+
+                      <span className="ml-1.5 text-base md:text-lg translate-y-[1px] group-hover:translate-x-0.5 transition-transform">
+                        &rarr;
+                      </span>
+                    </Link>
+                  ) : (
+                    <a
+                      href="#quote"
+                      className="
+                        inline-flex items-center text-sm md:text-[15px] font-semibold
+                        text-[#FFA500]
+                        group-hover:text-[#ffd27a]
+                        transition
+                      "
+                    >
+                      {item.ctaLabel}
+
+                      <span className="ml-1.5 text-base md:text-lg translate-y-[1px] group-hover:translate-x-0.5 transition-transform">
+                        &rarr;
+                      </span>
+                    </a>
+                  )}
                 </div>
               </article>
             );
           })}
         </div>
       </div>
+          <div className="mt-8 text-center">
+            <Link to="/map" className="inline-flex items-center justify-center rounded-full bg-[#FFA500] text-[#1A2930] px-7 py-3 text-sm font-bold tracking-[0.14em] uppercase hover:opacity-90 transition shadow-md">View shipment network map &rarr;</Link>
+          </div>
     </section>
   );
 };

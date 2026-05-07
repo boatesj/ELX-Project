@@ -41,6 +41,7 @@ const Home = () => {
         <ServiceOverview />
       </section>
 
+
       {/* Why Us anchor target for /#whyus */}
       <section id="whyus" className={OFFSET_CLASSES}>
         <BusinessAccountSection />
@@ -52,7 +53,7 @@ const Home = () => {
       </section>
 
       {/* Booking anchor target for /#booking */}
-      <section id="booking" className={OFFSET_CLASSES}>
+      <section id="quote" className={OFFSET_CLASSES}>
         <QuoteSection />
       </section>
 
