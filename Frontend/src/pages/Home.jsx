@@ -15,11 +15,7 @@ const Home = () => {
   return (
     <div>
       <Helmet>
-        <title>Ellcworth Express | UK to West Africa Shipping</title>
-        <meta
-          name="description"
-          content="Reliable UK to West Africa shipping. RoRo vehicle shipping, container freight, and air cargo — handled with care, clarity, and speed."
-        />
+        <title>Ellcworth Express | UK to West Africa Freight Specialists</title>
         <link rel="canonical" href="https://www.ellcworth.com/" />
         <meta property="og:title" content="Ellcworth Express | UK to West Africa Freight Specialists" />
         <meta property="og:description" content="12 years shipping containers, vehicles and sensitive cargo from the UK to Ghana, Nigeria and West Africa. Sealed, documented, on time." />
