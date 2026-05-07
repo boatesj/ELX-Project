@@ -24,6 +24,7 @@ import Terms from "@/pages/public/Terms.jsx";
 import Privacy from "@/pages/public/Privacy.jsx";
 import Cookies from "@/pages/public/Cookies.jsx";
 import ShipmentMap from "@/pages/public/ShipmentMap.jsx";
+import Insights from "@/pages/public/Insights.jsx";
 
 const router = createBrowserRouter([
   {
@@ -42,6 +43,7 @@ const router = createBrowserRouter([
         { path: "privacy", element: <Privacy /> },
         { path: "cookies", element: <Cookies /> },
         { path: "map", element: <ShipmentMap /> },
+          { path: "insights", element: <Insights /> },
 
       // Auth
       { path: "login", element: <CustomerLogin /> },
