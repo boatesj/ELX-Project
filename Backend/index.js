@@ -122,6 +122,44 @@ app.get("/health", (req, res) => {
 });
 
 // --------------------
+// SEO
+// --------------------
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain");
+  res.send(`User-agent: *
+Allow: /
+Sitemap: https://www.ellcworth.com/sitemap.xml`);
+});
+
+app.get("/sitemap.xml", async (req, res) => {
+  const pages = [
+    { url: "/",                        changefreq: "weekly",  priority: "1.0" },
+    { url: "/destinations/ghana",      changefreq: "monthly", priority: "0.9" },
+    { url: "/institutional",           changefreq: "monthly", priority: "0.9" },
+    { url: "/services/air",            changefreq: "monthly", priority: "0.8" },
+    { url: "/services/jit",            changefreq: "monthly", priority: "0.8" },
+    { url: "/services/roro",           changefreq: "monthly", priority: "0.8" },
+    { url: "/services/container",      changefreq: "monthly", priority: "0.8" },
+    { url: "/services/repacking",      changefreq: "monthly", priority: "0.7" },
+    { url: "/services/customs",        changefreq: "monthly", priority: "0.7" },
+    { url: "/map",                     changefreq: "monthly", priority: "0.7" },
+    { url: "/about",                   changefreq: "yearly",  priority: "0.6" },
+    { url: "/insights",                changefreq: "weekly",  priority: "0.6" },
+    { url: "/contact",                 changefreq: "yearly",  priority: "0.5" },
+  ];
+  const lastmod = new Date().toISOString().split("T")[0];
+  const urls = pages.map(p => `
+  <url>
+    <loc>https://www.ellcworth.com${p.url}</loc>
+    <lastmod>${lastmod}</lastmod>
+    <changefreq>${p.changefreq}</changefreq>
+    <priority>${p.priority}</priority>
+  </url>`).join("\n");
+  res.header("Content-Type", "application/xml");
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`);
+});
+
+// --------------------
 // ROOT
 // --------------------
 app.get("/", (req, res) => {
