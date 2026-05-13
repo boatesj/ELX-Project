@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+:root {
+  --elx-navy:  #1A2930;
+  --elx-amber: #FFA500;
+  --elx-dark:  #0B141A;
+  --elx-slate: #9A9EAB;
+
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background:  var(--background);
+  --color-foreground:  var(--foreground);
+  --color-elx-navy:    var(--elx-navy);
+  --color-elx-amber:   var(--elx-amber);
+  --color-elx-dark:    var(--elx-dark);
+  --color-elx-slate:   var(--elx-slate);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
