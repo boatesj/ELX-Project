@@ -1,7 +1,13 @@
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 
 function NotFound() {
   return (
+    <>
+      <Helmet>
+        <title>Page Not Found | Ellcworth Express</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
     <div className="bg-[#1A2930] min-h-[60vh] flex items-center justify-center px-4">
       <div className="bg-white rounded-xl shadow-xl border border-[#9A9EAB]/40 px-8 py-10 max-w-md w-full text-center">
         <h1 className="text-2xl font-semibold text-[#1A2930] mb-2">
@@ -27,6 +33,7 @@ function NotFound() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
