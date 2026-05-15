@@ -107,17 +107,11 @@ export function writeCustomerSession({
 
   localStorage.setItem(CUSTOMER_SESSION_KEY, JSON.stringify(session));
 
-  if (remember) {
-    localStorage.setItem(CUSTOMER_TOKEN_KEY, token);
-    localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(user));
-    sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
-    sessionStorage.removeItem(CUSTOMER_USER_KEY);
-  } else {
-    sessionStorage.setItem(CUSTOMER_TOKEN_KEY, token);
-    sessionStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(user));
-    localStorage.removeItem(CUSTOMER_TOKEN_KEY);
-    localStorage.removeItem(CUSTOMER_USER_KEY);
-  }
+  // Always use localStorage so token survives page reloads
+  localStorage.setItem(CUSTOMER_TOKEN_KEY, token);
+  localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(user));
+  sessionStorage.removeItem(CUSTOMER_TOKEN_KEY);
+  sessionStorage.removeItem(CUSTOMER_USER_KEY);
 }
 
 export function readCustomerToken(): string | null {
