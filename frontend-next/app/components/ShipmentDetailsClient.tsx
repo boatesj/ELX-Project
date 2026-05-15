@@ -229,7 +229,6 @@ function ShipmentDetailsInner({ id }: { id: string }) {
   };
 
   useEffect(() => {
-    if (!hasToken) { setLoading(false); router.replace("/login"); return; }
     const ac = new AbortController();
     (async () => {
       setLoading(true); setErrMsg("");
@@ -249,7 +248,7 @@ function ShipmentDetailsInner({ id }: { id: string }) {
       } finally { setLoading(false); }
     })();
     return () => ac.abort();
-  }, [id, router, hasToken]);
+  }, [id, router]);
 
   const timeline = useMemo(() => shipment ? buildTimeline(shipment) : [], [shipment]);
 
