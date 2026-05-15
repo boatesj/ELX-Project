@@ -51,8 +51,9 @@ function MyShipmentsInner() {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState("");
 
-  useEffect(() => {
   useEffect(() => { setAuth(readCustomerSession()); }, []);
+
+  useEffect(() => {
     const onStorage = () => setAuth(readCustomerSession());
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
