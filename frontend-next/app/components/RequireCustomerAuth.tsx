@@ -16,6 +16,7 @@ export default function RequireCustomerAuth({
   const [auth, setAuth] = useState<ReturnType<typeof readCustomerSession> | null>(null);
   const [checked, setChecked] = useState(false);
 
+  // Read auth once on mount
   useEffect(() => {
     const current = readCustomerSession();
     setAuth(current);
@@ -23,8 +24,10 @@ export default function RequireCustomerAuth({
     if (!current.token || !current.user) {
       router.replace(`/login?from=${encodeURIComponent(pathname)}`);
     }
-  }, [router, pathname]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // only on mount — not on pathname change
 
+  // Keep auth in sync across tabs
   useEffect(() => {
     const onStorage = () => setAuth(readCustomerSession());
     window.addEventListener("storage", onStorage);
@@ -38,7 +41,7 @@ export default function RequireCustomerAuth({
     [auth]
   );
 
-  if (!checked) return null;
+  if (!checked) return <div className="bg-[#1A2930] min-h-screen" />;
   if (!isAllowed) return null;
   return <>{children}</>;
 }
