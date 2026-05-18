@@ -16,7 +16,7 @@ const SERVICES_LINKS = [
     group: "Sea Freight",
     items: [
       { label: "FCL Container (20ft / 40ft)", to: "/services/container" },
-      { label: "LCL Consolidation",           to: "/services/lcl" },
+      { label: "LCL Consolidation",           to: "/services/container" },
     ],
   },
   {
