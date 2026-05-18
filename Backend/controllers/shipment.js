@@ -1811,7 +1811,8 @@ async function getDashboardStats(req, res) {
 
     const delivered = byStatus.delivered || 0;
     const cancelled = byStatus.cancelled || 0;
-    const pending = byStatus.pending || 0;
+    const pending = (byStatus.pending || 0) + (byStatus.request_received || 0);
+    if (byStatus.request_received) { byStatus.pending = pending; delete byStatus.request_received; }
 
     const active =
       totalShipments - delivered - cancelled - pending >= 0
