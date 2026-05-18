@@ -47,6 +47,7 @@ const Panel = ({ title, subtitle, children }) => (
 const titleCaseStatus = (s) => {
   const map = {
     pending: "Pending",
+    request_received: "Pending",
     booked: "Booked",
     at_origin_yard: "At origin yard",
     loaded: "Loaded",
