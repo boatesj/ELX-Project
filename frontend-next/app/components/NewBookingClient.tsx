@@ -168,7 +168,7 @@ function NewBookingInner() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="text-sm font-semibold block mb-2">Shipper name</label>
-                    <input value={form.shipperName} onChange={onChange("shipperName")} className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]" placeholder="e.g. Jake Boateng" required />
+                    <input value={form.shipperName} onChange={onChange("shipperName")} className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]" placeholder="e.g. John Smith" required />
                   </div>
                   <div>
                     <label className="text-sm font-semibold block mb-2">Shipper email</label>
@@ -186,7 +186,7 @@ function NewBookingInner() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <label className="text-sm font-semibold block mb-2">Consignee name</label>
-                    <input value={form.consigneeName} onChange={onChange("consigneeName")} className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]" placeholder="e.g. Kofi Mensah" required />
+                    <input value={form.consigneeName} onChange={onChange("consigneeName")} className="w-full rounded-lg border border-[#D1D5DB] px-3 py-3 text-sm outline-none focus:ring-2 focus:ring-[#FFA500]/60 focus:border-[#FFA500]" placeholder="e.g. Kwame Asante" required />
                   </div>
                   <div>
                     <label className="text-sm font-semibold block mb-2">Consignee address</label>
