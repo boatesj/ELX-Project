@@ -36,7 +36,7 @@ export default function RootLayout({
       >
         <Navbar />
         {/* pt-[124px] = top bar 72px + nav bar 52px */}
-        <main className="pt-[124px]">{children}</main>
+        <main className="pt-[72px] md:pt-[124px]">{children}</main>
         <Footer />
 
         {/* WhatsApp floating button */}
