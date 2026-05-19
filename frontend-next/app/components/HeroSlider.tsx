@@ -119,6 +119,8 @@ const HeroSlider = () => {
                 src={slide.image}
                 alt={slide.alt}
                 className="h-full w-full object-cover"
+                loading={index === 0 ? "eager" : "lazy"}
+                fetchPriority={index === 0 ? "high" : "low"}
                 style={{
                   objectPosition:
                     (isMobile ? slide.mobilePosition : slide.position) ||
