@@ -43,6 +43,7 @@ function StatusDot({ active }) {
 
 const TABS = [
   { id: "subscribers", label: "Subscribers" },
+  { id: "prospects",   label: "🎯 Prospects" },
   { id: "campaign",    label: "Send Campaign" },
   { id: "history",     label: "📊 Campaign History" },
   { id: "add",         label: "+ Add Subscriber" },
@@ -92,6 +93,7 @@ const Marketing = () => {
       </div>
 
       {tab === "subscribers" && <SubscribersTab />}
+      {tab === "prospects"   && <ProspectsTab />}
       {tab === "campaign"    && <CampaignTab />}
       {tab === "add"         && <AddSubscriberTab onSuccess={() => setTab("subscribers")} />}
       {tab === "import"      && <ImportTab onSuccess={() => setTab("subscribers")} />}
@@ -1550,6 +1552,558 @@ function CampaignHistoryTab() {
               </button>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ─── PROSPECTS TAB ────────────────────────────────────────────────────────────
+
+const SECTORS = [
+  { value: "secure_print",               label: "S1 — Secure Print" },
+  { value: "lab_equipment",              label: "S2 — Lab Equipment" },
+  { value: "it_hardware",                label: "S3 — IT Hardware" },
+  { value: "vehicle_exporters",          label: "S4 — Vehicle Exporters" },
+  { value: "charities_ngos",             label: "S5 — Charities & NGOs" },
+  { value: "commercial_vendors",         label: "S6 — Commercial Vendors" },
+  { value: "uk_universities",            label: "S7 — UK Universities" },
+  { value: "ghana_public_universities",  label: "S8 — Ghana Public Unis" },
+  { value: "ghana_private_universities", label: "S9 — Ghana Private Unis" },
+  { value: "ghana_health",               label: "S10 — Ghana Health" },
+  { value: "mining",                     label: "S11 — Mining" },
+  { value: "automotive_importers",       label: "S12 — Automotive Importers" },
+  { value: "ghanaian_smes",              label: "S13 — Ghanaian SMEs" },
+  { value: "ghana_ngos",                 label: "S14 — Ghana NGOs" },
+];
+
+const STAGES = [
+  { value: "cold",       label: "Cold",        color: "bg-slate-500/15 text-slate-300 border-slate-500/40" },
+  { value: "contacted",  label: "Contacted",   color: "bg-blue-500/15 text-blue-300 border-blue-500/40" },
+  { value: "responded",  label: "Responded",   color: "bg-amber-500/15 text-amber-300 border-amber-500/40" },
+  { value: "meeting",    label: "Meeting",     color: "bg-violet-500/15 text-violet-300 border-violet-500/40" },
+  { value: "quote_sent", label: "Quote Sent",  color: "bg-sky-500/15 text-sky-300 border-sky-500/40" },
+  { value: "converted",  label: "Converted",   color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40" },
+  { value: "dead",       label: "Dead",        color: "bg-red-500/15 text-red-400 border-red-500/40" },
+];
+
+const PLAYBOOK_DAYS = [1, 3, 7, 14, 21, 30, 60, 90];
+
+const CASE_STUDIES = [
+  "UDS — Emergency Air Freight (Jan 2026)",
+  "University of Ghana — 80,000 Certificates (Mar 2026)",
+];
+
+const CHANNELS = [
+  { value: "email",      label: "Email" },
+  { value: "linkedin",   label: "LinkedIn" },
+  { value: "whatsapp",   label: "WhatsApp" },
+  { value: "phone",      label: "Phone" },
+  { value: "in_person",  label: "In Person" },
+  { value: "referral",   label: "Referral" },
+];
+
+function stageChip(stage) {
+  const s = STAGES.find((x) => x.value === stage) || STAGES[0];
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${s.color}`}>
+      {s.label}
+    </span>
+  );
+}
+
+function sectorLabel(value) {
+  return SECTORS.find((s) => s.value === value)?.label || value;
+}
+
+function isOverdue(dateStr) {
+  if (!dateStr) return false;
+  return new Date(dateStr) < new Date();
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+// ── Add Prospect Form ──────────────────────────────────────────────────────────
+function AddProspectForm({ onSuccess, onCancel }) {
+  const empty = { name: "", email: "", phone: "", company: "", sector: "secure_print", channel: "email", nextActionDate: "", nextActionNote: "" };
+  const [form, setForm] = useState(empty);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) { setError("Name is required."); return; }
+    setSaving(true); setError("");
+    try {
+      const res = await fetch(`${MARKETING_API}/prospects`, {
+        method: "POST", headers: authHeaders(), body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed");
+      onSuccess();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const field = "w-full bg-[#020617] border border-[#1f2937] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#FFA500]/50 transition placeholder:text-gray-600";
+  const label = "block text-xs uppercase tracking-widest text-gray-400 mb-1.5";
+
+  return (
+    <div className="max-w-lg bg-[#020617] border border-[#1f2937] rounded-2xl p-6">
+      <p className="text-xs uppercase tracking-widest text-gray-400 mb-4">New prospect</p>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={label}>Name *</label>
+            <input value={form.name} onChange={set("name")} placeholder="Contact name" className={field} required />
+          </div>
+          <div>
+            <label className={label}>Company</label>
+            <input value={form.company} onChange={set("company")} placeholder="Company name" className={field} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={label}>Email</label>
+            <input type="email" value={form.email} onChange={set("email")} placeholder="email@company.com" className={field} />
+          </div>
+          <div>
+            <label className={label}>Phone</label>
+            <input value={form.phone} onChange={set("phone")} placeholder="+44 7700…" className={field} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={label}>Sector *</label>
+            <select value={form.sector} onChange={set("sector")} className={field}>
+              {SECTORS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={label}>Channel</label>
+            <select value={form.channel} onChange={set("channel")} className={field}>
+              {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={label}>Next action date</label>
+            <input type="date" value={form.nextActionDate} onChange={set("nextActionDate")} className={field} />
+          </div>
+          <div>
+            <label className={label}>Next action note</label>
+            <input value={form.nextActionNote} onChange={set("nextActionNote")} placeholder="e.g. Send Day 1 cold email" className={field} />
+          </div>
+        </div>
+        {error && <div className="px-4 py-3 rounded-xl bg-red-900/30 border border-red-500/40 text-red-300 text-sm">{error}</div>}
+        <div className="flex gap-3 pt-1">
+          <button type="submit" disabled={saving}
+            className="px-6 py-2.5 rounded-full bg-[#FFA500] text-black font-semibold text-sm uppercase tracking-[0.14em] hover:brightness-110 transition disabled:opacity-40">
+            {saving ? "Saving…" : "Add Prospect"}
+          </button>
+          <button type="button" onClick={onCancel}
+            className="px-6 py-2.5 rounded-full border border-[#1f2937] text-gray-400 text-sm hover:text-white transition">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ── Prospect Detail ────────────────────────────────────────────────────────────
+function ProspectDetail({ prospect: initial, onBack, onUpdate }) {
+  const [p, setP] = useState(initial);
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [nextActionDate, setNextActionDate] = useState(p.nextActionDate ? p.nextActionDate.slice(0,10) : "");
+  const [nextActionNote, setNextActionNote] = useState(p.nextActionNote || "");
+  const [caseStudy, setCaseStudy] = useState("");
+
+  const patch = async (payload) => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${MARKETING_API}/prospects/${p._id}`, {
+        method: "PATCH", headers: authHeaders(), body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed");
+      setP(data.prospect);
+      onUpdate(data.prospect);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const logNote = () => {
+    if (!note.trim()) return;
+    patch({ note });
+    setNote("");
+  };
+
+  const markPlaybookDay = (day) => {
+    const stageMap = { 1: "contacted", 3: "contacted", 7: "contacted", 14: "contacted", 21: "contacted", 30: "contacted", 60: "contacted", 90: "contacted" };
+    patch({ playbookDay: day, note: `Playbook Day ${day} completed.` });
+  };
+
+  const sendCaseStudy = () => {
+    if (!caseStudy) return;
+    patch({ caseStudySent: { name: caseStudy }, note: `Case study sent: ${caseStudy}` });
+    setCaseStudy("");
+  };
+
+  return (
+    <div>
+      <button onClick={onBack} className="inline-flex items-center gap-2 text-xs text-gray-400 hover:text-white mb-6 transition">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        Back to pipeline
+      </button>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* Left — contact info + controls */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="bg-[#020617] border border-[#1f2937] rounded-2xl p-5">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="font-semibold text-white text-base">{p.name}</p>
+                {p.company && <p className="text-sm text-gray-400">{p.company}</p>}
+              </div>
+              {stageChip(p.stage)}
+            </div>
+            <div className="space-y-2 text-sm text-gray-400">
+              {p.email && <p><span className="text-gray-600">Email</span> <span className="text-gray-200 ml-2">{p.email}</span></p>}
+              {p.phone && <p><span className="text-gray-600">Phone</span> <span className="text-gray-200 ml-2">{p.phone}</span></p>}
+              <p><span className="text-gray-600">Sector</span> <span className="text-[#FFA500] ml-2">{sectorLabel(p.sector)}</span></p>
+              <p><span className="text-gray-600">Channel</span> <span className="text-gray-200 ml-2 capitalize">{p.channel}</span></p>
+              <p><span className="text-gray-600">Added</span> <span className="text-gray-200 ml-2">{formatDate(p.createdAt)}</span></p>
+              {p.caseStudySent?.name && (
+                <p><span className="text-gray-600">Case study</span> <span className="text-emerald-400 ml-2 text-xs">{p.caseStudySent.name}</span></p>
+              )}
+            </div>
+          </div>
+
+          {/* Stage mover */}
+          <div className="bg-[#020617] border border-[#1f2937] rounded-2xl p-5">
+            <p className="text-xs uppercase tracking-widest text-gray-400 mb-3">Move stage</p>
+            <div className="flex flex-col gap-2">
+              {STAGES.map((s) => (
+                <button key={s.value} onClick={() => patch({ stage: s.value, note: `Stage moved to: ${s.label}` })}
+                  disabled={saving || p.stage === s.value}
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition text-left ${
+                    p.stage === s.value
+                      ? `${s.color} opacity-100`
+                      : "bg-transparent border-[#1f2937] text-gray-500 hover:text-gray-300 hover:border-gray-600"
+                  }`}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Next action */}
+          <div className="bg-[#020617] border border-[#1f2937] rounded-2xl p-5">
+            <p className="text-xs uppercase tracking-widest text-gray-400 mb-3">Next action</p>
+            <input type="date" value={nextActionDate} onChange={(e) => setNextActionDate(e.target.value)}
+              className="w-full bg-[#0a0f14] border border-[#1f2937] rounded-lg px-3 py-2 text-sm mb-2 outline-none focus:border-[#FFA500]/50" />
+            <input value={nextActionNote} onChange={(e) => setNextActionNote(e.target.value)}
+              placeholder="What needs to happen?" className="w-full bg-[#0a0f14] border border-[#1f2937] rounded-lg px-3 py-2 text-sm mb-3 outline-none focus:border-[#FFA500]/50 placeholder:text-gray-700" />
+            <button onClick={() => patch({ nextActionDate, nextActionNote })} disabled={saving}
+              className="w-full py-2 rounded-lg bg-[#FFA500]/10 border border-[#FFA500]/30 text-[#FFA500] text-xs font-semibold hover:bg-[#FFA500]/15 transition">
+              Save next action
+            </button>
+          </div>
+
+          {/* Case study sender */}
+          <div className="bg-[#020617] border border-[#1f2937] rounded-2xl p-5">
+            <p className="text-xs uppercase tracking-widest text-gray-400 mb-3">Log case study send</p>
+            <select value={caseStudy} onChange={(e) => setCaseStudy(e.target.value)}
+              className="w-full bg-[#0a0f14] border border-[#1f2937] rounded-lg px-3 py-2 text-sm mb-3 outline-none focus:border-[#FFA500]/50">
+              <option value="">Select case study…</option>
+              {CASE_STUDIES.map((cs) => <option key={cs} value={cs}>{cs}</option>)}
+            </select>
+            <button onClick={sendCaseStudy} disabled={saving || !caseStudy}
+              className="w-full py-2 rounded-lg bg-[#FFA500]/10 border border-[#FFA500]/30 text-[#FFA500] text-xs font-semibold hover:bg-[#FFA500]/15 transition disabled:opacity-40">
+              Mark as sent
+            </button>
+          </div>
+        </div>
+
+        {/* Right — playbook tracker + notes */}
+        <div className="lg:col-span-2 space-y-4">
+
+          {/* Playbook day tracker */}
+          <div className="bg-[#020617] border border-[#1f2937] rounded-2xl p-5">
+            <p className="text-xs uppercase tracking-widest text-gray-400 mb-4">Playbook sequence</p>
+            <div className="flex flex-wrap gap-2">
+              {PLAYBOOK_DAYS.map((day) => {
+                const done = p.playbookDay >= day;
+                return (
+                  <button key={day} onClick={() => markPlaybookDay(day)} disabled={saving}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                      done
+                        ? "bg-[#FFA500]/15 border-[#FFA500]/50 text-[#FFA500]"
+                        : "bg-transparent border-[#1f2937] text-gray-600 hover:text-gray-300 hover:border-gray-600"
+                    }`}>
+                    Day {day}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-600 mt-3">
+              Last completed: <span className="text-gray-400">{p.playbookDay > 0 ? `Day ${p.playbookDay}` : "Not started"}</span>
+            </p>
+          </div>
+
+          {/* Activity log */}
+          <div className="bg-[#020617] border border-[#1f2937] rounded-2xl p-5">
+            <p className="text-xs uppercase tracking-widest text-gray-400 mb-4">Activity log</p>
+
+            {/* Add note */}
+            <div className="flex gap-2 mb-5">
+              <input value={note} onChange={(e) => setNote(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && logNote()}
+                placeholder="Log a call, email, or observation…"
+                className="flex-1 bg-[#0a0f14] border border-[#1f2937] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#FFA500]/50 placeholder:text-gray-700" />
+              <button onClick={logNote} disabled={saving || !note.trim()}
+                className="px-4 py-2.5 rounded-xl bg-[#FFA500] text-black text-xs font-bold uppercase tracking-widest hover:brightness-110 transition disabled:opacity-40">
+                Log
+              </button>
+            </div>
+
+            {/* Notes list */}
+            {p.notes?.length > 0 ? (
+              <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                {[...p.notes].reverse().map((n) => (
+                  <div key={n._id} className="flex gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#FFA500]/60 mt-2 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-gray-300 leading-relaxed">{n.text}</p>
+                      <p className="text-xs text-gray-600 mt-0.5">{formatDate(n.createdAt)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">No activity logged yet.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Prospects Tab ──────────────────────────────────────────────────────────────
+function ProspectsTab() {
+  const [prospects, setProspects]   = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState("");
+  const [view, setView]             = useState("pipeline"); // pipeline | due | add
+  const [selected, setSelected]     = useState(null);
+  const [sectorFilter, setSectorFilter] = useState("");
+  const [stageFilter, setStageFilter]   = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    try {
+      const res  = await fetch(`${MARKETING_API}/prospects`, { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed");
+      setProspects(data.prospects || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const onUpdate = (updated) => {
+    setProspects((prev) => prev.map((p) => p._id === updated._id ? updated : p));
+    setSelected(updated);
+  };
+
+  const onDelete = async (id) => {
+    if (!window.confirm("Delete this prospect?")) return;
+    await fetch(`${MARKETING_API}/prospects/${id}`, { method: "DELETE", headers: authHeaders() });
+    setProspects((prev) => prev.filter((p) => p._id !== id));
+    setSelected(null);
+    setView("pipeline");
+  };
+
+  // Stats
+  const total      = prospects.length;
+  const dueToday   = prospects.filter((p) => p.nextActionDate && isOverdue(p.nextActionDate) && !["converted","dead"].includes(p.stage)).length;
+  const converted  = prospects.filter((p) => p.stage === "converted").length;
+  const active     = prospects.filter((p) => !["converted","dead"].includes(p.stage)).length;
+
+  // Filtered list
+  const filtered = prospects.filter((p) => {
+    if (sectorFilter && p.sector !== sectorFilter) return false;
+    if (stageFilter  && p.stage  !== stageFilter)  return false;
+    return true;
+  });
+
+  // Due today list
+  const dueList = prospects.filter((p) =>
+    p.nextActionDate && isOverdue(p.nextActionDate) && !["converted","dead"].includes(p.stage)
+  ).sort((a, b) => new Date(a.nextActionDate) - new Date(b.nextActionDate));
+
+  if (selected) {
+    return (
+      <ProspectDetail
+        prospect={selected}
+        onBack={() => setSelected(null)}
+        onUpdate={onUpdate}
+      />
+    );
+  }
+
+  return (
+    <div>
+      {/* Stats row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        {[
+          { label: "Total prospects", value: total,     color: "text-white" },
+          { label: "Active",          value: active,    color: "text-blue-300" },
+          { label: "Due / overdue",   value: dueToday,  color: dueToday > 0 ? "text-amber-300" : "text-gray-400" },
+          { label: "Converted",       value: converted, color: "text-emerald-300" },
+        ].map((s) => (
+          <div key={s.label} className="bg-[#020617] border border-[#1f2937] rounded-2xl px-5 py-4">
+            <p className="text-[11px] uppercase tracking-widest text-gray-500 mb-1">{s.label}</p>
+            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Sub-nav */}
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <div className="flex gap-1 bg-[#020617] border border-[#1f2937] rounded-xl p-1">
+          {[
+            { id: "pipeline", label: "Pipeline" },
+            { id: "due",      label: dueToday > 0 ? `Due today (${dueToday})` : "Due today" },
+          ].map((v) => (
+            <button key={v.id} onClick={() => setView(v.id)}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-[0.14em] transition ${
+                view === v.id ? "bg-[#FFA500] text-black" : "text-gray-400 hover:text-white hover:bg-white/5"
+              }`}>
+              {v.label}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setView("add")}
+          className="px-5 py-2 rounded-full bg-[#FFA500] text-black text-xs font-bold uppercase tracking-widest hover:brightness-110 transition">
+          + Add Prospect
+        </button>
+      </div>
+
+      {view === "add" && (
+        <AddProspectForm onSuccess={() => { load(); setView("pipeline"); }} onCancel={() => setView("pipeline")} />
+      )}
+
+      {view === "due" && (
+        <div>
+          {dueList.length === 0 ? (
+            <div className="bg-[#020617] border border-[#1f2937] rounded-2xl p-8 text-center">
+              <p className="text-gray-400 text-sm">No actions due today.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {dueList.map((p) => (
+                <button key={p._id} onClick={() => setSelected(p)}
+                  className="w-full text-left bg-[#020617] border border-amber-500/30 rounded-2xl p-5 hover:bg-white/[0.02] transition group">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-white">{p.name}{p.company ? ` — ${p.company}` : ""}</p>
+                      <p className="text-xs text-[#FFA500] mt-0.5">{sectorLabel(p.sector)}</p>
+                      <p className="text-sm text-gray-400 mt-2">{p.nextActionNote || "No action note"}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      {stageChip(p.stage)}
+                      <p className={`text-xs mt-2 ${isOverdue(p.nextActionDate) ? "text-red-400" : "text-gray-500"}`}>
+                        {formatDate(p.nextActionDate)}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {view === "pipeline" && (
+        <div>
+          {/* Filters */}
+          <div className="flex gap-3 mb-5 flex-wrap">
+            <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)}
+              className="bg-[#020617] border border-[#1f2937] rounded-xl px-4 py-2 text-sm text-gray-300 outline-none focus:border-[#FFA500]/50">
+              <option value="">All sectors</option>
+              {SECTORS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+            <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)}
+              className="bg-[#020617] border border-[#1f2937] rounded-xl px-4 py-2 text-sm text-gray-300 outline-none focus:border-[#FFA500]/50">
+              <option value="">All stages</option>
+              {STAGES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+
+          {error && <div className="mb-4 px-4 py-3 rounded-xl bg-red-900/30 border border-red-500/40 text-red-300 text-sm">{error}</div>}
+
+          {loading ? (
+            <p className="text-sm text-gray-500">Loading prospects…</p>
+          ) : filtered.length === 0 ? (
+            <div className="bg-[#020617] border border-[#1f2937] rounded-2xl p-8 text-center">
+              <p className="text-gray-400 text-sm">No prospects yet.</p>
+              <p className="text-gray-600 text-xs mt-1">Click + Add Prospect to start working the playbook.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map((p) => (
+                <button key={p._id} onClick={() => setSelected(p)}
+                  className="w-full text-left bg-[#020617] border border-[#1f2937] rounded-2xl px-5 py-4 hover:bg-white/[0.02] hover:border-gray-600 transition group">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-semibold text-gray-100 truncate">{p.name}{p.company ? ` — ${p.company}` : ""}</p>
+                        {stageChip(p.stage)}
+                        {p.playbookDay > 0 && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#FFA500]/10 border border-[#FFA500]/30 text-[#FFA500] font-semibold">
+                            Day {p.playbookDay}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">{sectorLabel(p.sector)} · {p.channel}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      {p.nextActionDate && (
+                        <p className={`text-xs font-semibold ${isOverdue(p.nextActionDate) ? "text-red-400" : "text-gray-500"}`}>
+                          {isOverdue(p.nextActionDate) ? "Overdue" : formatDate(p.nextActionDate)}
+                        </p>
+                      )}
+                      {p.nextActionNote && <p className="text-xs text-gray-600 mt-0.5 max-w-[180px] truncate">{p.nextActionNote}</p>}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

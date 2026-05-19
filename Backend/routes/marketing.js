@@ -15,6 +15,13 @@ const {
   updateSubscriber,
 } = require("../controllers/marketing");
 
+const {
+  getProspects,
+  createProspect,
+  updateProspect,
+  deleteProspect,
+} = require("../controllers/prospect");
+
 const { requireAuth, requireAdmin } = require("../middleware/auth");
 
 // -----------------------------------------------
@@ -41,5 +48,13 @@ router.post("/webhooks/postmark", postmarkWebhook);
 
 // Public unsubscribe — no auth (linked from emails)
 router.get("/unsubscribe", publicUnsubscribe);
+
+// -----------------------------------------------
+// Prospects — B2B outreach pipeline (admin only)
+// -----------------------------------------------
+router.get("/prospects",      requireAuth, requireAdmin, getProspects);
+router.post("/prospects",     requireAuth, requireAdmin, createProspect);
+router.patch("/prospects/:id", requireAuth, requireAdmin, updateProspect);
+router.delete("/prospects/:id", requireAuth, requireAdmin, deleteProspect);
 
 module.exports = router;
