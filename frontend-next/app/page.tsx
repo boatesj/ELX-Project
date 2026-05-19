@@ -8,6 +8,25 @@ import VesselTracker from "./components/VesselTracker";
 import TrustStories from "./components/TrustStories";
 import SocialProofBoard from "./components/SocialProofBoard";
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "Ellcworth Express",
+  "description": "UK freight forwarder specialising in shipping containers, vehicles, and sensitive cargo to Ghana, Nigeria, and West Africa.",
+  "url": "https://www.ellcworth.com",
+  "telephone": "+44-208-979-6054",
+  "email": "cs@ellcworth.com",
+  "address": {
+    "@type": "PostalAddress",
+    "addressCountry": "GB"
+  },
+  "areaServed": ["Ghana", "Nigeria", "Kenya", "Sierra Leone", "Côte d'Ivoire", "West Africa", "East Africa"],
+  "serviceType": ["Freight Forwarding", "Container Shipping", "Air Freight", "RoRo Vehicle Shipping", "LCL Groupage", "Customs Clearance"],
+  "sameAs": [
+    "https://www.ellcworth.com"
+  ]
+};
+
 export const metadata: Metadata = {
   title: "Ellcworth Express | UK to West Africa Freight Specialists",
   description: "12 years shipping containers, vehicles and sensitive cargo from the UK to Ghana, Nigeria and West Africa. Sealed, documented, on time.",
@@ -31,6 +50,10 @@ const OFFSET = "scroll-mt-[120px] md:scroll-mt-[150px] lg:scroll-mt-[160px]";
 export default function HomePage() {
   return (
     <div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <section id="Header" className={OFFSET}>
         <HeroSlider />
       </section>
