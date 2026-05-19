@@ -559,6 +559,18 @@ function RichEditor({ content, onChange, onImageUpload, uploading }) {
 
         <div className="w-px h-5 bg-white/10 mx-1" />
 
+        {/* Blockquote */}
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive("blockquote")} title="Blockquote">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+        </ToolbarBtn>
+
+        {/* Horizontal rule */}
+        <ToolbarBtn onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Divider">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14"/></svg>
+        </ToolbarBtn>
+
+        <div className="w-px h-5 bg-white/10 mx-1" />
+
         {/* Clear */}
         <ToolbarBtn onClick={() => editor.chain().focus().clearContent().run()} title="Clear content">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -571,103 +583,266 @@ function RichEditor({ content, onChange, onImageUpload, uploading }) {
   );
 }
 
-const TEMPLATES = {
-  blank: {
-    subject: "",
-    accent: "#FFA500",
-    serviceLabel: "Container · RoRo · Air Freight",
-    body: "<p>Hi {{name}},</p><p>Write your message here...</p>",
-  },
-  promo: {
-    subject: "🚢 May Shipping Deals — Air, Container & RoRo to West Africa",
-    accent: "#FFA500",
-    serviceLabel: "Container · RoRo · Air Freight",
-    body: `<p>Hi {{name}},</p>
-<p>We're pleased to share some of our most competitive rates this May on key routes from the UK to West Africa. Whether you're moving cargo by air, sea, or vehicle — we have a solution that works for your timeline and budget.</p>
-<h2>This Month's Rates</h2>
+// ─── TEMPLATE LIBRARY ────────────────────────────────────────────────────────
+// Groups: Broadcast, Institutional, Commercial, Community
+const TEMPLATE_GROUPS = [
+  {
+    group: "Broadcast",
+    templates: [
+      {
+        key: "blank",
+        label: "Blank",
+        subject: "",
+        accent: "#FFA500",
+        serviceLabel: "Container · RoRo · Air Freight",
+        body: "<p>Hi {{name}},</p><p>Write your message here...</p>",
+      },
+      {
+        key: "newsletter",
+        label: "Newsletter",
+        subject: "Ellcworth Express — Freight Intelligence & Route Updates",
+        accent: "#FFA500",
+        serviceLabel: "Freight Intelligence",
+        body: `<p>Hi {{name}},</p>
+<p>Here is the latest from Ellcworth Express — port updates, route news, and practical guides for UK exporters shipping to West Africa.</p>
+<h2>In this issue</h2>
 <ul>
-  <li>✈️ <strong>Air Freight</strong> — 24-hour delivery to Accra (Kotoka International Airport)</li>
-  <li>📦 <strong>FCL Container</strong> — MSC 40ft High Cube from £2,500 (London Gateway → Tema)</li>
-  <li>🚗 <strong>RoRo Vehicle Shipping</strong> — from £500 (Sheerness / Teesport → Tema)</li>
+  <li>Tema Port congestion update — current clearance times</li>
+  <li>RoRo vessel schedule — next sailings from Grimsby and Tilbury</li>
+  <li>New route: UK to Mombasa — FCL rates now available</li>
+  <li>Customs documentation checklist — avoid the three most common errors</li>
 </ul>
-<p>All rates are subject to availability and cargo details. Our team is ready to provide a full quotation tailored to your shipment — including customs clearance, documentation, and door delivery options where required.</p>
-<p>To secure these rates or request a full quote, click the button below or reply directly to this email. Our team responds within one business day.</p>`,
+<p>Add your content above. Each section should be specific and actionable — if a subscriber can act on it, they will.</p>`,
+      },
+      {
+        key: "promo",
+        label: "Rate Offer",
+        subject: "Current Rates — UK to West Africa | Ellcworth Express",
+        accent: "#FFA500",
+        serviceLabel: "Container · RoRo · Air Freight",
+        body: `<p>Hi {{name}},</p>
+<p>We have competitive rates available this month on key UK to West Africa routes. Whether you are moving cargo by sea, air, or RoRo — the options below may be relevant to your next shipment.</p>
+<h2>Current rates</h2>
+<table>
+  <tr><td>RoRo vehicle shipping</td><td>From £750 per unit</td></tr>
+  <tr><td>FCL 20ft container</td><td>From £1,500</td></tr>
+  <tr><td>FCL 40ft container</td><td>From £2,500</td></tr>
+  <tr><td>Air freight to Accra (ACC)</td><td>Quoted per kg</td></tr>
+  <tr><td>LCL consolidation</td><td>Quoted per CBM</td></tr>
+</table>
+<p>All rates are subject to cargo details, availability, and sailing schedule at time of booking. Reply to this email or use the button below to request a quote — we respond within one business day.</p>`,
+      },
+    ],
   },
-  container: {
-    subject: "📦 Container Shipping Rates — Ellcworth Express",
-    accent: "#38bdf8",
-    serviceLabel: "FCL & LCL Container Freight",
-    body: `<p>Hi {{name}},</p>
-<p>We have updated container rates on our UK to West Africa routes. Whether you need a full container (FCL) or shared space (LCL), we have flexible options to suit your cargo and budget.</p>
-<h2>Container Options</h2>
+  {
+    group: "Institutional",
+    templates: [
+      {
+        key: "institutional_certificates",
+        label: "Certificate Freight",
+        subject: "Degree Certificate Freight — UK to Ghana | Ellcworth Express",
+        accent: "#FFA500",
+        serviceLabel: "Institutional Freight — Academic Documents",
+        body: `<p>Hi {{name}},</p>
+<p>If your institution sources degree certificates or academic documents from UK print partners, the logistics side of that supply chain is something we handle every semester.</p>
+<h2>What we do</h2>
 <ul>
-  <li>20ft FCL — From £XXX</li>
-  <li>40ft FCL — From £XXX</li>
-  <li>LCL (per CBM) — From £XXX</li>
+  <li><strong>Direct collection</strong> from your UK printer — same day, no warehouse stop</li>
+  <li><strong>Air freight to Accra International Airport (ACC)</strong> — next available flight</li>
+  <li><strong>Pre-cleared customs documentation</strong> — clearance begins before the aircraft lands</li>
+  <li><strong>Inland delivery to campus</strong> — Tema, Accra, Kumasi, Tamale and beyond</li>
 </ul>
-<p>Get in touch for a competitive quote on your route.</p>`,
-  },
-  roro: {
-    subject: "🚗 RoRo Vehicle Shipping — Ellcworth Express",
-    accent: "#a78bfa",
-    serviceLabel: "Vehicle Shipping — Cars, 4x4s & Commercial",
-    body: `<p>Hi {{name}},</p>
-<p>Shipping your vehicle to West Africa? Our RoRo service offers safe, cost-effective transport from major UK ports to destinations including Tema, Lagos, Cotonou, and more.</p>
-<h2>Why Choose Our RoRo Service</h2>
+<h2>Proven track record</h2>
+<p>We shipped 80,000 certificates for the University of Ghana in March 2026 — two pallets, 840kg, five days from collection to confirmed arrival at Accra International Airport. We also ran an emergency air freight operation for UDS Tamale in January 2026, delivering 10 cartons of certificates ahead of a compressed graduation deadline.</p>
+<p>If your institution has an upcoming certificate order from a UK supplier, we can confirm a rate within 24 hours.</p>`,
+      },
+      {
+        key: "institutional_equipment",
+        label: "Lab & IT Equipment",
+        subject: "Lab & IT Equipment Freight — UK to Ghana | Ellcworth Express",
+        accent: "#38bdf8",
+        serviceLabel: "Institutional Freight — Equipment",
+        body: `<p>Hi {{name}},</p>
+<p>Laboratory equipment and IT hardware shipped from UK suppliers to Ghanaian institutions requires specialist handling — standard palletisation is not designed for trans-shipment to West Africa.</p>
+<h2>How we handle institutional equipment</h2>
 <ul>
-  <li>Competitive rates from Tilbury, Sheerness & Southampton</li>
-  <li>Runners and non-runners accepted</li>
-  <li>Full tracking from port to destination</li>
-  <li>Experienced customs clearance team</li>
+  <li><strong>Repackaging at our Grays depot</strong> — reinforced crating and lashing for sea transit</li>
+  <li><strong>FCL or LCL container options</strong> — depending on volume and timeline</li>
+  <li><strong>ICUMS-compliant documentation</strong> — pre-arrival declaration and customs entry prepared in advance</li>
+  <li><strong>Tema Port clearance</strong> — managed by our licensed Ghana agents</li>
+  <li><strong>Campus delivery</strong> — from Tema directly to your institution</li>
 </ul>
-<p>Contact us today for a RoRo quote on your vehicle.</p>`,
-  },
-  air: {
-    subject: "✈️ Priority Air Freight — Certified Same-Day UK to Accra | Ellcworth Express",
-    accent: "#fcd34d",
-    serviceLabel: "Priority Air Freight — UK to Accra",
-    body: `<p>Hi {{name}},</p>
-
-<p>When your institution's documents, certificates, and executive cargo cannot wait — neither do we.</p>
-
-<p>Ellcworth Express operates a dedicated priority air freight service between the United Kingdom and Accra's Kotoka International Airport, purpose-built for the exacting standards of Ghana's leading institutions.</p>
-
-<p>Whether you are dispatching official university certificates, academic credentials, time-sensitive procurement documents, or high-value executive cargo — our service guarantees speed, security, and complete chain-of-custody visibility from collection to delivery.</p>
-
-<h2>Our Priority Air Freight Service</h2>
+<p>We ship to KNUST, University of Ghana, UDS, and UCC regularly. If you have an equipment procurement scheduled from a UK supplier, reply to this email to discuss the freight side.</p>`,
+      },
+      {
+        key: "institutional_ngo",
+        label: "NGO / Donor Freight",
+        subject: "Donor-Compliant Freight Documentation — UK to Ghana | Ellcworth Express",
+        accent: "#34d399",
+        serviceLabel: "NGO & Development Freight",
+        body: `<p>Hi {{name}},</p>
+<p>Freight documentation for donor-funded shipments needs to satisfy two audiences: customs and your grant reporting team. Most forwarders produce what customs requires. Donor reporting needs more.</p>
+<h2>Our NGO documentation package includes</h2>
 <ul>
-  <li>✦ <strong>Same-day UK collection</strong> — we collect directly from your institution</li>
-  <li>✦ <strong>24-hour delivery</strong> to Kotoka International Airport, Accra</li>
-  <li>✦ <strong>Onward delivery</strong> to your institution available on request</li>
-  <li>✦ <strong>Real-time tracking</strong> from dispatch to final delivery</li>
-  <li>✦ <strong>Fully insured</strong>, tamper-evident secure packaging</li>
-  <li>✦ <strong>Dedicated account manager</strong> — one point of contact, always</li>
+  <li>Booking confirmation with cost breakdown</li>
+  <li>Bill of lading or air waybill</li>
+  <li>Delivery receipt with timestamp</li>
+  <li>Commercial invoice formatted for grant expenditure codes</li>
 </ul>
-
-<h2>Why Procurement Directors Choose Ellcworth Express</h2>
-<p>We understand that academic credentials and institutional documents carry legal and reputational weight. Our handling protocols are designed to meet the compliance requirements of Ghana's public institutions, with full documentation provided for customs clearance and institutional records.</p>
-
-<p><strong>No queues. No delays. No compromise.</strong></p>
-
-<p>To arrange a priority collection or discuss a regular service agreement for your institution, reply directly to this email or speak with our team today.</p>`,
+<p>We ship for NGOs and community organisations to Ghana and West Africa on an LCL consolidation basis — no minimum volume, no standing contract. You pay for the cubic metres your goods actually occupy.</p>
+<p>If your next UK-to-Ghana shipment needs to be fully documented for donor reporting, reply to this email and we will send you a sample documentation pack.</p>`,
+      },
+    ],
   },
-  newsletter: {
-    subject: "📦 Ellcworth Express — Shipping News & Updates",
-    accent: "#FFA500",
-    serviceLabel: "Industry News & Updates",
-    body: `<p>Hi {{name}},</p>
-<p>Here's the latest from Ellcworth Express — industry updates, route news, and tips to make your next shipment smoother.</p>
-<h2>In This Issue</h2>
+  {
+    group: "Commercial",
+    templates: [
+      {
+        key: "commercial_roro",
+        label: "RoRo — Vehicle Exporters",
+        subject: "Tema Documentation — Your Clearance Time | Ellcworth Express",
+        accent: "#a78bfa",
+        serviceLabel: "RoRo Vehicle Shipping — Tema & Apapa",
+        body: `<p>Hi {{name}},</p>
+<p>Most problems at Tema Port are documentation problems. An error on the Bill of Lading or a missing pre-shipment notification can hold a vehicle for days — and demurrage charges accumulate from day one.</p>
+<h2>Our RoRo service</h2>
 <ul>
-  <li>Port congestion update — Tema & Lagos</li>
-  <li>New RoRo vessel schedule — Q3 departures</li>
-  <li>Customs documentation checklist</li>
-  <li>Customer spotlight</li>
+  <li><strong>From £750 per vehicle</strong> — cars, vans, 4x4s, trucks</li>
+  <li><strong>Departure ports</strong>: Grimsby, Southampton, Tilbury, Sheerness</li>
+  <li><strong>Destinations</strong>: Tema (Ghana), Apapa (Nigeria)</li>
+  <li><strong>Documentation turnaround</strong>: same day on receipt of V5C and invoice</li>
+  <li><strong>Clearance track record</strong>: under 2% documentation rejection rate at Tema</li>
 </ul>
-<p>Add your newsletter content here. Our team is always available to answer any questions about your shipment.</p>`,
+<p>If you are running five or more vehicles a month to Ghana or Nigeria, it is worth a direct rate comparison. Reply with your last shipment details — make, model, current location — and we will respond with a rate and clearance time estimate today.</p>`,
+      },
+      {
+        key: "commercial_container",
+        label: "Container — Commercial",
+        subject: "Container Shipping UK to Ghana — Current Rates | Ellcworth Express",
+        accent: "#38bdf8",
+        serviceLabel: "FCL & LCL Container Freight",
+        body: `<p>Hi {{name}},</p>
+<p>We have current FCL and LCL rates available on our UK to Ghana and West Africa routes.</p>
+<h2>Container rates</h2>
+<table>
+  <tr><td>20ft FCL — London Gateway → Tema</td><td>From £1,500</td></tr>
+  <tr><td>40ft FCL — London Gateway → Tema</td><td>From £2,500</td></tr>
+  <tr><td>LCL consolidation (per CBM)</td><td>Quoted on cargo details</td></tr>
+  <tr><td>Transit time — UK to Tema</td><td>15–21 days</td></tr>
+</table>
+<h2>What is included</h2>
+<ul>
+  <li>Export customs entry and documentation</li>
+  <li>Port handling and bill of lading</li>
+  <li>ICUMS pre-arrival declaration (Ghana)</li>
+  <li>Tema customs clearance coordination</li>
+</ul>
+<p>For cargo dimensions and weight, we can confirm a rate within 24 hours. Reply to this email or use the button below.</p>`,
+      },
+      {
+        key: "commercial_air",
+        label: "Air Freight — Urgent",
+        subject: "Urgent Air Freight UK to Accra — Same Week | Ellcworth Express",
+        accent: "#fcd34d",
+        serviceLabel: "Priority Air Freight — UK to Accra",
+        body: `<p>Hi {{name}},</p>
+<p>When cargo cannot wait for a vessel, we operate air freight from Heathrow to Accra International Airport (ACC) on the next available flight.</p>
+<h2>Air freight service</h2>
+<ul>
+  <li><strong>Collection from anywhere in the UK</strong> — same day on confirmation</li>
+  <li><strong>Heathrow (LHR) → Accra International Airport (ACC)</strong></li>
+  <li><strong>Transit time</strong>: 3–5 days door to door</li>
+  <li><strong>Cargo types</strong>: documents, spare parts, pharmaceuticals, high-value goods</li>
+  <li><strong>Chain of custody documentation</strong> included as standard</li>
+</ul>
+<p>For weight and dimensions, we will confirm a rate and departure slot within two hours. Reply to this email directly.</p>`,
+      },
+    ],
   },
-};
+  {
+    group: "Community",
+    templates: [
+      {
+        key: "community_lcl",
+        label: "LCL — Community Shippers",
+        subject: "Shipping to Ghana — Pay Only for What You Send | Ellcworth Express",
+        accent: "#FFA500",
+        serviceLabel: "LCL Consolidation — UK to Ghana",
+        body: `<p>Hi {{name}},</p>
+<p>If you are buying goods in the UK to send to Ghana, you do not need to pay for a full container. LCL consolidation means you pay for the exact space your goods occupy — nothing more.</p>
+<h2>How it works</h2>
+<ul>
+  <li>We collect from your UK supplier or you drop off at our Grays depot</li>
+  <li>We repack goods for container transit — retail packaging is not built for sea freight</li>
+  <li>Your cargo consolidates into our weekly Tema container</li>
+  <li>You receive tracking updates and delivery confirmation</li>
+</ul>
+<p>No minimum volume. No standing contract. Tell us what you are shipping — weight, type of goods, and destination in Ghana — and we will give you a rate comparison against what you are currently paying.</p>`,
+      },
+    ],
+  },
+];
 
+// Flat lookup for backwards compatibility
+const TEMPLATES = Object.fromEntries(
+  TEMPLATE_GROUPS.flatMap((g) => g.templates.map((t) => [t.key, t]))
+);
+
+
+// ─── CONTENT BLOCKS ──────────────────────────────────────────────────────────
+// Pre-styled HTML snippets insertable via the block panel
+const CONTENT_BLOCKS = [
+  {
+    label: "Rate table",
+    icon: "table",
+    html: `<table>
+  <tr><td>Service</td><td>Rate</td></tr>
+  <tr><td>FCL 20ft</td><td>From £1,500</td></tr>
+  <tr><td>FCL 40ft</td><td>From £2,500</td></tr>
+  <tr><td>RoRo vehicle</td><td>From £750</td></tr>
+  <tr><td>Air freight</td><td>Quoted per kg</td></tr>
+</table>`,
+  },
+  {
+    label: "Route line",
+    icon: "route",
+    html: `<p><strong>Route:</strong> Heathrow (LHR) → Accra International Airport (ACC) · Transit: 3–5 days</p>`,
+  },
+  {
+    label: "Case study callout",
+    icon: "case",
+    html: `<blockquote><strong>Case study:</strong> University of Ghana — 80,000 certificates, 2 pallets, 840kg. Collected from UK print partner direct to Heathrow. Confirmed at Accra International Airport in 5 days. <em>March 2026.</em></blockquote>`,
+  },
+  {
+    label: "Client quote",
+    icon: "quote",
+    html: `<blockquote>"I am pleased to inform you that the templates have finally arrived. I want to thank all stakeholders for ensuring a smooth transaction." — Procurement Director, University for Development Studies, January 2026</blockquote>`,
+  },
+  {
+    label: "Checklist",
+    icon: "check",
+    html: `<ul>
+  <li>✓ Item one</li>
+  <li>✓ Item two</li>
+  <li>✓ Item three</li>
+</ul>`,
+  },
+  {
+    label: "Divider",
+    icon: "divider",
+    html: `<hr/>`,
+  },
+  {
+    label: "CTA button",
+    icon: "cta",
+    html: `<p style="text-align:center"><a href="https://ellcworth.com/#quote"><strong>→ Request a Quote</strong></a></p>`,
+  },
+  {
+    label: "Contact line",
+    icon: "contact",
+    html: `<p>To discuss your shipment, reply to this email or call us on <strong>+44 (0)208 979 6054</strong>. We respond within one business day.</p>`,
+  },
+];
 
 
 // ─── EMAIL WRAPPER ───────────────────────────────────────────────────────────
@@ -694,6 +869,9 @@ function wrapInTemplate(bodyHtml, accentColor = "#FFA500", serviceLabel = "Conta
     .body-content table { width:100%; border-collapse:collapse; font-size:14px; color:#c9d1d9; margin:0 0 20px; }
     .body-content table td { padding:10px 0; border-bottom:1px solid #1f2937; }
     .body-content table td:last-child { text-align:right; color:#ffffff; font-weight:600; }
+    .body-content blockquote { border-left:3px solid #FFA500; margin:20px 0; padding:12px 20px; background:#111827; border-radius:0 8px 8px 0; color:#9ca3af; font-style:italic; font-size:14px; line-height:1.8; }
+    .body-content blockquote strong { color:#ffffff; }
+    .body-content hr { border:none; border-top:1px solid #1f2937; margin:28px 0; }
   </style>
 </head>
 <body style="margin:0;padding:24px 12px;background:#04080a;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
@@ -862,20 +1040,45 @@ function CampaignTab() {
 
   return (
     <div className="max-w-4xl">
+      {/* Template picker — grouped */}
       <div className="mb-6">
-        <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Start from a template</p>
+        <p className="text-xs uppercase tracking-widest text-gray-400 mb-3">Start from a template</p>
+        <div className="space-y-3">
+          {TEMPLATE_GROUPS.map((group) => (
+            <div key={group.group}>
+              <p className="text-[10px] uppercase tracking-widest text-gray-600 mb-2">{group.group}</p>
+              <div className="flex flex-wrap gap-2">
+                {group.templates.map((t) => (
+                  <button key={t.key} onClick={() => applyTemplate(t.key)}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold tracking-[0.1em] border transition ${
+                      template === t.key
+                        ? "bg-[#FFA500]/10 border-[#FFA500]/50 text-[#FFA500]"
+                        : "bg-[#020617] border-[#1f2937] text-gray-400 hover:text-white hover:border-gray-500"
+                    }`}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Content block inserter */}
+      <div className="mb-6">
+        <p className="text-xs uppercase tracking-widest text-gray-400 mb-3">Insert content block</p>
         <div className="flex flex-wrap gap-2">
-          {Object.keys(TEMPLATES).map((k) => (
-            <button key={k} onClick={() => applyTemplate(k)}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold uppercase tracking-[0.12em] border transition ${
-                template === k
-                  ? "bg-[#FFA500]/10 border-[#FFA500]/50 text-[#FFA500]"
-                  : "bg-[#020617] border-[#1f2937] text-gray-400 hover:text-white hover:border-gray-500"
-              }`}>
-              {k === "blank" ? "Blank" : k === "promo" ? "🎯 Promo Offer" : "📰 Newsletter"}
+          {CONTENT_BLOCKS.map((block) => (
+            <button key={block.label}
+              onClick={() => {
+                setHtmlBody((prev) => prev + "\n" + block.html);
+              }}
+              className="px-3 py-2 rounded-lg text-xs font-semibold border border-[#1f2937] bg-[#020617] text-gray-400 hover:text-white hover:border-gray-500 transition">
+              + {block.label}
             </button>
           ))}
         </div>
+        <p className="text-xs text-gray-600 mt-2">Blocks are appended to the email body. Switch to HTML mode to edit them directly.</p>
       </div>
 
       <div className="mb-4">
