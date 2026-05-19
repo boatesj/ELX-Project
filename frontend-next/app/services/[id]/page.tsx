@@ -21,11 +21,11 @@ const SEO: Record<string, { title: string; desc: string }> = {
     desc: "FCL and LCL container shipping from the UK to Ghana and West Africa. Full and shared containers with milestone tracking.",
   },
   roro: {
-    title: "RoRo Vehicle Shipping UK to Ghana | Ellcworth Express",
+    title: "Car Shipping UK to Ghana — RoRo Tema & Apapa | Ellcworth",
     desc: "Ship cars, vans, trucks and rolling stock from the UK to Ghana and West Africa via RoRo — reliable sailings and documentation guidance.",
   },
   air: {
-    title: "Air Freight UK to Ghana & West Africa | Ellcworth Express",
+    title: "Air Freight Ghana from UK — Urgent Cargo | Ellcworth Express",
     desc: "Urgent air freight from the UK to Ghana and West Africa. Academic certificate runs, medical supplies, IT equipment — tight deadlines handled professionally.",
   },
   documents: {

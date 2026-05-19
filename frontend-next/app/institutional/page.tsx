@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Institutional Shipping Services | Ellcworth Express",
+  title: "Institutional & Academic Cargo UK to Ghana | Ellcworth Express",
   description:
     "Ellcworth Express ships for universities, NGOs and UK exporters to Africa — sealed, documented, on time. Book a 15-minute call to discuss your institutional shipping needs.",
   alternates: { canonical: "https://www.ellcworth.com/institutional" },
   openGraph: {
-    title: "Institutional Shipping Services | Ellcworth Express",
+    title: "Institutional & Academic Cargo UK to Ghana | Ellcworth Express",
     description:
       "Ellcworth Express ships for universities, NGOs and UK exporters to Africa — sealed, documented, on time. 12 years. Zero institutional deadlines missed.",
     url: "https://www.ellcworth.com/institutional",
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Institutional Shipping Services | Ellcworth Express",
+    title: "Institutional & Academic Cargo UK to Ghana | Ellcworth Express",
     description:
       "Ellcworth Express ships for universities, NGOs and UK exporters to Africa — sealed, documented, on time. 12 years. Zero institutional deadlines missed.",
   },
