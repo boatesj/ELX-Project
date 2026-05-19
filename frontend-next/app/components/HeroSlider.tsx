@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 
 const slides = [
   {
-    image: "/ellc_hero4.png",
-    imageMobile: "/ellc_hero4-mobile.png",
+    image: "/ellc_hero4.webp",
+    imageMobile: "/ellc_hero4-mobile.webp",
     alt: "Pallet of secure certificate boxes prepared for air freight to Ghana",
     position: "center 45%",
     mobilePosition: "center 55%",
@@ -18,8 +18,8 @@ const slides = [
     ctaHref: "#quote",
   },
   {
-    image: "/ellc_hero1.png",
-    imageMobile: "/ellc_hero1-mobile.png",
+    image: "/ellc_hero1.webp",
+    imageMobile: "/ellc_hero1-mobile.webp",
     alt: "Container vessel at sea carrying stacked shipping containers",
     position: "center 40%",
     mobilePosition: "center 55%",
@@ -31,8 +31,8 @@ const slides = [
     ctaHref: "#quote",
   },
   {
-    image: "/ellc_hero2.png",
-    imageMobile: "/ellc_hero2-mobile.png",
+    image: "/ellc_hero2.webp",
+    imageMobile: "/ellc_hero2-mobile.webp",
     alt: "Air cargo aircraft in flight over the clouds",
     position: "center 45%",
     mobilePosition: "center 55%",
@@ -44,8 +44,8 @@ const slides = [
     ctaHref: "#quote",
   },
   {
-    image: "/ellc_hero3.png",
-    imageMobile: "/ellc_hero3-mobile.png",
+    image: "/ellc_hero3.webp",
+    imageMobile: "/ellc_hero3-mobile.webp",
     alt: "Vehicles being loaded onto a RoRo vessel at the port",
     position: "center 40%",
     mobilePosition: "center 55%",
@@ -57,8 +57,8 @@ const slides = [
     ctaHref: "#quote",
   },
   {
-    image: "/ellc_hero5.png",
-    imageMobile: "/ellc_hero5-mobile.png",
+    image: "/ellc_hero5.webp",
+    imageMobile: "/ellc_hero5-mobile.webp",
     alt: "Warehouse team repacking and consolidating cargo on a work table",
     position: "center 45%",
     mobilePosition: "center 55%",
