@@ -490,9 +490,9 @@ const UserDetails = () => {
                   <button
                     type="button"
                     onClick={async () => {
-                      if (!window.confirm("Permanently delete this customer? This cannot be undone.")) return;
-                      const token = localStorage.getItem("token");
                       const deleteUrl = USERS_API + "/" + userId + "?force=true&hard=true";
+                      if (!window.confirm("Permanently delete this customer?\n\nURL: " + deleteUrl)) return;
+                      const token = localStorage.getItem("token");
                       const res = await fetch(deleteUrl, {
                         method: "DELETE",
                         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
