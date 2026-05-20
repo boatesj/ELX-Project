@@ -207,6 +207,12 @@ const deleteUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({ ok: false, message: "User not found" });
     }
+    // Hard delete — must check before the isDeleted guard
+    if (user.isDeleted && req.query.hard === "true") {
+      await User.findByIdAndDelete(id);
+      return res.status(200).json({ ok: true, deleted: true, message: "Customer permanently deleted." });
+    }
+
     if (user.isDeleted) {
       return res.status(400).json({ ok: false, message: "User is already archived." });
     }
@@ -227,12 +233,6 @@ const deleteUser = async (req, res) => {
         message: `This customer has ${totalCount} shipment${totalCount !== 1 ? "s" : ""} on record (${activeCount} active).`,
       });
     }
-    // Hard delete if already archived and hard=true
-    if (user.isDeleted && req.query.hard === "true") {
-      await User.findByIdAndDelete(id);
-      return res.status(200).json({ ok: true, deleted: true, message: "Customer permanently deleted." });
-    }
-
     user.isDeleted = true;
     user.status = "suspended";
     await user.save();
