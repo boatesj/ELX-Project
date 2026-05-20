@@ -82,7 +82,10 @@ const createUser = async (req, res) => {
 const getAllUsers = async (req, res) => {
   try {
     // default: exclude password (it’s select:false anyway)
-    const users = await User.find({}).sort({ createdAt: -1 });
+    // By default exclude archived users; pass ?archived=true to see them
+    const showArchived = req.query.archived === "true";
+    const filter = showArchived ? { isDeleted: true } : { isDeleted: { $ne: true } };
+    const users = await User.find(filter).sort({ createdAt: -1 });
 
     return res.status(200).json({
       ok: true,
