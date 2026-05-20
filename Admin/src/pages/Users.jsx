@@ -53,6 +53,7 @@ const Users = () => {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [archiveWarning, setArchiveWarning] = useState(null); // { id, totalCount, activeCount, message }
 
   const fallbackRows = useMemo(
     () => [
@@ -318,6 +319,45 @@ const Users = () => {
       {loadError && (
         <div className="mb-3 px-4 py-2 rounded-md bg-red-100 text-red-800 text-sm border border-red-300">
           {loadError}
+        </div>
+      )}
+
+      {/* Archive warning modal */}
+      {archiveWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Archive customer?</p>
+                <p className="text-xs text-gray-500 mt-0.5">This action can be undone from the customer record.</p>
+              </div>
+            </div>
+            <p className="text-sm text-gray-700 mb-2">{archiveWarning.message}</p>
+            {archiveWarning.activeCount > 0 && (
+              <p className="text-xs text-amber-600 font-semibold mb-4">
+                ⚠ {archiveWarning.activeCount} shipment{archiveWarning.activeCount !== 1 ? "s" : ""} currently active — archiving will not affect them but they will no longer be linked to an active customer account.
+              </p>
+            )}
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setArchiveWarning(null)}
+                className="px-4 py-2 rounded-lg text-sm border border-gray-300 text-gray-600 hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => doArchive(archiveWarning.id, true)}
+                className="px-4 py-2 rounded-lg text-sm bg-amber-500 text-white font-semibold hover:bg-amber-600 transition"
+              >
+                Archive anyway
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

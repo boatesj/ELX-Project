@@ -470,15 +470,32 @@ const UserDetails = () => {
               >
                 Back to Users
               </button>
-
-              <Link to={`/users/${userId}/edit`} className="w-full sm:w-auto">
+              {user.isDeleted ? (
                 <button
                   type="button"
-                  className="w-full sm:w-auto bg-[#1A2930] text-white px-4 py-2 rounded-md hover:bg-[#FFA500] hover:text-black transition text-xs font-semibold"
+                  onClick={async () => {
+                    const token = localStorage.getItem("token");
+                    const res = await fetch(`${USERS_API}/${userId}/restore`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    });
+                    const data = await res.json();
+                    if (res.ok) setUser(data.user);
+                  }}
+                  className="w-full sm:w-auto bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition text-xs font-semibold"
                 >
-                  Edit Customer
+                  Restore Customer
                 </button>
-              </Link>
+              ) : (
+                <Link to={`/users/${userId}/edit`} className="w-full sm:w-auto">
+                  <button
+                    type="button"
+                    className="w-full sm:w-auto bg-[#1A2930] text-white px-4 py-2 rounded-md hover:bg-[#FFA500] hover:text-black transition text-xs font-semibold"
+                  >
+                    Edit Customer
+                  </button>
+                </Link>
+              )}
             </div>
           </div>
         )}
