@@ -471,21 +471,38 @@ const UserDetails = () => {
                 Back to Users
               </button>
               {user.isDeleted ? (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const token = localStorage.getItem("token");
-                    const res = await fetch(`${USERS_API}/${userId}/restore`, {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                    });
-                    const data = await res.json();
-                    if (res.ok) setUser(data.user);
-                  }}
-                  className="w-full sm:w-auto bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition text-xs font-semibold"
-                >
-                  Restore Customer
-                </button>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const token = localStorage.getItem("token");
+                      const res = await fetch(`${USERS_API}/${userId}/restore`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                      });
+                      const data = await res.json();
+                      if (res.ok) setUser(data.user);
+                    }}
+                    className="px-4 py-2 rounded-md bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition"
+                  >
+                    Restore Customer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!window.confirm("Permanently delete this customer? This cannot be undone.")) return;
+                      const token = localStorage.getItem("token");
+                      const res = await fetch(`${USERS_API}/${userId}?force=true&hard=true`, {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                      });
+                      if (res.ok) navigate("/users");
+                    }}
+                    className="px-4 py-2 rounded-md bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition"
+                  >
+                    Permanently delete
+                  </button>
+                </div>
               ) : (
                 <Link to={`/users/${userId}/edit`} className="w-full sm:w-auto">
                   <button
