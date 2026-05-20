@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const USERS_API = `${API_BASE}/api/v1/users`;
+const USERS_API = `${API_BASE}/api/v1/users`; // v2
 
 const normalizeStatus = (status) => {
   const s = String(status || "pending")
