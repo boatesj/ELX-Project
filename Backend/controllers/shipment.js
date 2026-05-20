@@ -1,6 +1,7 @@
 // Backend/controllers/shipment.js
 const mongoose = require("mongoose");
 const Shipment = require("../models/Shipment");
+const Prospect = require("../models/Prospect");
 const User = require("../models/User");
 const path = require("path");
 const { Readable } = require("stream");
