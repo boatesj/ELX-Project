@@ -54,6 +54,7 @@ const Users = () => {
   const [loadError, setLoadError] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [archiveWarning, setArchiveWarning] = useState(null); // { id, totalCount, activeCount, message }
+  const [showArchived, setShowArchived] = useState(false);
 
   const fallbackRows = useMemo(
     () => [
@@ -106,7 +107,7 @@ const Users = () => {
         return;
       }
 
-      const res = await fetch(USERS_API, {
+      const res = await fetch(`${USERS_API}${showArchived ? "?archived=true" : ""}`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -168,7 +169,7 @@ const Users = () => {
   useEffect(() => {
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [showArchived]);
 
   const handleView = (id) => {
     if (!id) return;
@@ -307,12 +308,30 @@ const Users = () => {
   return (
     <div className="bg-[#D9D9D9] rounded-md p-3 sm:p-5 lg:p-[20px]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-        <h1 className="text-[18px] sm:text-[20px] font-semibold">All Users</h1>
-
-        <Link to="/newuser" className="w-full sm:w-auto">
-          <button className="w-full sm:w-auto bg-[#1A2930] text-white px-4 py-2.5 rounded-md hover:bg-[#FFA500] hover:text-black transition font-semibold">
-            New User
+        <div className="flex items-center gap-2">
+          <h1 className="text-[18px] sm:text-[20px] font-semibold">
+            {showArchived ? "Archived Users" : "All Users"}
+          </h1>
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={() => setShowArchived((p) => !p)}
+            className={`px-4 py-2.5 rounded-md text-sm font-semibold border transition ${
+              showArchived
+                ? "bg-amber-500 text-white border-amber-500 hover:bg-amber-600"
+                : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+            }`}
+          >
+            {showArchived ? "← Active users" : "Show archived"}
           </button>
+          {!showArchived && (
+            <Link to="/newuser" className="w-full sm:w-auto">
+              <button className="w-full sm:w-auto bg-[#1A2930] text-white px-4 py-2.5 rounded-md hover:bg-[#FFA500] hover:text-black transition font-semibold">
+                New User
+              </button>
+            </Link>
+          )}
+        </div>
         </Link>
       </div>
 
