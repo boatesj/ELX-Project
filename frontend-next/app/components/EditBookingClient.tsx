@@ -27,7 +27,7 @@ function pickShipment(payload: unknown): Record<string, unknown> | null {
 function EditBookingInner({ id }: { id: string }) {
   const router = useRouter();
 
-  const [hasToken, setHasToken] = useState(false);
+  const [hasToken, setHasToken] = useState<boolean | null>(null);
   useEffect(() => { setHasToken(Boolean(localStorage.getItem(CUSTOMER_TOKEN_KEY) || sessionStorage.getItem(CUSTOMER_TOKEN_KEY))); }, []);
 
 
@@ -52,6 +52,7 @@ function EditBookingInner({ id }: { id: string }) {
   }, []);
 
   useEffect(() => {
+    if (hasToken === null) return;
     if (!hasToken) { setLoading(false); router.replace("/login"); return; }
 
     const ac = new AbortController();
