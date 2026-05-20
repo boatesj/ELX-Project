@@ -5,6 +5,7 @@ const {
   getAllUsers,
   getUserById,
   updateUser,
+  restoreUser,
 } = require("../controllers/user");
 const { requireAuth, requireAdmin } = require("../middleware/auth");
 
