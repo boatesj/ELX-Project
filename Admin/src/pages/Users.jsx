@@ -332,7 +332,6 @@ const Users = () => {
             </Link>
           )}
         </div>
-        </Link>
       </div>
 
       {loadError && (
