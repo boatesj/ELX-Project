@@ -806,6 +806,46 @@ async function createPublicLeadShipment(req, res) {
       linkedCustomerId: payload?.customer || null,
     });
 
+    // Auto-create prospect from quote form submission
+    try {
+      const sectorMap = {
+        container: "commercial_vendors",
+        roro:      "vehicle_exporters",
+        air:       "secure_print",
+        documents: "secure_print",
+        parcels:   "commercial_vendors",
+        pallets:   "commercial_vendors",
+      };
+      const modeRaw = String(payload?.mode || payload?.meta?.serviceTab || "").toLowerCase();
+      const sector = sectorMap[modeRaw] || "commercial_vendors";
+      const existingProspect = requestorEmail
+        ? await Prospect.findOne({ email: requestorEmail })
+        : null;
+      if (!existingProspect && (requestorName || requestorEmail)) {
+        await Prospect.create({
+          name:           requestorName || requestorEmail || "Quote enquiry",
+          email:          requestorEmail || "",
+          phone:          requestorPhone || "",
+          company:        "",
+          sector,
+          channel:        "email",
+          stage:          "responded",
+          playbookDay:    0,
+          nextActionDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          nextActionNote: `Quote submitted via website — follow up with rate. Shipment ref: ${shipment.referenceNo || "pending"}`,
+          notes: [{
+            text: `Auto-created from quote form. Mode: ${payload?.mode || "unknown"}. Ref: ${shipment.referenceNo || "pending"}.`,
+            createdAt: new Date(),
+          }],
+        });
+        console.log("\u2705 prospect auto-created from quote form:", requestorEmail);
+      } else {
+        console.log("\u23ed prospect skipped — already exists or no contact info");
+      }
+    } catch (prospectErr) {
+      console.error("\u26a0\ufe0f prospect auto-create failed (non-fatal):", prospectErr.message);
+    }
+
     return res.status(201).json({
       message: "Lead request created successfully.",
       shipment,
