@@ -5,7 +5,7 @@ import { FaTrash, FaEye, FaEdit } from "react-icons/fa";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-const USERS_API = `${API_BASE}/users`;
+const USERS_API = `${API_BASE}/api/v1/users`;
 
 // Normalize status (backend tends to be "pending/active/suspended")
 const normalizeStatus = (status) => {
