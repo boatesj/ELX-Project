@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const User = require("../models/User");
+const Shipment = require("../models/Shipment");
 
 const isValidId = (id) => mongoose.isValidObjectId(id);
 
@@ -189,33 +190,62 @@ const updateUser = async (req, res) => {
 };
 
 /**
- * DELETE USER (admin)
- * Hard delete for now (as originally). (Later can become soft delete.)
+ * DELETE USER (admin) — soft delete with dependency check
+ * Returns warning if user has shipments. Pass ?force=true to archive anyway.
  */
 const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
-
+    const force = req.query.force === "true";
     if (!isValidId(id)) {
       return res.status(400).json({ ok: false, message: "Invalid user id" });
     }
-
-    const deleted = await User.findByIdAndDelete(id);
-    if (!deleted) {
+    const user = await User.findById(id);
+    if (!user) {
       return res.status(404).json({ ok: false, message: "User not found" });
     }
-
-    return res.status(200).json({
-      ok: true,
-      message: "The user has been deleted successfully",
-    });
+    if (user.isDeleted) {
+      return res.status(400).json({ ok: false, message: "User is already archived." });
+    }
+    const [activeCount, totalCount] = await Promise.all([
+      Shipment.countDocuments({
+        customer: id,
+        isDeleted: { $ne: true },
+        status: { $in: ["request_received", "pending", "in_transit", "at_port", "customs_clearance"] },
+      }),
+      Shipment.countDocuments({ customer: id, isDeleted: { $ne: true } }),
+    ]);
+    if (!force && totalCount > 0) {
+      return res.status(200).json({
+        ok: true,
+        warning: true,
+        activeCount,
+        totalCount,
+        message: `This customer has ${totalCount} shipment${totalCount !== 1 ? "s" : ""} on record (${activeCount} active).`,
+      });
+    }
+    user.isDeleted = true;
+    user.status = "suspended";
+    await user.save();
+    return res.status(200).json({ ok: true, archived: true, message: "Customer archived successfully." });
   } catch (error) {
-    console.error("Error deleting user:", error);
-    return res.status(500).json({
-      ok: false,
-      message: "Failed to delete user",
-      error: error.message,
-    });
+    console.error("Error archiving user:", error);
+    return res.status(500).json({ ok: false, message: "Failed to archive user", error: error.message });
+  }
+};
+
+const restoreUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!isValidId(id)) return res.status(400).json({ ok: false, message: "Invalid user id" });
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ ok: false, message: "User not found" });
+    user.isDeleted = false;
+    user.status = "active";
+    await user.save();
+    return res.status(200).json({ ok: true, message: "Customer restored successfully.", user });
+  } catch (error) {
+    return res.status(500).json({ ok: false, message: "Failed to restore user", error: error.message });
   }
 };
 
@@ -225,4 +255,5 @@ module.exports = {
   getUserById,
   updateUser,
   deleteUser,
+  restoreUser,
 };

@@ -16,6 +16,7 @@ router.get("/", requireAuth, requireAdmin, getAllUsers);
 router.get("/:id", requireAuth, requireAdmin, getUserById);
 router.put("/:id", requireAuth, requireAdmin, updateUser);
 router.delete("/:id", requireAuth, requireAdmin, deleteUser);
+router.patch("/:id/restore", requireAuth, requireAdmin, restoreUser);
 
 // Agreed rate — admin sets/clears on a customer account
 router.patch("/:id/agreed-rate", requireAuth, requireAdmin, async (req, res) => {
