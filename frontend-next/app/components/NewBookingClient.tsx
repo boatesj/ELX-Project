@@ -39,6 +39,28 @@ function NewBookingInner() {
     loading: false, error: "", success: "", fieldErrors: [] as FieldError[],
   });
 
+  const [agreedRate, setAgreedRate] = useState<{
+    amount: number; currency: string; description: string; validUntil: string;
+  } | null>(null);
+  const [useAgreedRate, setUseAgreedRate] = useState(false);
+
+  useEffect(() => {
+    const token = readCustomerToken();
+    if (!token) return;
+    fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const rate = data?.data?.agreedRate;
+        if (rate?.amount && rate?.validUntil && new Date(rate.validUntil) > new Date()) {
+          setAgreedRate(rate);
+          setUseAgreedRate(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const canSubmit = useMemo(() => {
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(form.shipperEmail || "").trim());
     return Boolean(
@@ -73,6 +95,11 @@ function NewBookingInner() {
         shipper: { name: form.shipperName.trim(), address: form.shipperAddress.trim(), email: form.shipperEmail.trim().toLowerCase() },
         consignee: { name: form.consigneeName.trim(), address: form.consigneeAddress.trim() },
         ports: { originPort: form.originPort.trim(), destinationPort: form.destinationPort.trim() },
+        ...(useAgreedRate && agreedRate ? {
+          meta: { useAgreedRate: true, agreedRateAmount: agreedRate.amount, agreedRateCurrency: agreedRate.currency },
+        } : {
+          meta: { quoteRequested: true },
+        }),
       };
 
       const resp = await fetch(`${API_V1}/shipments`, {
@@ -209,6 +236,40 @@ function NewBookingInner() {
                 </div>
               </div>
 
+              {/* Agreed rate banner */}
+              {agreedRate && (
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-50 px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-emerald-700 mb-0.5">Agreed rate on file</p>
+                      <p className="text-sm font-bold text-[#1A2930]">
+                        {agreedRate.currency} {Number(agreedRate.amount).toLocaleString()}
+                        {agreedRate.description ? ` — ${agreedRate.description}` : ""}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Valid until {new Date(agreedRate.validUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setUseAgreedRate((p) => !p)}
+                      className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition ${
+                        useAgreedRate
+                          ? "bg-emerald-600 text-white border-emerald-600"
+                          : "bg-white text-slate-500 border-slate-300 hover:border-emerald-400"
+                      }`}
+                    >
+                      {useAgreedRate ? "✓ Using agreed rate" : "Use agreed rate"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!agreedRate && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-xs font-semibold text-amber-700 mb-0.5">No agreed rate on file</p>
+                  <p className="text-xs text-slate-500">This booking will be submitted as a quote request. Operations will respond with a rate within 24 hours.</p>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-3 pt-1">
                 <p className="text-[11px] text-slate-500">After creation, you'll see the shipment reference and milestones on the details page.</p>
                 <button type="submit" disabled={!canSubmit || status.loading}

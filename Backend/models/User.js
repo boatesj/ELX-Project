@@ -88,6 +88,16 @@ const UserSchema = new mongoose.Schema(
     // Soft delete + onboarding
     isDeleted: { type: Boolean, default: false, index: true },
     welcomeMailSent: { type: Boolean, default: false },
+
+    // Agreed rate — set by admin, visible to customer on new booking
+    agreedRate: {
+      amount:      { type: Number, default: null },
+      currency:    { type: String, default: "GBP" },
+      description: { type: String, default: "" },
+      validUntil:  { type: Date, default: null },
+      setBy:       { type: String, default: "" },
+      setAt:       { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );

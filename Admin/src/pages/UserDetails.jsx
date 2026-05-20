@@ -35,6 +35,11 @@ const getStatusLabel = (status) => {
 const displayDate = (iso) =>
   iso ? new Date(iso).toISOString().slice(0, 10) : "—";
 
+const isRateActive = (rate) => {
+  if (!rate?.amount || !rate?.validUntil) return false;
+  return new Date(rate.validUntil) > new Date();
+};
+
 const FieldRow = ({ label, value, mono = false }) => (
   <div className="flex items-start justify-between gap-4 py-1">
     <span className="text-gray-500 text-xs">{label}</span>
@@ -70,6 +75,10 @@ const UserDetails = () => {
   const [user, setUser] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rateForm, setRateForm] = useState({ amount: "", currency: "GBP", description: "", validUntil: "" });
+  const [rateSaving, setRateSaving] = useState(false);
+  const [rateMsg, setRateMsg] = useState("");
+  const [rateEdit, setRateEdit] = useState(false);
 
   const statusLabel = useMemo(
     () => getStatusLabel(user?.status),
@@ -281,6 +290,173 @@ const UserDetails = () => {
                   <div className="text-sm text-gray-800 whitespace-pre-line">
                     {user.notes || "No notes recorded for this customer."}
                   </div>
+                </SectionCard>
+              </div>
+
+              {/* Agreed Rate */}
+              <div className="md:col-span-2">
+                <SectionCard
+                  title="Agreed Rate"
+                  subtitle="Set a pre-agreed rate for this customer. Visible to them on new booking until expiry."
+                >
+                  {!rateEdit ? (
+                    <div>
+                      {user.agreedRate?.amount && isRateActive(user.agreedRate) ? (
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-300">
+                              Active
+                            </span>
+                            <span className="text-sm font-semibold text-gray-900">
+                              {user.agreedRate.currency || "GBP"} {Number(user.agreedRate.amount).toLocaleString()}
+                            </span>
+                          </div>
+                          {user.agreedRate.description && (
+                            <p className="text-sm text-gray-600">{user.agreedRate.description}</p>
+                          )}
+                          <p className="text-xs text-gray-400">
+                            Valid until: <span className="font-semibold text-gray-600">{displayDate(user.agreedRate.validUntil)}</span>
+                            {user.agreedRate.setBy && ` · Set by ${user.agreedRate.setBy}`}
+                          </p>
+                        </div>
+                      ) : user.agreedRate?.amount ? (
+                        <div className="mb-4">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-600 border border-red-200">
+                            Expired — {displayDate(user.agreedRate.validUntil)}
+                          </span>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-400 mb-4">No agreed rate set for this customer.</p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setRateForm({
+                              amount: user.agreedRate?.amount || "",
+                              currency: user.agreedRate?.currency || "GBP",
+                              description: user.agreedRate?.description || "",
+                              validUntil: user.agreedRate?.validUntil ? user.agreedRate.validUntil.slice(0,10) : "",
+                            });
+                            setRateEdit(true);
+                            setRateMsg("");
+                          }}
+                          className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-[#1A2930] text-white hover:bg-[#FFA500] hover:text-black transition"
+                        >
+                          {user.agreedRate?.amount ? "Edit rate" : "Set rate"}
+                        </button>
+                        {user.agreedRate?.amount && (
+                          <button
+                            disabled={rateSaving}
+                            onClick={async () => {
+                              if (!window.confirm("Clear the agreed rate for this customer?")) return;
+                              setRateSaving(true); setRateMsg("");
+                              try {
+                                const token = localStorage.getItem("token");
+                                const res = await fetch(`${USERS_API}/${userId}/agreed-rate`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                                  body: JSON.stringify({ clear: true }),
+                                });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data?.message || "Failed");
+                                setUser(data.user);
+                                setRateMsg("Rate cleared.");
+                              } catch (err) {
+                                setRateMsg(err.message);
+                              } finally {
+                                setRateSaving(false);
+                              }
+                            }}
+                            className="px-4 py-1.5 rounded-lg text-xs font-semibold border border-red-300 text-red-500 hover:bg-red-50 transition disabled:opacity-40"
+                          >
+                            Clear rate
+                          </button>
+                        )}
+                      </div>
+                      {rateMsg && <p className="text-xs mt-2 text-emerald-600">{rateMsg}</p>}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Amount</label>
+                          <input
+                            type="number"
+                            value={rateForm.amount}
+                            onChange={(e) => setRateForm((p) => ({ ...p, amount: e.target.value }))}
+                            placeholder="e.g. 750"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#FFA500]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Currency</label>
+                          <select
+                            value={rateForm.currency}
+                            onChange={(e) => setRateForm((p) => ({ ...p, currency: e.target.value }))}
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#FFA500]"
+                          >
+                            <option value="GBP">GBP</option>
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                            <option value="GHS">GHS</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Description</label>
+                        <input
+                          value={rateForm.description}
+                          onChange={(e) => setRateForm((p) => ({ ...p, description: e.target.value }))}
+                          placeholder="e.g. RoRo to Tema — per unit"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#FFA500]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Valid until</label>
+                        <input
+                          type="date"
+                          value={rateForm.validUntil}
+                          onChange={(e) => setRateForm((p) => ({ ...p, validUntil: e.target.value }))}
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#FFA500]"
+                        />
+                      </div>
+                      {rateMsg && <p className="text-xs text-red-500">{rateMsg}</p>}
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          disabled={rateSaving || !rateForm.amount || !rateForm.validUntil}
+                          onClick={async () => {
+                            setRateSaving(true); setRateMsg("");
+                            try {
+                              const token = localStorage.getItem("token");
+                              const res = await fetch(`${USERS_API}/${userId}/agreed-rate`, {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                                body: JSON.stringify({ ...rateForm, setBy: "Admin" }),
+                              });
+                              const data = await res.json();
+                              if (!res.ok) throw new Error(data?.message || "Failed");
+                              setUser(data.user);
+                              setRateEdit(false);
+                              setRateMsg("Rate saved.");
+                            } catch (err) {
+                              setRateMsg(err.message);
+                            } finally {
+                              setRateSaving(false);
+                            }
+                          }}
+                          className="px-5 py-2 rounded-full bg-[#1A2930] text-white text-xs font-semibold hover:bg-[#FFA500] hover:text-black transition disabled:opacity-40"
+                        >
+                          {rateSaving ? "Saving…" : "Save rate"}
+                        </button>
+                        <button
+                          onClick={() => { setRateEdit(false); setRateMsg(""); }}
+                          className="px-5 py-2 rounded-full border border-gray-300 text-gray-500 text-xs font-semibold hover:bg-gray-50 transition"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </SectionCard>
               </div>
             </div>
