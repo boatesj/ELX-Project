@@ -182,6 +182,23 @@ const Users = () => {
   };
 
   const handleDelete = async (id) => {
+    if (showArchived) {
+      if (!window.confirm("Permanently delete this customer? This cannot be undone.")) return;
+      const token = localStorage.getItem("token");
+      const url = USERS_API + "/" + id + "?force=true&hard=true";
+      try {
+        const res = await fetch(url, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data.ok) setRows((prev) => prev.filter((row) => row.id !== id));
+        else setDeleteError(data.message || "Failed to permanently delete.");
+      } catch (err) {
+        setDeleteError(err.message || "Something went wrong.");
+      }
+      return;
+    }
     if (!window.confirm("Are you sure you want to delete this user?")) return;
 
     setDeleteError("");
