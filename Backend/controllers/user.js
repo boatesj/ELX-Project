@@ -200,6 +200,7 @@ const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
     const force = req.query.force === "true";
+    console.log("DELETE USER query:", req.query, "url:", req.originalUrl);
     if (!isValidId(id)) {
       return res.status(400).json({ ok: false, message: "Invalid user id" });
     }
