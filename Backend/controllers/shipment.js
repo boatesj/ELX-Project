@@ -1005,9 +1005,50 @@ async function updateShipment(req, res) {
       return res.status(404).json({ message: error });
 
     const updates = sanitizeUpdatesForRole(req, req.body || {});
+    const prevStatus = shipment.status;
     Object.assign(shipment, updates);
 
     await shipment.save();
+
+    // Fire status-change email — non-blocking
+    if (updates.status && updates.status !== prevStatus) {
+      const STATUS_LABELS = {
+        booked:           "Booking Confirmed",
+        at_origin_yard:   "Cargo Received at Origin Yard",
+        loaded:           "Cargo Loaded",
+        sailed:           "Vessel Sailed",
+        arrived:          "Shipment Arrived at Destination",
+        cleared:          "Customs Cleared",
+        delivered:        "Shipment Delivered",
+        cancelled:        "Shipment Cancelled",
+      };
+      const label = STATUS_LABELS[updates.status];
+      const toEmail = shipment.shipper?.email;
+      if (label && toEmail) {
+        const ref = shipment.referenceNo || shipment._id;
+        const shipperName = shipment.shipper?.name || "Customer";
+        dispatchMail({
+          to: toEmail,
+          subject: `Shipment Update — ${label} [${ref}]`,
+          html: `
+            <p>Dear ${shipperName},</p>
+            <p>Your shipment <strong>${ref}</strong> has been updated:</p>
+            <p style="font-size:18px;font-weight:bold;">${label}</p>
+            <p>Log in to your Ellcworth account to view full tracking details.</p>
+            <p>If you have any questions, reply to this email.</p>
+            <br/>
+            <p>Ellcworth Logistics</p>
+          `,
+          text: `Dear ${shipperName},
+
+Your shipment ${ref} has been updated: ${label}.
+
+Log in to your Ellcworth account to view full tracking details.
+
+Ellcworth Logistics`,
+        }).catch((err) => console.error("Shipment status email failed:", err.message));
+      }
+    }
 
     return res.status(200).json({
       message: "Shipment updated successfully.",
