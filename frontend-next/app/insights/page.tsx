@@ -156,9 +156,12 @@ export default function InsightsPage() {
 
             {/* Footer CTA */}
             <div className="px-8 py-6 border-t border-white/8 flex items-center justify-between gap-4 flex-wrap">
-              <p className="text-[#9A9EAB] text-sm">
-                Running a similar operation?
-              </p>
+              <Link
+                href={`/insights/${cs.slug}`}
+                className="text-[#9A9EAB] text-sm hover:text-[#FFA500] transition"
+              >
+                Read full case study →
+              </Link>
               <Link
                 href={cs.cta.href}
                 className="inline-block bg-[#FFA500] text-[#1A2930] px-5 py-2.5 rounded-full text-xs font-bold tracking-[0.14em] uppercase hover:opacity-90 transition"
