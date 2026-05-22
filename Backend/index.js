@@ -29,6 +29,7 @@ const analyticsRoute = require("./routes/analytics");
 const logsRoute = require("./routes/logs");
 const calendarRoute = require("./routes/calendar");
 const marketingRoute = require("./routes/marketing");
+const searchRoute = require("./routes/search");
 
 const app = express();
 
@@ -288,6 +289,7 @@ app.use("/api/v1/admin/analytics", analyticsRoute);
 app.use("/api/v1/admin/logs", logsRoute);
 app.use("/api/v1/admin/calendar", calendarRoute);
 app.use("/api/v1/marketing", marketingRoute);
+app.use("/api/v1/search", searchRoute);
 
 // --------------------
 // 404 (in JSON)
