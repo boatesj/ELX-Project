@@ -1,7 +1,7 @@
 // Admin/src/pages/Users.jsx
 import { useEffect, useState, useMemo } from "react";
 import { DataGrid } from "@mui/x-data-grid";
-import { FaTrash, FaEye, FaEdit } from "react-icons/fa";
+import { FaTrash, FaEye, FaEdit, FaUndo } from "react-icons/fa";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
@@ -241,6 +241,22 @@ const Users = () => {
     }
   };
 
+  const handleRestore = async (id) => {
+    if (!window.confirm("Restore this user to active?")) return;
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${USERS_API}/${id}/restore`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.ok) setRows((prev) => prev.filter((row) => row.id !== id));
+      else setDeleteError(data.message || "Failed to restore.");
+    } catch (err) {
+      setDeleteError(err.message || "Something went wrong.");
+    }
+  };
+
   const columns = useMemo(
     () => [
       { field: "name", headerName: "Full Name / Company", width: 250 },
@@ -309,6 +325,15 @@ const Users = () => {
                 </button>
               )}
 
+              {showArchived && (
+                <button
+                  onClick={() => handleRestore(userId)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-green-600 text-white hover:bg-green-700 transition"
+                >
+                  <FaUndo className="text-white" />
+                  Restore
+                </button>
+              )}
               <button
                 onClick={() => handleDelete(userId)}
                 className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-[#E53935] text-white hover:bg-[#c62828] transition"
@@ -321,7 +346,7 @@ const Users = () => {
         },
       },
     ],
-    [showArchived, handleDelete, handleEdit, handleView]
+    [showArchived, handleDelete, handleEdit, handleView, handleRestore]
   );
 
   return (
