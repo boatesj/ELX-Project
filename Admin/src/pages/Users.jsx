@@ -89,7 +89,7 @@ const Users = () => {
         registered: "2023-12-18",
       },
     ],
-    [showArchived, handleDelete, handleEdit, handleView]
+    []
   );
 
   const fetchUsers = async () => {
