@@ -1832,7 +1832,7 @@ function formatDate(dateStr) {
 
 // ── Add Prospect Form ──────────────────────────────────────────────────────────
 function AddProspectForm({ onSuccess, onCancel }) {
-  const empty = { name: "", email: "", phone: "", company: "", sector: "secure_print", channel: "email", nextActionDate: "", nextActionNote: "" };
+  const empty = { name: "", email: "", phone: "", company: "", address: "", sector: "secure_print", channel: "email", nextActionDate: "", nextActionNote: "" };
   const [form, setForm] = useState(empty);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -1883,6 +1883,10 @@ function AddProspectForm({ onSuccess, onCancel }) {
             <label className={label}>Phone</label>
             <input value={form.phone} onChange={set("phone")} placeholder="+44 7700…" className={field} />
           </div>
+        </div>
+        <div>
+          <label className={label}>Address</label>
+          <input value={form.address} onChange={set("address")} placeholder="Street, City, Postcode, Country" className={field} />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
