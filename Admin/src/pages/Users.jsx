@@ -89,7 +89,7 @@ const Users = () => {
         registered: "2023-12-18",
       },
     ],
-    []
+    [showArchived, handleDelete, handleEdit, handleView]
   );
 
   const fetchUsers = async () => {
@@ -299,27 +299,29 @@ const Users = () => {
                 View
               </button>
 
-              <button
-                onClick={() => handleEdit(userId)}
-                className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-[#FFA500] text-[#1A2930] hover:bg-[#ffb733] transition"
-              >
-                <FaEdit />
-                Edit
-              </button>
+              {!showArchived && (
+                <button
+                  onClick={() => handleEdit(userId)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-[#FFA500] text-[#1A2930] hover:bg-[#ffb733] transition"
+                >
+                  <FaEdit />
+                  Edit
+                </button>
+              )}
 
               <button
                 onClick={() => handleDelete(userId)}
                 className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-[#E53935] text-white hover:bg-[#c62828] transition"
               >
                 <FaTrash className="text-white" />
-                Delete
+                {showArchived ? "Perm. Delete" : "Delete"}
               </button>
             </div>
           );
         },
       },
     ],
-    []
+    [showArchived, handleDelete, handleEdit, handleView]
   );
 
   return (
