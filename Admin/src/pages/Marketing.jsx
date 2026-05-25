@@ -1929,7 +1929,7 @@ function AddProspectForm({ onSuccess, onCancel }) {
 }
 
 // ── Prospect Detail ────────────────────────────────────────────────────────────
-function ProspectDetail({ prospect: initial, onBack, onUpdate }) {
+function ProspectDetail({ prospect: initial, onBack, onUpdate, onDelete }) {
   const [p, setP] = useState(initial);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -2238,6 +2238,7 @@ function ProspectsTab() {
         prospect={selected}
         onBack={() => setSelected(null)}
         onUpdate={onUpdate}
+        onDelete={onDelete}
       />
     );
   }
