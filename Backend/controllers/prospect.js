@@ -134,7 +134,7 @@ exports.convertProspect = async (req, res) => {
       status: "pending",
       password: crypto.randomBytes(32).toString("hex"), // unusable until reset
       country: "United Kingdom",
-      address: prospect.address || "",
+      address: prospect.address || "To be updated",
     });
 
     // Generate 24h setup token
