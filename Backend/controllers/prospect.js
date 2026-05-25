@@ -1,4 +1,8 @@
 const Prospect = require("../models/Prospect");
+const User = require("../models/User");
+const { signSetupToken } = require("./auth");
+const { dispatchMail } = require("../utils/dispatchMail");
+const crypto = require("crypto");
 
 const SECTOR_LABELS = {
   secure_print:              "Sector 1 — Secure Print",
@@ -114,9 +118,6 @@ exports.convertProspect = async (req, res) => {
       return res.status(400).json({ message: "Prospect has no email address — cannot create account." });
     }
 
-    const User = require("../models/User");
-    const { signSetupToken } = require("./auth");
-    const { dispatchMail } = require("../utils/dispatchMail");
 
     const existing = await User.findOne({ email: prospect.email.toLowerCase() });
     if (existing) {
@@ -131,7 +132,7 @@ exports.convertProspect = async (req, res) => {
       phone: prospect.phone || "",
       role: "Shipper",
       status: "pending",
-      password: require("crypto").randomBytes(32).toString("hex"), // unusable until reset
+      password: crypto.randomBytes(32).toString("hex"), // unusable until reset
       country: "United Kingdom",
       address: prospect.address || "",
     });
