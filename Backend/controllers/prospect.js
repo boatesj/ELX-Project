@@ -1,7 +1,5 @@
 const Prospect = require("../models/Prospect");
 const User = require("../models/User");
-const { signSetupToken } = require("./auth");
-const { dispatchMail } = require("../utils/dispatchMail");
 const crypto = require("crypto");
 
 const SECTOR_LABELS = {
@@ -137,32 +135,8 @@ exports.convertProspect = async (req, res) => {
       address: prospect.address || "To be updated",
     });
 
-    // Generate 24h setup token
-    const setupToken = signSetupToken(user);
-    const setupUrl = `${process.env.CLIENT_URL}/auth/reset-password/${setupToken}`;
-
-    // Send welcome email
-    await dispatchMail({
-      to: user.email,
-      subject: "Welcome to Ellcworth Express — Set Your Password",
-      html: `
-        <p>Dear ${user.fullname},</p>
-        <p>Your Ellcworth Express customer account has been created.</p>
-        <p>Click the link below to set your password and access your portal. This link expires in 24 hours.</p>
-        <p><a href="${setupUrl}" style="background:#FFA500;color:#1A2930;padding:10px 20px;border-radius:20px;text-decoration:none;font-weight:bold;">Set My Password</a></p>
-        <p>If you have any questions, reply to this email.</p>
-        <br/>
-        <p>Ellcworth Logistics</p>
-      `,
-      text: `Dear ${user.fullname},
-
-Your Ellcworth Express customer account has been created.
-
-Set your password here (expires in 24 hours):
-${setupUrl}
-
-Ellcworth Logistics`,
-    });
+    // Welcome email handled by BackgroundServices/EmailService/WelcomeEmail.js
+    // It polls for { welcomeMailSent: false, status: "pending" } and sends the branded template
 
     // Mark prospect as converted
     prospect.stage = "converted";
