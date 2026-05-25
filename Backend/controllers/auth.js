@@ -19,6 +19,15 @@ function signToken(user) {
   });
 }
 
+/** Short-lived token for first-time password setup (24h, purpose: setup) */
+function signSetupToken(user) {
+  const secret = jwtSecret();
+  if (!secret) throw new Error("JWT secret not configured");
+  return jwt.sign({ id: user._id, role: user.role, purpose: "setup" }, secret, {
+    expiresIn: "24h",
+  });
+}
+
 // Create a lightweight "req-like" object for logging when no auth middleware ran yet
 function makeAuthLogReq({ userId, role, ip, ua }) {
   return {
@@ -417,4 +426,5 @@ module.exports = {
   customerLoginUser,
   requestPasswordReset,
   resetPassword,
+  signSetupToken,
 };

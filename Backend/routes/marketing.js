@@ -20,6 +20,7 @@ const {
   createProspect,
   updateProspect,
   deleteProspect,
+  convertProspect,
 } = require("../controllers/prospect");
 
 const { requireAuth, requireAdmin } = require("../middleware/auth");
@@ -56,5 +57,6 @@ router.get("/prospects",      requireAuth, requireAdmin, getProspects);
 router.post("/prospects",     requireAuth, requireAdmin, createProspect);
 router.patch("/prospects/:id", requireAuth, requireAdmin, updateProspect);
 router.delete("/prospects/:id", requireAuth, requireAdmin, deleteProspect);
+router.post("/prospects/:id/convert", requireAuth, requireAdmin, convertProspect);
 
 module.exports = router;

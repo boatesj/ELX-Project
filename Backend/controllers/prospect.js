@@ -99,3 +99,83 @@ exports.deleteProspect = async (req, res) => {
     return res.status(500).json({ message: "Server error." });
   }
 };
+
+// POST /api/v1/marketing/prospects/:id/convert
+exports.convertProspect = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const prospect = await Prospect.findById(id);
+    if (!prospect) return res.status(404).json({ message: "Prospect not found." });
+    if (prospect.stage === "converted") {
+      return res.status(400).json({ message: "Prospect already converted." });
+    }
+    if (!prospect.email) {
+      return res.status(400).json({ message: "Prospect has no email address — cannot create account." });
+    }
+
+    const User = require("../models/User");
+    const { signSetupToken } = require("./auth");
+    const { dispatchMail } = require("../utils/dispatchMail");
+
+    const existing = await User.findOne({ email: prospect.email.toLowerCase() });
+    if (existing) {
+      return res.status(409).json({ message: "A user account with this email already exists.", userId: existing._id });
+    }
+
+    // Create the user account — password placeholder, status pending until they set it
+    const user = await User.create({
+      fullname: prospect.name,
+      email: prospect.email.toLowerCase(),
+      company: prospect.company || "",
+      phone: prospect.phone || "",
+      role: "Shipper",
+      status: "pending",
+      password: require("crypto").randomBytes(32).toString("hex"), // unusable until reset
+      country: "United Kingdom",
+      address: prospect.address || "",
+    });
+
+    // Generate 24h setup token
+    const setupToken = signSetupToken(user);
+    const setupUrl = `${process.env.CLIENT_URL}/auth/reset-password/${setupToken}`;
+
+    // Send welcome email
+    await dispatchMail({
+      to: user.email,
+      subject: "Welcome to Ellcworth Express — Set Your Password",
+      html: `
+        <p>Dear ${user.fullname},</p>
+        <p>Your Ellcworth Express customer account has been created.</p>
+        <p>Click the link below to set your password and access your portal. This link expires in 24 hours.</p>
+        <p><a href="${setupUrl}" style="background:#FFA500;color:#1A2930;padding:10px 20px;border-radius:20px;text-decoration:none;font-weight:bold;">Set My Password</a></p>
+        <p>If you have any questions, reply to this email.</p>
+        <br/>
+        <p>Ellcworth Logistics</p>
+      `,
+      text: `Dear ${user.fullname},
+
+Your Ellcworth Express customer account has been created.
+
+Set your password here (expires in 24 hours):
+${setupUrl}
+
+Ellcworth Logistics`,
+    });
+
+    // Mark prospect as converted
+    prospect.stage = "converted";
+    prospect.convertedAt = new Date();
+    prospect.notes.push({ text: `Converted to customer account. User ID: ${user._id}`, createdAt: new Date() });
+    await prospect.save();
+
+    return res.status(201).json({
+      message: "Prospect converted. Welcome email sent.",
+      userId: user._id,
+      email: user.email,
+    });
+  } catch (err) {
+    console.error("convertProspect error:", err);
+    return res.status(500).json({ message: "Server error.", error: err.message });
+  }
+};

@@ -1936,6 +1936,31 @@ function ProspectDetail({ prospect: initial, onBack, onUpdate }) {
   const [nextActionDate, setNextActionDate] = useState(p.nextActionDate ? p.nextActionDate.slice(0,10) : "");
   const [nextActionNote, setNextActionNote] = useState(p.nextActionNote || "");
   const [caseStudy, setCaseStudy] = useState("");
+  const [converting, setConverting] = useState(false);
+  const [convertResult, setConvertResult] = useState(null);
+  const [convertError, setConvertError] = useState("");
+
+  const convertToCustomer = async () => {
+    if (!p.email) { setConvertError("Prospect has no email address."); return; }
+    if (!window.confirm(`Create a customer account for ${p.name} (${p.email}) and send them a setup email?`)) return;
+    setConverting(true); setConvertError(""); setConvertResult(null);
+    try {
+      const res = await fetch(`${MARKETING_API}/prospects/${p._id}/convert`, {
+        method: "POST", headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed");
+      setConvertResult(data);
+      const updated = { ...p, stage: "converted", convertedAt: new Date().toISOString() };
+      setP(updated);
+      onUpdate(updated);
+    } catch (err) {
+      setConvertError(err.message);
+    } finally {
+      setConverting(false);
+    }
+  };
+
 
   const patch = async (payload) => {
     setSaving(true);
@@ -2119,6 +2144,32 @@ function ProspectDetail({ prospect: initial, onBack, onUpdate }) {
             )}
           </div>
         </div>
+
+          {/* Convert to Customer */}
+          {p.stage !== "converted" ? (
+            <div className="bg-[#020617] border border-[#FFA500]/20 rounded-2xl p-5">
+              <p className="text-xs uppercase tracking-widest text-[#FFA500] mb-2">Convert to Customer</p>
+              <p className="text-sm text-gray-400 mb-4">
+                Creates a portal account for {p.name} and sends them a set-password email.
+              </p>
+              {convertError && <p className="text-red-400 text-xs mb-3">{convertError}</p>}
+              {convertResult ? (
+                <p className="text-green-400 text-sm font-semibold">
+                  Account created. Welcome email sent to {convertResult.email}.
+                </p>
+              ) : (
+                <button onClick={convertToCustomer} disabled={converting}
+                  className="px-6 py-2.5 rounded-full bg-[#FFA500] text-black text-xs font-bold uppercase tracking-widest hover:brightness-110 transition disabled:opacity-40">
+                  {converting ? "Converting..." : "Convert to Customer"}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="bg-[#020617] border border-green-500/20 rounded-2xl p-5">
+              <p className="text-xs uppercase tracking-widest text-green-500 mb-1">Converted</p>
+              <p className="text-sm text-gray-400">This prospect has been converted to a customer account.</p>
+            </div>
+          )}
       </div>
     </div>
   );
