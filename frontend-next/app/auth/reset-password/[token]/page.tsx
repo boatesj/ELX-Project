@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, use } from "react";
 import { FaLock, FaEye, FaEyeSlash, FaCheckCircle } from "react-icons/fa";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "../../../lib/customerAuth";
 
-export default function ResetPasswordPage({ params }: { params: { token: string } }) {
-  const { token = "" } = params;
+export default function ResetPasswordPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token = "" } = use(params);
   const router = useRouter();
 
   const [showPassword, setShowPassword] = useState(false);
