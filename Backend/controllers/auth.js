@@ -330,26 +330,18 @@ const requestPasswordReset = async (req, res) => {
   try {
     const { token } = req.params;
 
-    console.log("RESET DEBUG VERSION 2 - GET");
-    console.log("GET /reset-password hit");
-    console.log("GET token exists:", Boolean(token));
-    console.log("GET token preview:", String(token || "").slice(0, 25));
+
+
 
     const secret = jwtSecret() || "";
-    console.log("GET jwt secret exists:", Boolean(secret));
-    console.log(
-      "BE JWT fingerprint:",
-      crypto.createHash("sha256").update(secret).digest("hex").slice(0, 12),
-    );
+
 
     if (!secret) throw new Error("JWT secret not configured");
 
     const decoded = jwt.verify(token, secret);
-    console.log("GET decoded user id:", decoded?.id);
 
     return res.status(200).json({ valid: true, userId: decoded.id });
   } catch (err) {
-    console.log("GET reset verify error:", err.name, err.message);
     return res
       .status(400)
       .json({ valid: false, message: "Invalid or expired token" });
@@ -362,30 +354,22 @@ const resetPassword = async (req, res) => {
     const { token } = req.params;
     const { password } = req.body;
 
-    console.log("RESET DEBUG VERSION 2 - POST");
-    console.log("POST /reset-password hit");
-    console.log("POST token exists:", Boolean(token));
-    console.log("POST token preview:", String(token || "").slice(0, 25));
-    console.log("POST password exists:", Boolean(password));
+
+
+
 
     if (!password) {
       return res.status(400).json({ message: "Password is required" });
     }
 
     const secret = jwtSecret() || "";
-    console.log("POST jwt secret exists:", Boolean(secret));
-    console.log(
-      "BE JWT fingerprint:",
-      crypto.createHash("sha256").update(secret).digest("hex").slice(0, 12),
-    );
+
 
     if (!secret) throw new Error("JWT secret not configured");
 
     const decoded = jwt.verify(token, secret);
-    console.log("POST decoded user id:", decoded?.id);
 
     const user = await User.findById(decoded.id).select("+password");
-    console.log("POST user found:", Boolean(user));
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -398,25 +382,7 @@ const resetPassword = async (req, res) => {
       message: "Password has been set successfully. You can now login.",
     });
   } catch (err) {
-    const secret = jwtSecret() || "";
-    const fingerprint = crypto
-      .createHash("sha256")
-      .update(secret)
-      .digest("hex")
-      .slice(0, 12);
-
-    console.log("POST reset verify error:", err.name, err.message);
-    console.log("BE JWT fingerprint:", fingerprint);
-
-    return res.status(400).json({
-      message: "Invalid or expired token",
-      debug: {
-        version: "reset-v3",
-        errorName: err.name,
-        errorMessage: err.message,
-        jwtFingerprint: fingerprint,
-      },
-    });
+    return res.status(400).json({ message: "Invalid or expired token" });
   }
 };
 
