@@ -2,19 +2,9 @@ import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getNames } from "country-list";
 
-// Pre-compute global country list (all ISO countries, sorted)
 const COUNTRY_OPTIONS = getNames().sort();
 
-// Reusable input component (mobile-first: full width)
-const FormInput = ({
-  label,
-  type = "text",
-  name,
-  value,
-  onChange,
-  placeholder,
-  error,
-}) => (
+const FormInput = ({ label, type = "text", name, value, onChange, placeholder, error }) => (
   <div className="flex flex-col gap-1">
     <label className="text-xs font-semibold text-gray-700" htmlFor={name}>
       {label}
@@ -34,7 +24,6 @@ const FormInput = ({
   </div>
 );
 
-// Simple section wrapper (accordion)
 const Section = ({ title, subtitle, open, onToggle, children }) => (
   <div className="bg-white rounded-md shadow-sm border border-slate-100">
     <button
@@ -46,30 +35,27 @@ const Section = ({ title, subtitle, open, onToggle, children }) => (
         <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
           {title}
         </h3>
-        {subtitle ? (
-          <p className="text-[11px] text-gray-500 mt-1">{subtitle}</p>
-        ) : null}
+        {subtitle ? <p className="text-[11px] text-gray-500 mt-1">{subtitle}</p> : null}
       </div>
-      <span className="text-xs font-semibold text-[#1A2930]">
-        {open ? "Hide" : "Show"}
-      </span>
+      <span className="text-xs font-semibold text-[#1A2930]">{open ? "Hide" : "Show"}</span>
     </button>
-
     {open ? <div className="px-4 pb-4">{children}</div> : null}
   </div>
 );
 
-// Phase 3A: API standardised to /api/v1/*
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 const USERS_API = `${API_BASE_URL}/users`;
+
+const CUSTOMER_ROLES = ["Shipper", "Consignee", "Both"];
 
 const NewUser = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const [userCategory, setUserCategory] = useState("customer");
+
   const [formData, setFormData] = useState({
-    accountType: "Business", // default
+    accountType: "Business",
     fullName: "",
     email: "",
     phone: "",
@@ -86,16 +72,34 @@ const NewUser = () => {
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Mobile section toggles
   const [openAccount, setOpenAccount] = useState(true);
   const [openAddress, setOpenAddress] = useState(true);
   const [openRole, setOpenRole] = useState(true);
 
-  const userTypes = ["Shipper", "Consignee", "Both", "Admin"];
+  const isStaff = userCategory === "staff";
 
   const redirectToLogin = () => {
     const redirect = encodeURIComponent(location.pathname + location.search);
     navigate(`/login?redirect=${redirect}`, { replace: true });
+  };
+
+  const handleCategoryToggle = (cat) => {
+    setUserCategory(cat);
+    setErrors({});
+    setSuccessMessage("");
+    setSubmitError("");
+    setFormData({
+      accountType: "Business",
+      fullName: "",
+      email: "",
+      phone: "",
+      country: "",
+      city: "",
+      postcode: "",
+      address: "",
+      userType: "",
+      notes: "",
+    });
   };
 
   const handleChange = (e) => {
@@ -109,12 +113,8 @@ const NewUser = () => {
   const validate = () => {
     const newErrors = {};
 
-    if (!formData.accountType.trim()) {
-      newErrors.accountType = "Account type is required.";
-    }
-
     if (!formData.fullName.trim()) {
-      newErrors.fullName = "Full name / company is required.";
+      newErrors.fullName = "Full name is required.";
     }
 
     if (!formData.email.trim()) {
@@ -123,44 +123,35 @@ const NewUser = () => {
       newErrors.email = "Please enter a valid email address.";
     }
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required.";
-    } else if (formData.phone.trim().length < 7) {
-      newErrors.phone = "Phone number looks too short.";
-    }
-
-    if (!formData.country.trim()) {
-      newErrors.country = "Country is required.";
-    }
-
-    if (!formData.city.trim()) {
-      newErrors.city = "City / town is required.";
-    }
-
-    if (!formData.address.trim()) {
-      newErrors.address = "Street address is required.";
-    }
-
-    if (!formData.userType.trim()) {
-      newErrors.userType = "User type is required.";
+    if (!isStaff) {
+      if (!formData.accountType.trim()) {
+        newErrors.accountType = "Account type is required.";
+      }
+      if (!formData.phone.trim()) {
+        newErrors.phone = "Phone number is required.";
+      } else if (formData.phone.trim().length < 7) {
+        newErrors.phone = "Phone number looks too short.";
+      }
+      if (!formData.country.trim()) {
+        newErrors.country = "Country is required.";
+      }
+      if (!formData.city.trim()) {
+        newErrors.city = "City / town is required.";
+      }
+      if (!formData.address.trim()) {
+        newErrors.address = "Street address is required.";
+      }
+      if (!formData.userType.trim()) {
+        newErrors.userType = "User type is required.";
+      }
     }
 
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length) {
-      if (
-        newErrors.accountType ||
-        newErrors.fullName ||
-        newErrors.email ||
-        newErrors.phone
-      )
+      if (newErrors.accountType || newErrors.fullName || newErrors.email || newErrors.phone)
         setOpenAccount(true);
-      if (
-        newErrors.country ||
-        newErrors.city ||
-        newErrors.postcode ||
-        newErrors.address
-      )
+      if (newErrors.country || newErrors.city || newErrors.postcode || newErrors.address)
         setOpenAddress(true);
       if (newErrors.userType) setOpenRole(true);
     }
@@ -170,30 +161,37 @@ const NewUser = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!validate()) return;
 
     setIsSubmitting(true);
     setSubmitError("");
     setSuccessMessage("");
 
-    const payload = {
-      accountType: formData.accountType,
-      fullname: formData.fullName,
-      email: formData.email,
-      phone: formData.phone,
-      country: formData.country,
-      city: formData.city,
-      postcode: formData.postcode,
-      address: formData.address,
-      role: formData.userType,
-      notes: formData.notes,
-      status: "pending",
-    };
+    const payload = isStaff
+      ? {
+          userCategory: "staff",
+          fullname: formData.fullName,
+          email: formData.email,
+          role: "Admin",
+          status: "pending",
+        }
+      : {
+          userCategory: "customer",
+          accountType: formData.accountType,
+          fullname: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          country: formData.country,
+          city: formData.city,
+          postcode: formData.postcode,
+          address: formData.address,
+          role: formData.userType,
+          notes: formData.notes,
+          status: "pending",
+        };
 
     try {
       const token = localStorage.getItem("token");
-
       if (!token) {
         setSubmitError("Please log in before creating a user.");
         redirectToLogin();
@@ -222,7 +220,7 @@ const NewUser = () => {
         throw new Error(errorData.message || "Failed to create user");
       }
 
-      setSuccessMessage("User created successfully.");
+      setSuccessMessage(`${isStaff ? "Staff member" : "Customer"} created successfully.`);
       setFormData({
         accountType: "Business",
         fullName: "",
@@ -251,12 +249,39 @@ const NewUser = () => {
     <div className="bg-[#D9D9D9] rounded-md p-3 sm:p-5 lg:p-[30px] shadow-sm">
       <div className="mb-4">
         <h2 className="text-[20px] sm:text-[22px] font-semibold text-[#1A2930]">
-          New Customer / User
+          {isStaff ? "New Staff Member" : "New Customer"}
         </h2>
         <p className="text-sm text-gray-600 mt-1">
-          Capture key account details once so you can reuse them across quotes,
-          bookings and secure documents.
+          {isStaff
+            ? "Create an internal staff account. Address details are not required."
+            : "Capture key account details once so you can reuse them across quotes, bookings and secure documents."}
         </p>
+      </div>
+
+      {/* Category Toggle */}
+      <div className="mb-5 flex gap-2">
+        <button
+          type="button"
+          onClick={() => handleCategoryToggle("customer")}
+          className={`px-5 py-2 rounded-full text-sm font-semibold transition border ${
+            !isStaff
+              ? "bg-[#1A2930] text-white border-[#1A2930]"
+              : "bg-white text-[#1A2930] border-[#1A2930] hover:bg-[#f0f0f0]"
+          }`}
+        >
+          Customer
+        </button>
+        <button
+          type="button"
+          onClick={() => handleCategoryToggle("staff")}
+          className={`px-5 py-2 rounded-full text-sm font-semibold transition border ${
+            isStaff
+              ? "bg-[#1A2930] text-white border-[#1A2930]"
+              : "bg-white text-[#1A2930] border-[#1A2930] hover:bg-[#f0f0f0]"
+          }`}
+        >
+          Staff
+        </button>
       </div>
 
       {successMessage && (
@@ -274,218 +299,204 @@ const NewUser = () => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 lg:gap-6">
           <div className="space-y-4">
+
+            {/* Account Section */}
             <Section
               title="Account"
-              subtitle="Core identity and contact details."
+              subtitle={isStaff ? "Name and email address." : "Core identity and contact details."}
               open={openAccount}
               onToggle={() => setOpenAccount((v) => !v)}
             >
-              <div className="flex flex-col gap-1">
-                <label
-                  className="text-xs font-semibold text-gray-700"
-                  htmlFor="accountType"
-                >
-                  Account Type
-                </label>
-                <select
-                  id="accountType"
-                  name="accountType"
-                  value={formData.accountType}
-                  onChange={handleChange}
-                  className={`border px-3 py-2 rounded outline-none text-sm w-full bg-white ${
-                    errors.accountType ? "border-red-500" : "border-[#555]"
-                  }`}
-                >
-                  <option value="Business">Business</option>
-                  <option value="Individual">Individual</option>
-                </select>
-                {errors.accountType && (
-                  <span className="text-red-500 text-xs">
-                    {errors.accountType}
-                  </span>
-                )}
-              </div>
+              {!isStaff && (
+                <div className="flex flex-col gap-1 mb-4">
+                  <label className="text-xs font-semibold text-gray-700" htmlFor="accountType">
+                    Account Type
+                  </label>
+                  <select
+                    id="accountType"
+                    name="accountType"
+                    value={formData.accountType}
+                    onChange={handleChange}
+                    className={`border px-3 py-2 rounded outline-none text-sm w-full bg-white ${
+                      errors.accountType ? "border-red-500" : "border-[#555]"
+                    }`}
+                  >
+                    <option value="Business">Business</option>
+                    <option value="Individual">Individual</option>
+                  </select>
+                  {errors.accountType && (
+                    <span className="text-red-500 text-xs">{errors.accountType}</span>
+                  )}
+                </div>
+              )}
 
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={`grid grid-cols-1 md:grid-cols-2 gap-4`}>
                 <FormInput
-                  label={
-                    formData.accountType === "Business"
-                      ? "Company Name / Contact"
-                      : "Full Name"
-                  }
+                  label={!isStaff && formData.accountType === "Business" ? "Company Name / Contact" : "Full Name"}
                   name="fullName"
-                  placeholder={
-                    formData.accountType === "Business"
-                      ? "OceanGate Logistics Ltd"
-                      : "Kofi Mensah"
-                  }
+                  placeholder={!isStaff && formData.accountType === "Business" ? "OceanGate Logistics Ltd" : "Kofi Mensah"}
                   value={formData.fullName}
                   onChange={handleChange}
                   error={errors.fullName}
                 />
-
                 <FormInput
                   label="Email"
                   name="email"
                   type="email"
-                  placeholder="ops@oceangate.co.uk"
+                  placeholder={isStaff ? "staff@ellcworth.com" : "ops@oceangate.co.uk"}
                   value={formData.email}
                   onChange={handleChange}
                   error={errors.email}
                 />
-
-                <FormInput
-                  label="Phone Number"
-                  name="phone"
-                  placeholder="+44 20 8801 9900"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  error={errors.phone}
-                />
-              </div>
-            </Section>
-
-            <Section
-              title="Address"
-              subtitle="Where the customer is based."
-              open={openAddress}
-              onToggle={() => setOpenAddress((v) => !v)}
-            >
-              <div className="flex flex-col gap-1">
-                <label
-                  className="text-xs font-semibold text-gray-700"
-                  htmlFor="country"
-                >
-                  Country
-                </label>
-                <select
-                  id="country"
-                  name="country"
-                  value={formData.country}
-                  onChange={handleChange}
-                  className={`border px-3 py-2 rounded outline-none text-sm w-full bg-white ${
-                    errors.country ? "border-red-500" : "border-[#555]"
-                  }`}
-                >
-                  <option value="">Select a country</option>
-                  {COUNTRY_OPTIONS.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                {errors.country && (
-                  <span className="text-red-500 text-xs">{errors.country}</span>
-                )}
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormInput
-                  label="City / Town"
-                  name="city"
-                  placeholder="Accra"
-                  value={formData.city}
-                  onChange={handleChange}
-                  error={errors.city}
-                />
-
-                <FormInput
-                  label="Postcode / ZIP (optional)"
-                  name="postcode"
-                  placeholder="EC1A 1BB"
-                  value={formData.postcode}
-                  onChange={handleChange}
-                  error={errors.postcode}
-                />
-              </div>
-
-              <div className="mt-4 flex flex-col gap-1">
-                <label
-                  className="text-xs font-semibold text-gray-700"
-                  htmlFor="address"
-                >
-                  Street Address
-                </label>
-                <input
-                  id="address"
-                  name="address"
-                  type="text"
-                  placeholder="35214 Auroria Avenue"
-                  value={formData.address}
-                  onChange={handleChange}
-                  className={`border px-3 py-2 rounded outline-none text-sm w-full bg-white ${
-                    errors.address ? "border-red-500" : "border-[#555]"
-                  }`}
-                />
-                {errors.address && (
-                  <span className="text-red-500 text-xs">{errors.address}</span>
+                {!isStaff && (
+                  <FormInput
+                    label="Phone Number"
+                    name="phone"
+                    placeholder="+44 20 8801 9900"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    error={errors.phone}
+                  />
                 )}
               </div>
             </Section>
 
-            <Section
-              title="Role & notes"
-              subtitle="How they use Ellcworth, and any internal guidance."
-              open={openRole}
-              onToggle={() => setOpenRole((v) => !v)}
-            >
-              <div className="flex flex-col gap-1">
-                <label
-                  className="text-xs font-semibold text-gray-700"
-                  htmlFor="userType"
-                >
-                  User Type
-                </label>
-                <select
-                  id="userType"
-                  name="userType"
-                  value={formData.userType}
-                  onChange={handleChange}
-                  className={`border px-3 py-2 rounded outline-none text-sm w-full bg-white ${
-                    errors.userType ? "border-red-500" : "border-[#555]"
-                  }`}
-                >
-                  <option value="">Select a user type</option>
-                  {userTypes.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-                {errors.userType && (
-                  <span className="text-red-500 text-xs">
-                    {errors.userType}
-                  </span>
-                )}
-              </div>
+            {/* Address Section — customers only */}
+            {!isStaff && (
+              <Section
+                title="Address"
+                subtitle="Where the customer is based."
+                open={openAddress}
+                onToggle={() => setOpenAddress((v) => !v)}
+              >
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-gray-700" htmlFor="country">
+                    Country
+                  </label>
+                  <select
+                    id="country"
+                    name="country"
+                    value={formData.country}
+                    onChange={handleChange}
+                    className={`border px-3 py-2 rounded outline-none text-sm w-full bg-white ${
+                      errors.country ? "border-red-500" : "border-[#555]"
+                    }`}
+                  >
+                    <option value="">Select a country</option>
+                    {COUNTRY_OPTIONS.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  {errors.country && (
+                    <span className="text-red-500 text-xs">{errors.country}</span>
+                  )}
+                </div>
 
-              <div className="mt-4 flex flex-col gap-1">
-                <label
-                  className="text-xs font-semibold text-gray-700"
-                  htmlFor="notes"
-                >
-                  Internal Notes (optional)
-                </label>
-                <textarea
-                  id="notes"
-                  name="notes"
-                  placeholder="e.g. University client – needs 2 weeks’ notice, prefers WhatsApp updates."
-                  value={formData.notes}
-                  onChange={handleChange}
-                  className="border px-3 py-2 rounded outline-none border-[#555] text-sm resize-none w-full h-[110px] bg-white"
-                />
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormInput
+                    label="City / Town"
+                    name="city"
+                    placeholder="Accra"
+                    value={formData.city}
+                    onChange={handleChange}
+                    error={errors.city}
+                  />
+                  <FormInput
+                    label="Postcode / ZIP (optional)"
+                    name="postcode"
+                    placeholder="EC1A 1BB"
+                    value={formData.postcode}
+                    onChange={handleChange}
+                    error={errors.postcode}
+                  />
+                </div>
+
+                <div className="mt-4 flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-gray-700" htmlFor="address">
+                    Street Address
+                  </label>
+                  <input
+                    id="address"
+                    name="address"
+                    type="text"
+                    placeholder="35214 Auroria Avenue"
+                    value={formData.address}
+                    onChange={handleChange}
+                    className={`border px-3 py-2 rounded outline-none text-sm w-full bg-white ${
+                      errors.address ? "border-red-500" : "border-[#555]"
+                    }`}
+                  />
+                  {errors.address && (
+                    <span className="text-red-500 text-xs">{errors.address}</span>
+                  )}
+                </div>
+              </Section>
+            )}
+
+            {/* Role & Notes — customers only */}
+            {!isStaff && (
+              <Section
+                title="Role & Notes"
+                subtitle="How they use Ellcworth, and any internal guidance."
+                open={openRole}
+                onToggle={() => setOpenRole((v) => !v)}
+              >
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-gray-700" htmlFor="userType">
+                    User Type
+                  </label>
+                  <select
+                    id="userType"
+                    name="userType"
+                    value={formData.userType}
+                    onChange={handleChange}
+                    className={`border px-3 py-2 rounded outline-none text-sm w-full bg-white ${
+                      errors.userType ? "border-red-500" : "border-[#555]"
+                    }`}
+                  >
+                    <option value="">Select a user type</option>
+                    {CUSTOMER_ROLES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  {errors.userType && (
+                    <span className="text-red-500 text-xs">{errors.userType}</span>
+                  )}
+                </div>
+
+                <div className="mt-4 flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-gray-700" htmlFor="notes">
+                    Internal Notes (optional)
+                  </label>
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    placeholder="e.g. University client – needs 2 weeks notice, prefers WhatsApp updates."
+                    value={formData.notes}
+                    onChange={handleChange}
+                    className="border px-3 py-2 rounded outline-none border-[#555] text-sm resize-none w-full h-[110px] bg-white"
+                  />
+                </div>
+              </Section>
+            )}
+
+            {/* Staff role info banner */}
+            {isStaff && (
+              <div className="bg-white rounded-md border border-slate-100 px-4 py-3">
+                <p className="text-xs text-gray-500">
+                  <span className="font-semibold text-[#1A2930]">Role: Admin</span> — Staff members are created with Admin access and will receive a welcome email to set their password.
+                </p>
               </div>
-            </Section>
+            )}
           </div>
 
           <div className="space-y-4">
             <div className="hidden lg:block bg-white rounded-md p-4 border border-slate-100">
-              <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
-                Tip
-              </h4>
+              <h4 className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Tip</h4>
               <p className="text-[11px] text-gray-600 mt-2">
-                Save clean contact details once — then reuse the customer on
-                quotes, shipments, documents, and invoices.
+                {isStaff
+                  ? "Staff accounts get Admin access. They will receive a welcome email with a link to set their password."
+                  : "Save clean contact details once — then reuse the customer on quotes, shipments, documents, and invoices."}
               </p>
             </div>
 
@@ -493,16 +504,9 @@ const NewUser = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="
-                  w-full
-                  bg-[#1A2930] text-white
-                  py-3 rounded-md
-                  hover:bg-[#FFA500] hover:text-black
-                  font-semibold transition
-                  disabled:opacity-60 disabled:cursor-not-allowed
-                "
+                className="w-full bg-[#1A2930] text-white py-3 rounded-md hover:bg-[#FFA500] hover:text-black font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "Creating..." : "Create User"}
+                {isSubmitting ? "Creating..." : isStaff ? "Create Staff Member" : "Create Customer"}
               </button>
             </div>
           </div>
@@ -513,16 +517,9 @@ const NewUser = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="
-                w-full
-                bg-[#1A2930] text-white
-                py-3 rounded-md
-                hover:bg-[#FFA500] hover:text-black
-                font-semibold transition
-                disabled:opacity-60 disabled:cursor-not-allowed
-              "
+              className="w-full bg-[#1A2930] text-white py-3 rounded-md hover:bg-[#FFA500] hover:text-black font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Creating..." : "Create User"}
+              {isSubmitting ? "Creating..." : isStaff ? "Create Staff Member" : "Create Customer"}
             </button>
             <p className="mt-2 text-[10px] text-gray-600">
               Creates the user and returns you to the Users table.
