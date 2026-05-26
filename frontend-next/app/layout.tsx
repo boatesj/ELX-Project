@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Roboto, Montserrat } from "next/font/google";
 import "./globals.css";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const roboto = Roboto({
+  variable: "--font-roboto",
   subsets: ["latin"],
+  weight: ["400", "500", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -32,15 +34,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${roboto.variable} ${montserrat.variable} antialiased`}
       >
         <Navbar />
         {/* pt-[124px] = top bar 72px + nav bar 52px */}
         <main className="pt-[65px] md:pt-[124px]">{children}</main>
         <Footer />
-
         {/* WhatsApp floating button */}
-        <a
+        
           href="https://wa.me/447776234234?text=Hello%20Ellcworth%2C%20I%20have%20a%20shipping%20enquiry."
           target="_blank"
           rel="noopener noreferrer"
