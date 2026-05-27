@@ -99,7 +99,7 @@ export default function UniversityOfGhanaCaseStudy() {
             Shipment Route
           </p>
           <p className="text-white text-sm font-medium">
-            Hounslow Print Facility → Heathrow (LHR) → Accra International Airport (ACC) → UG Legon
+            Vendor Collection (UK) → Heathrow Air Freight Facility (LHR) → Accra International Airport (ACC) → UG Legon
           </p>
         </div>
 
@@ -107,11 +107,11 @@ export default function UniversityOfGhanaCaseStudy() {
         <div className="space-y-4">
           <h2 className="text-white text-lg font-bold tracking-tight">The Operation</h2>
           <p className="text-[#C8CDD6] text-sm leading-relaxed">
-            Ellcworth collected directly from the print facility in Hounslow — a short drive
-            from Heathrow that eliminated an unnecessary warehousing leg. Photographic proof
-            of collection was issued to the UG liaison contact at point of pickup. Export
-            documentation and proof of export were completed before the pallets left the
-            facility.
+            Ellcworth collected directly from the print facility and transferred the pallets
+            to the Heathrow air freight facility — eliminating any unnecessary warehousing leg.
+            Photographic proof of collection was issued to the UG liaison contact at point of
+            pickup. Export documentation and proof of export were completed before the pallets
+            left the vendor.
           </p>
           <p className="text-[#C8CDD6] text-sm leading-relaxed">
             The consignment moved on a direct LHR–ACC service. Live tracking updates were

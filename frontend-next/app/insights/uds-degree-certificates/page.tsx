@@ -78,11 +78,11 @@ export default function UDSCaseStudy() {
         <div className="space-y-4">
           <h2 className="text-white text-lg font-bold tracking-tight">The Challenge</h2>
           <p className="text-[#C8CDD6] text-sm leading-relaxed">
-            A UK printer delay and a hard graduation deadline. Ten cartons of secure-printed degree
-            certificates needed to reach the University for Development Studies in Tamale, northern
-            Ghana — 48 hours from warehouse to Heathrow, with no margin for error on the delivery
-            side. Certificates held up in transit or cleared late meant a graduation ceremony without
-            its documents.
+            Ten cartons of secure-printed degree certificates needed to reach the University for
+            Development Studies in Tamale, northern Ghana — with a hard graduation deadline and no
+            margin for error on the delivery side. The window from collection to Heathrow was tight:
+            48 hours. Certificates held up in transit or cleared late meant a graduation ceremony
+            without its documents.
           </p>
           <p className="text-[#C8CDD6] text-sm leading-relaxed">
             Secure print consignments of this kind carry institutional weight beyond their physical
@@ -98,7 +98,7 @@ export default function UDSCaseStudy() {
             Shipment Route
           </p>
           <p className="text-white text-sm font-medium">
-            Grays, Essex → Heathrow (LHR) → Accra International Airport (ACC) → UDS Tamale
+            Vendor Collection (UK) → Heathrow Air Freight Facility (LHR) → Accra International Airport (ACC) → UDS Tamale
           </p>
         </div>
 
@@ -106,8 +106,8 @@ export default function UDSCaseStudy() {
         <div className="space-y-4">
           <h2 className="text-white text-lg font-bold tracking-tight">The Operation</h2>
           <p className="text-[#C8CDD6] text-sm leading-relaxed">
-            Ellcworth collected the ten cartons directly from the printer in Grays, Essex and
-            palletised them for air freight within 48 hours. Export documentation was completed
+            Ellcworth collected the ten cartons directly from the printer and transferred them
+            to the Heathrow air freight facility, palletised and ready to move within 48 hours. Export documentation was completed
             same-day. The consignment moved through Heathrow on a direct service to Accra
             Kotoka International Airport, where Ellcworth&apos;s Ghana-side partners handled
             customs clearance end-to-end.

@@ -200,31 +200,35 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Founder note */}
+      {/* Mission */}
       <section className="py-16 md:py-24 bg-white">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">
-            Founder Note
+            Our Mission
           </span>
-          <div className="flex flex-col md:flex-row gap-8 items-start">
-            <div className="flex-shrink-0 w-32 h-32 rounded-2xl bg-[#1A2930]/10 border border-gray-200 flex items-center justify-center text-4xl">
-              👤
-            </div>
-            <div className="text-gray-700 space-y-4 text-base md:text-lg leading-relaxed">
-              <p>
-                Ellcworth Express was built on a simple belief: that businesses
-                and institutions moving cargo between the UK and West Africa
-                deserve a freight partner who understands both sides of the
-                corridor — not just the logistics, but the stakes.
-              </p>
-              <p>
-                We are not a large freight broker. We are a specialist. And that
-                specialism is what our clients rely on.
-              </p>
-              <p className="text-sm text-gray-500 italic">
-                — Founder, Ellcworth Express
-              </p>
-            </div>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">
+            Specialist logistics for a corridor that demands it.
+          </h2>
+          <div className="text-gray-700 space-y-5 text-base md:text-lg leading-relaxed">
+            <p>
+              Ellcworth Express exists to give businesses and institutions moving
+              cargo between the UK and West Africa a freight partner who
+              understands both sides of the corridor — not just the logistics,
+              but the stakes.
+            </p>
+            <p>
+              The UK–West Africa route is not a generic trade lane. It has its
+              own port dynamics, customs requirements, clearing agent
+              relationships and on-the-ground realities. Treating it like any
+              other corridor is how shipments go wrong. We have spent 12 years
+              learning it properly so our clients do not have to.
+            </p>
+            <p>
+              We are not a large freight broker. We are a specialist. Our
+              clients — universities, hospitals, banks, government agencies and
+              businesses — rely on that specialism when the cargo cannot afford
+              to fail.
+            </p>
           </div>
         </div>
       </section>
