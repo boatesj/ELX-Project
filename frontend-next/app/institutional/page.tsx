@@ -115,19 +115,11 @@ export default function InstitutionalPage() {
             time.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <a
-              href="https://calendly.com/ellcworth/15min"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-full bg-[#FFA500] text-black px-8 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-[#ffb733] transition shadow-md"
-            >
+            <a href="https://calendly.com/ellcworth/15min" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full bg-[#FFA500] text-black px-8 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-[#ffb733] transition shadow-md" >
               Book a 15-minute call
             </a>
 
-            <a
-              href="mailto:cs@ellcworth.com"
-              className="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/5 text-white px-8 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-white/10 transition"
-            >
+            <a href="mailto:cs@ellcworth.com" className="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/5 text-white px-8 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-white/10 transition" >
               Email us directly
             </a>
           </div>
@@ -267,12 +259,7 @@ export default function InstitutionalPage() {
               </p>
             </div>
             <div className="flex-shrink-0 flex items-center">
-              <a
-                href="https://calendly.com/ellcworth/15min"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center rounded-full bg-[#FFA500] text-black px-7 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-[#ffb733] transition shadow-md whitespace-nowrap"
-              >
+              <a href="https://calendly.com/ellcworth/15min" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full bg-[#FFA500] text-black px-7 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-[#ffb733] transition shadow-md whitespace-nowrap" >
                 Book a call
               </a>
             </div>
@@ -344,18 +331,10 @@ export default function InstitutionalPage() {
             destination and your timeline. No obligation. No sales script.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href="https://calendly.com/ellcworth/15min"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-full bg-[#FFA500] text-black px-8 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-[#ffb733] transition shadow-md"
-            >
+            <a href="https://calendly.com/ellcworth/15min" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center rounded-full bg-[#FFA500] text-black px-8 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-[#ffb733] transition shadow-md" >
               Book a 15-minute call
             </a>
-            <a
-              href="mailto:cs@ellcworth.com"
-              className="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/5 text-white px-8 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-white/10 transition"
-            >
+            <a href="mailto:cs@ellcworth.com" className="inline-flex items-center justify-center rounded-full border border-white/30 bg-white/5 text-white px-8 py-3 text-sm font-semibold tracking-[0.14em] uppercase hover:bg-white/10 transition" >
               cs@ellcworth.com
             </a>
           </div>
