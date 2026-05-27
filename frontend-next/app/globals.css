@@ -16,7 +16,7 @@
   --color-elx-amber:   var(--elx-amber);
   --color-elx-dark:    var(--elx-dark);
   --color-elx-slate:   var(--elx-slate);
-  --font-heading: var(--font-roboto);
+  --font-heading: var(--font-cabin);
   --font-sans:    var(--font-montserrat);
 }
 
@@ -27,5 +27,6 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-roboto), Arial, sans-serif;
+  font-family: var(--font-cabin), Arial, sans-serif;
+  font-weight: 600;
 }
