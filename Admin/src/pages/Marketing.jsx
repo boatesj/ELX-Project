@@ -1988,9 +1988,10 @@ function ProspectDetail({ prospect: initial, onBack, onUpdate, onDelete }) {
     }
   };
 
+  const [noteType, setNoteType] = useState("note");
   const logNote = () => {
     if (!note.trim()) return;
-    patch({ note });
+    patch({ note, noteType });
     setNote("");
   };
 
@@ -2071,8 +2072,18 @@ function ProspectDetail({ prospect: initial, onBack, onUpdate, onDelete }) {
               </div>
             ) : (
               <div className="space-y-2 text-sm text-gray-400">
-                {p.email && <p><span className="text-gray-600">Email</span> <span className="text-gray-200 ml-2">{p.email}</span></p>}
-                {p.phone && <p><span className="text-gray-600">Phone</span> <span className="text-gray-200 ml-2">{p.phone}</span></p>}
+                {p.email && (
+                  <div className="flex items-center justify-between">
+                    <p><span className="text-gray-600">Email</span> <a href={`mailto:${p.email}`} className="text-gray-200 ml-2 hover:text-[#FFA500] transition">{p.email}</a></p>
+                    <button onClick={() => patch({ note: `Email sent to ${p.email}`, noteType: "email" })} className="text-[10px] text-gray-600 hover:text-blue-300 border border-[#1f2937] rounded px-1.5 py-0.5 transition">Log</button>
+                  </div>
+                )}
+                {p.phone && (
+                  <div className="flex items-center justify-between">
+                    <p><span className="text-gray-600">Phone</span> <a href={`tel:${p.phone}`} className="text-gray-200 ml-2 hover:text-[#FFA500] transition">{p.phone}</a></p>
+                    <button onClick={() => patch({ note: `Called ${p.name} on ${p.phone}`, noteType: "call" })} className="text-[10px] text-gray-600 hover:text-emerald-300 border border-[#1f2937] rounded px-1.5 py-0.5 transition">Log</button>
+                  </div>
+                )}
                 {p.address && <p><span className="text-gray-600">Address</span> <span className="text-gray-200 ml-2">{p.address}</span></p>}
                 <p><span className="text-gray-600">Sector</span> <span className="text-[#FFA500] ml-2">{sectorLabel(p.sector)}</span></p>
                 <p><span className="text-gray-600">Channel</span> <span className="text-gray-200 ml-2 capitalize">{p.channel}</span></p>
@@ -2161,10 +2172,20 @@ function ProspectDetail({ prospect: initial, onBack, onUpdate, onDelete }) {
             <p className="text-xs uppercase tracking-widest text-gray-400 mb-4">Activity log</p>
 
             {/* Add note */}
+            <div className="flex gap-2 mb-2">
+              <select value={noteType} onChange={(e) => setNoteType(e.target.value)}
+                className="bg-[#0a0f14] border border-[#1f2937] rounded-xl px-3 py-2.5 text-xs text-gray-300 outline-none focus:border-[#FFA500]/50">
+                <option value="note">Note</option>
+                <option value="call">Call</option>
+                <option value="email">Email</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="meeting">Meeting</option>
+              </select>
+            </div>
             <div className="flex gap-2 mb-5">
               <input value={note} onChange={(e) => setNote(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && logNote()}
-                placeholder="Log a call, email, or observation…"
+                placeholder="Log a call, email, or observation..."
                 className="flex-1 bg-[#0a0f14] border border-[#1f2937] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[#FFA500]/50 placeholder:text-gray-700" />
               <button onClick={logNote} disabled={saving || !note.trim()}
                 className="px-4 py-2.5 rounded-xl bg-[#FFA500] text-black text-xs font-bold uppercase tracking-widest hover:brightness-110 transition disabled:opacity-40">
@@ -2175,15 +2196,19 @@ function ProspectDetail({ prospect: initial, onBack, onUpdate, onDelete }) {
             {/* Notes list */}
             {p.notes?.length > 0 ? (
               <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-                {[...p.notes].reverse().map((n) => (
-                  <div key={n._id} className="flex gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#FFA500]/60 mt-2 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm text-gray-300 leading-relaxed">{n.text}</p>
-                      <p className="text-xs text-gray-600 mt-0.5">{formatDate(n.createdAt)}</p>
+                {[...p.notes].reverse().map((n) => {
+                  const icons = { call: "📞", email: "✉️", whatsapp: "💬", meeting: "🤝", note: "📝" };
+                  const icon = icons[n.noteType] || icons.note;
+                  return (
+                    <div key={n._id} className="flex gap-3">
+                      <span className="text-base mt-0.5 flex-shrink-0">{icon}</span>
+                      <div>
+                        <p className="text-sm text-gray-300 leading-relaxed">{n.text}</p>
+                        <p className="text-xs text-gray-600 mt-0.5">{formatDate(n.createdAt)}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-gray-600">No activity logged yet.</p>
@@ -2230,6 +2255,7 @@ function ProspectsTab() {
   const [selected, setSelected]     = useState(null);
   const [sectorFilter, setSectorFilter] = useState("");
   const [stageFilter, setStageFilter]   = useState("");
+  const [search, setSearch]             = useState("");
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -2270,6 +2296,10 @@ function ProspectsTab() {
   const filtered = prospects.filter((p) => {
     if (sectorFilter && p.sector !== sectorFilter) return false;
     if (stageFilter  && p.stage  !== stageFilter)  return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (![p.name, p.email, p.company, p.phone].some((f) => f && f.toLowerCase().includes(q))) return false;
+    }
     return true;
   });
 
@@ -2366,6 +2396,9 @@ function ProspectsTab() {
         <div>
           {/* Filters */}
           <div className="flex gap-3 mb-5 flex-wrap">
+            <input value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name, email, company..."
+              className="bg-[#020617] border border-[#1f2937] rounded-xl px-4 py-2 text-sm text-gray-300 outline-none focus:border-[#FFA500]/50 placeholder:text-gray-600 min-w-[200px]" />
             <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)}
               className="bg-[#020617] border border-[#1f2937] rounded-xl px-4 py-2 text-sm text-gray-300 outline-none focus:border-[#FFA500]/50">
               <option value="">All sectors</option>
