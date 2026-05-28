@@ -1939,6 +1939,15 @@ function ProspectDetail({ prospect: initial, onBack, onUpdate, onDelete }) {
   const [converting, setConverting] = useState(false);
   const [convertResult, setConvertResult] = useState(null);
   const [convertError, setConvertError] = useState("");
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [editFields, setEditFields] = useState({ name: p.name, email: p.email || "", phone: p.phone || "", company: p.company || "", address: p.address || "", sector: p.sector, channel: p.channel });
+  const setField = (k) => (e) => setEditFields((prev) => ({ ...prev, [k]: e.target.value }));
+
+  const saveDetails = async () => {
+    if (!editFields.name.trim()) return;
+    await patch({ ...editFields });
+    setEditingDetails(false);
+  };
 
   const convertToCustomer = async () => {
     if (!p.email) { setConvertError("Prospect has no email address."); return; }
@@ -2024,18 +2033,55 @@ function ProspectDetail({ prospect: initial, onBack, onUpdate, onDelete }) {
                 <p className="font-semibold text-white text-base">{p.name}</p>
                 {p.company && <p className="text-sm text-gray-400">{p.company}</p>}
               </div>
-              {stageChip(p.stage)}
+              <div className="flex items-center gap-2">
+                {stageChip(p.stage)}
+                <button
+                  onClick={() => { setEditFields({ name: p.name, email: p.email || "", phone: p.phone || "", company: p.company || "", address: p.address || "", sector: p.sector, channel: p.channel }); setEditingDetails((v) => !v); }}
+                  className="text-xs text-gray-500 hover:text-[#FFA500] border border-[#1f2937] hover:border-[#FFA500]/40 rounded-lg px-2 py-1 transition">
+                  {editingDetails ? "Cancel" : "Edit"}
+                </button>
+              </div>
             </div>
-            <div className="space-y-2 text-sm text-gray-400">
-              {p.email && <p><span className="text-gray-600">Email</span> <span className="text-gray-200 ml-2">{p.email}</span></p>}
-              {p.phone && <p><span className="text-gray-600">Phone</span> <span className="text-gray-200 ml-2">{p.phone}</span></p>}
-              <p><span className="text-gray-600">Sector</span> <span className="text-[#FFA500] ml-2">{sectorLabel(p.sector)}</span></p>
-              <p><span className="text-gray-600">Channel</span> <span className="text-gray-200 ml-2 capitalize">{p.channel}</span></p>
-              <p><span className="text-gray-600">Added</span> <span className="text-gray-200 ml-2">{formatDate(p.createdAt)}</span></p>
-              {p.caseStudySent?.name && (
-                <p><span className="text-gray-600">Case study</span> <span className="text-emerald-400 ml-2 text-xs">{p.caseStudySent.name}</span></p>
-              )}
-            </div>
+
+            {editingDetails ? (
+              <div className="space-y-2">
+                {[
+                  { key: "name", placeholder: "Full name" },
+                  { key: "email", placeholder: "Email" },
+                  { key: "phone", placeholder: "Phone" },
+                  { key: "company", placeholder: "Company" },
+                  { key: "address", placeholder: "Address" },
+                ].map(({ key, placeholder }) => (
+                  <input key={key} value={editFields[key]} onChange={setField(key)}
+                    placeholder={placeholder}
+                    className="w-full bg-[#0a0f14] border border-[#1f2937] rounded-lg px-3 py-2 text-sm text-gray-200 outline-none focus:border-[#FFA500]/50 placeholder:text-gray-700" />
+                ))}
+                <select value={editFields.sector} onChange={setField("sector")}
+                  className="w-full bg-[#0a0f14] border border-[#1f2937] rounded-lg px-3 py-2 text-sm text-gray-200 outline-none focus:border-[#FFA500]/50">
+                  {SECTORS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+                <select value={editFields.channel} onChange={setField("channel")}
+                  className="w-full bg-[#0a0f14] border border-[#1f2937] rounded-lg px-3 py-2 text-sm text-gray-200 outline-none focus:border-[#FFA500]/50">
+                  {CHANNELS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+                <button onClick={saveDetails} disabled={saving || !editFields.name.trim()}
+                  className="w-full py-2 rounded-lg bg-[#FFA500]/10 border border-[#FFA500]/30 text-[#FFA500] text-xs font-semibold hover:bg-[#FFA500]/15 transition disabled:opacity-40">
+                  {saving ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2 text-sm text-gray-400">
+                {p.email && <p><span className="text-gray-600">Email</span> <span className="text-gray-200 ml-2">{p.email}</span></p>}
+                {p.phone && <p><span className="text-gray-600">Phone</span> <span className="text-gray-200 ml-2">{p.phone}</span></p>}
+                {p.address && <p><span className="text-gray-600">Address</span> <span className="text-gray-200 ml-2">{p.address}</span></p>}
+                <p><span className="text-gray-600">Sector</span> <span className="text-[#FFA500] ml-2">{sectorLabel(p.sector)}</span></p>
+                <p><span className="text-gray-600">Channel</span> <span className="text-gray-200 ml-2 capitalize">{p.channel}</span></p>
+                <p><span className="text-gray-600">Added</span> <span className="text-gray-200 ml-2">{formatDate(p.createdAt)}</span></p>
+                {p.caseStudySent?.name && (
+                  <p><span className="text-gray-600">Case study</span> <span className="text-emerald-400 ml-2 text-xs">{p.caseStudySent.name}</span></p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Stage mover */}
