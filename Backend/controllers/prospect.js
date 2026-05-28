@@ -63,7 +63,7 @@ exports.createProspect = async (req, res) => {
 exports.updateProspect = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, company, address, sector, channel, stage, playbookDay, nextActionDate, nextActionNote, caseStudySent, note, convertedAt } = req.body;
+    const { name, email, phone, company, address, sector, channel, stage, playbookDay, nextActionDate, nextActionNote, caseStudySent, note, noteType, convertedAt } = req.body;
 
     const prospect = await Prospect.findById(id);
     if (!prospect) return res.status(404).json({ message: "Prospect not found." });
@@ -86,7 +86,7 @@ exports.updateProspect = async (req, res) => {
     }
 
     if (note?.trim()) {
-      prospect.notes.push({ text: note.trim(), createdAt: new Date() });
+      prospect.notes.push({ text: note.trim(), noteType: noteType || "note", createdAt: new Date() });
     }
 
     await prospect.save();

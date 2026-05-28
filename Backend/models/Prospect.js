@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const NoteSchema = new mongoose.Schema({
   text:      { type: String, required: true },
+  noteType:  { type: String, enum: ["call", "email", "whatsapp", "meeting", "note"], default: "note" },
   createdAt: { type: Date, default: Date.now },
   createdBy: { type: String, default: "admin" },
 }, { _id: true });
