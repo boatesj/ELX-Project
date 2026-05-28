@@ -63,11 +63,18 @@ exports.createProspect = async (req, res) => {
 exports.updateProspect = async (req, res) => {
   try {
     const { id } = req.params;
-    const { stage, playbookDay, nextActionDate, nextActionNote, caseStudySent, note, convertedAt } = req.body;
+    const { name, email, phone, company, address, sector, channel, stage, playbookDay, nextActionDate, nextActionNote, caseStudySent, note, convertedAt } = req.body;
 
     const prospect = await Prospect.findById(id);
     if (!prospect) return res.status(404).json({ message: "Prospect not found." });
 
+    if (name !== undefined)           prospect.name           = name.trim();
+    if (email !== undefined)          prospect.email          = email.trim().toLowerCase();
+    if (phone !== undefined)          prospect.phone          = phone.trim();
+    if (company !== undefined)        prospect.company        = company.trim();
+    if (address !== undefined)        prospect.address        = address.trim();
+    if (sector !== undefined)         prospect.sector         = sector;
+    if (channel !== undefined)        prospect.channel        = channel;
     if (stage !== undefined)          prospect.stage          = stage;
     if (playbookDay !== undefined)    prospect.playbookDay    = playbookDay;
     if (nextActionDate !== undefined) prospect.nextActionDate = nextActionDate || null;
