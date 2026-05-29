@@ -38,7 +38,7 @@ const SEO: Record<string, { title: string; desc: string }> = {
   },
   jit: {
     title: "Just In Time (JIT) Delivery UK to Ghana | Ellcworth Express",
-    desc: "Dedicated time-critical air freight for graduation certificates and high-integrity cargo. 12 years. Zero failures. UK to Ghana.",
+    desc: "Dedicated time-critical air freight for graduation certificates and high-integrity cargo. 15+ years. Zero failures. UK to Ghana.",
   },
   customs: {
     title: "Export & Customs Support UK to West Africa | Ellcworth Express",
@@ -102,7 +102,7 @@ export default async function ServiceDetailPage({ params }: Props) {
             <div className="mt-4 rounded-3xl border border-white/10 bg-[#0B1118] p-6 md:p-8">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#FFA500] mb-4">How JIT Came About</p>
               <div className="space-y-4 text-gray-300 leading-relaxed">
-                <p>Ellcworth Express has been handling exactly this consignment — for exactly this deadline — for over 12 years. What began as a single urgent assignment became a repeat engagement. Then a pattern. Then a process refined over a decade of not once missing a graduation deadline.</p>
+                <p>Ellcworth Express has been handling exactly this consignment — for exactly this deadline — for over 15 years. What began as a single urgent assignment became a repeat engagement. Then a pattern. Then a process refined over a decade of not once missing a graduation deadline.</p>
                 <p>JIT was not designed in a boardroom. It was built in the field, shaped by the real pressures procurement directors face every year — and by our absolute refusal to let any one of them down.</p>
                 <p>When you hand a JIT consignment to Ellcworth, the deadline transfers with it. It becomes our problem to solve — and our record to protect.</p>
               </div>
