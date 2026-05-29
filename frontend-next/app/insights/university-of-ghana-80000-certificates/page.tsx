@@ -40,6 +40,14 @@ export default function UniversityOfGhanaCaseStudy() {
       {/* Breadcrumb */}
       <div className="max-w-4xl mx-auto px-6 pt-10 pb-0">
         <nav className="flex items-center gap-2 text-xs text-[#9A9EAB]">
+          {/* Related destinations */}
+          <div className="mt-12 pt-8 border-t border-gray-200">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-4">Related destinations</p>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/destinations/ghana" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Shipping to Ghana &rarr;</Link>
+              <Link href="/institutional" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Institutional cargo &rarr;</Link>
+            </div>
+          </div>
           <Link href="/insights" className="hover:text-[#FFA500] transition">
             Insights
           </Link>

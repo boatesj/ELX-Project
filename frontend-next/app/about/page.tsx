@@ -234,6 +234,19 @@ export default function AboutPage() {
       </section>
 
       {/* CTA */}
+      {/* Explore further */}
+      <section className="py-10 bg-[#EDECEC] border-t border-gray-200">
+        <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-4">Explore further</p>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/destinations/ghana" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Shipping to Ghana &rarr;</Link>
+            <Link href="/destinations/nigeria" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Shipping to Nigeria &rarr;</Link>
+            <Link href="/institutional" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Institutional cargo &rarr;</Link>
+            <Link href="/insights" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Insights &amp; case studies &rarr;</Link>
+          </div>
+        </div>
+      </section>
+
       <section className="py-16 md:py-20 bg-[#1A2930] text-white">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8 text-center">
           <h2 className="text-2xl md:text-3xl font-semibold uppercase mb-4">

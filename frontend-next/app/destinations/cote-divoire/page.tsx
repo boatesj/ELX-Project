@@ -160,6 +160,19 @@ export default function CoteDIvoirePage() {
         </div>
       </section>
 
+      {/* Also shipping to */}
+      <section className="py-10 bg-[#EDECEC] border-t border-gray-200">
+        <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500 mb-4">Also shipping to</p>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/destinations/ghana" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Ghana &rarr;</Link>
+            <Link href="/destinations/nigeria" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Nigeria &rarr;</Link>
+            <Link href="/destinations/kenya" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Kenya &rarr;</Link>
+            <Link href="/destinations/sierra-leone" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Sierra Leone &rarr;</Link>
+          </div>
+        </div>
+      </section>
+
       <section className="py-16 md:py-20 bg-[#1A2930] text-white">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8 text-center">
           <h2 className="text-2xl md:text-3xl font-semibold uppercase mb-4">Ready to ship to Côte d&apos;Ivoire?</h2>
