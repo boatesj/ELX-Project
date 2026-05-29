@@ -487,7 +487,7 @@ const NewShipment = () => {
                     value={form.shipperAddress}
                     onChange={handleChange("shipperAddress")}
                     className="border border-gray-300 rounded px-3 py-2 text-sm"
-                    placeholder="32 Ashbourne Road, Romford"
+                    placeholder="Street, City, Postcode, Country"
                   />
                 </div>
 

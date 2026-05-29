@@ -4,12 +4,12 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "About Ellcworth Express | UK to West Africa Freight Specialists",
   description:
-    "For over 12 years Ellcworth Express has shipped critical cargo from the UK to West Africa — including blank degree certificates for Ghana's leading universities. Never missed a deadline.",
+    "For over 15 years Ellcworth Express has shipped critical cargo from the UK to West Africa — including blank degree certificates for Ghana's leading universities. Never missed a deadline.",
   alternates: { canonical: "https://www.ellcworth.com/about" },
   openGraph: {
     title: "About Ellcworth Express | UK to West Africa Freight Specialists",
     description:
-      "12 years shipping critical cargo from the UK to West Africa — including blank degree certificates for Ghana's leading universities. Never missed a deadline.",
+      "15+ years shipping critical cargo from the UK to West Africa — including blank degree certificates for Ghana's leading universities. Never missed a deadline.",
     url: "https://www.ellcworth.com/about",
     type: "website",
     images: [{ url: "https://www.ellcworth.com/ellc_hero1.png" }],
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "About Ellcworth Express | UK to West Africa Freight Specialists",
     description:
-      "12 years shipping critical cargo from the UK to West Africa — including blank degree certificates for Ghana's leading universities. Never missed a deadline.",
+      "15+ years shipping critical cargo from the UK to West Africa — including blank degree certificates for Ghana's leading universities. Never missed a deadline.",
   },
 };
 
@@ -57,7 +57,7 @@ export default function AboutPage() {
           </div>
           <div className="text-gray-700 space-y-5 text-base md:text-lg leading-relaxed">
             <p>
-              For over 12 years, Ellcworth Express has been the quiet
+              For over 15 years, Ellcworth Express has been the quiet
               infrastructure behind some of Ghana's most important graduation
               ceremonies. Every year, the University of Ghana, KNUST, UCC, UDS,
               UHA and others outsource the design and printing of their blank
@@ -69,7 +69,7 @@ export default function AboutPage() {
               packaged tamper-proof, cleared through UK export and Ghana
               customs, and delivered to campus — on time, every time.
             </p>
-            <p>In 12 years, we have never let a single institution down.</p>
+            <p>In 15+ years, we have never let a single institution down.</p>
             <p>
               No delays. No lost consignments. No excuses. Just a track record
               that speaks for itself — and a reason why Ghana's universities
@@ -79,7 +79,7 @@ export default function AboutPage() {
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-6">
             {[
               { stat: "12+", label: "Years serving Ghana's universities" },
-              { stat: "0", label: "Deadlines missed in 12 years" },
+              { stat: "0", label: "Deadlines missed in 15+ years" },
               { stat: "6+", label: "Major Ghanaian institutions served" },
             ].map((item) => (
               <div
@@ -181,7 +181,7 @@ export default function AboutPage() {
             Our Corridor
           </span>
           <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">
-            12 years on the UK–West Africa route.
+            15+ years on the UK–West Africa route.
           </h2>
           <div className="text-gray-700 space-y-5 text-base md:text-lg leading-relaxed">
             <p>
@@ -220,7 +220,7 @@ export default function AboutPage() {
               The UK–West Africa route is not a generic trade lane. It has its
               own port dynamics, customs requirements, clearing agent
               relationships and on-the-ground realities. Treating it like any
-              other corridor is how shipments go wrong. We have spent 12 years
+              other corridor is how shipments go wrong. We have spent 15+ years
               learning it properly so our clients do not have to.
             </p>
             <p>
