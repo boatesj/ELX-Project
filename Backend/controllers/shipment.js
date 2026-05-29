@@ -1367,6 +1367,9 @@ async function updateStatus(req, res) {
 
     shipment.status = status;
 
+    if (!shipment.notifications) shipment.notifications = {};
+    shipment.notifications[status] = false;
+
     shipment.trackingEvents.push({
       status,
       event:
