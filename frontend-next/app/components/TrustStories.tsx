@@ -16,7 +16,7 @@ const renderStars = (rating = 5) => (
 
 const TrustStories = () => {
   return (
-    <section id="testimonials" className="w-full bg-[#F9FAFB] py-16 md:py-20 border-t border-gray-200 scroll-mt-[120px] md:scroll-mt-[160px]" aria-label="Ellcworth customer reviews">
+    <section id="stories" className="w-full bg-[#F9FAFB] py-16 md:py-20 border-t border-gray-200 scroll-mt-[120px] md:scroll-mt-[160px]" aria-label="Ellcworth customer reviews">
       <div className="mx-auto w-full max-w-6xl px-4 md:px-6 lg:px-8">
         <div className="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="max-w-3xl">
