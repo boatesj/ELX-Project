@@ -1,3 +1,11 @@
 User-agent: *
 Allow: /
+
+Disallow: /login
+Disallow: /myshipments
+Disallow: /newbooking
+Disallow: /editbooking
+Disallow: /shipmentdetails
+Disallow: /auth/
+
 Sitemap: https://www.ellcworth.com/sitemap.xml

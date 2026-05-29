@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://www.ellcworth.com/institutional" },
   openGraph: {
     title: "Institutional Cargo UK to Africa | Ellcworth Express",
-    description: "Ellcworth Express ships for universities, hospitals, banks, government ministries and NGOs — sealed, documented, on time. 12 years. Zero institutional deadlines missed.",
+    description: "Ellcworth Express ships for universities, hospitals, banks, government ministries and NGOs — sealed, documented, on time. 15+ years. Zero institutional deadlines missed.",
     url: "https://www.ellcworth.com/institutional",
     type: "website",
     images: [{ url: "https://www.ellcworth.com/ellc_hero1.png" }],
@@ -15,12 +15,12 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Institutional Cargo UK to Africa | Ellcworth Express",
-    description: "Ellcworth Express ships for universities, hospitals, banks, government ministries and NGOs — sealed, documented, on time. 12 years. Zero institutional deadlines missed.",
+    description: "Ellcworth Express ships for universities, hospitals, banks, government ministries and NGOs — sealed, documented, on time. 15+ years. Zero institutional deadlines missed.",
   },
 };
 
 const cargoTypes = [
-  { icon: "🎓", title: "Academic & ceremonial cargo", body: "Blank degree certificates, regalia and academic materials. Tamper-proof, time-critical. Collected from UK printers, sealed and delivered to campus before graduation. We have never missed a deadline in 12 years." },
+  { icon: "🎓", title: "Academic & ceremonial cargo", body: "Blank degree certificates, regalia and academic materials. Tamper-proof, time-critical. Collected from UK printers, sealed and delivered to campus before graduation. We have never missed a deadline in 15+ years." },
   { icon: "🏥", title: "Medical & healthcare procurement", body: "Hospital equipment, diagnostic devices, pharmaceutical supplies and consumables for healthcare procurement agencies. Handled with the documentation discipline that institutional supply chains demand." },
   { icon: "🏦", title: "Banking & financial equipment", body: "ATM units, cash-handling equipment, server infrastructure and secure IT hardware for banks and financial institutions. Chain-of-custody documentation provided at every stage." },
   { icon: "🏛️", title: "Government & ministry cargo", body: "Ministerial procurement, civil service equipment and public sector project cargo. We work within formal procurement frameworks — proper invoices, auditable documentation, named contacts." },
@@ -104,9 +104,9 @@ export default function InstitutionalPage() {
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">Track Record</span>
           <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">Graduation is 7 days away.<br />There is no room for error.</h2>
           <div className="text-gray-700 space-y-5 text-base md:text-lg leading-relaxed mb-12">
-            <p>For over 12 years, Ellcworth Express has been the logistics partner behind some of Ghana's most important graduation ceremonies. Each year, universities across Ghana — including the University of Ghana, KNUST, UCC and UDS — outsource the printing of their blank degree certificates to specialist printers in the UK.</p>
+            <p>For over 15 years, Ellcworth Express has been the logistics partner behind some of Ghana's most important graduation ceremonies. Each year, universities across Ghana — including the University of Ghana, KNUST, UCC and UDS — outsource the printing of their blank degree certificates to specialist printers in the UK.</p>
             <p>By the time we receive the call, graduation is typically 7 days away. The certificates must be collected, packaged tamper-proof, cleared through UK export and Ghana customs, and delivered to campus before the ceremony begins.</p>
-            <p className="font-semibold text-[#1A2930]">In 12 years, we have never let a single institution down.</p>
+            <p className="font-semibold text-[#1A2930]">In 15+ years, we have never let a single institution down.</p>
             <p>That track record extends beyond academia. The same process — sealed, documented, tracked, delivered — is what hospitals, procurement agencies and government ministries get when they ship with us. The cargo changes. The standard does not.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">

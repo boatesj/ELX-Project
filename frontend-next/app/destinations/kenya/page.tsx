@@ -5,6 +5,15 @@ export const metadata: Metadata = {
   title: "Shipping to Kenya from the UK | Container & Air Freight | Ellcworth Express",
   description: "FCL container shipping and air freight from the UK to Kenya. Mombasa Port and Jomo Kenyatta International Airport. Export documentation and customs clearance end-to-end.",
   alternates: { canonical: "https://www.ellcworth.com/destinations/kenya" },
+  openGraph: {
+    title: "Shipping to Kenya from the UK | Container & Air Freight | Ellcworth Express",
+    description: "FCL container shipping and air freight from the UK to Kenya. Mombasa Port and Jomo Kenyatta International Airport. Export documentation and customs clearance end-to-end.",
+    url: "https://www.ellcworth.com/destinations/kenya",
+    siteName: "Ellcworth Express",
+    type: "website",
+    images: [{ url: "https://www.ellcworth.com/ellc_hero1.png" }],
+  },
+  twitter: { card: "summary_large_image", title: "Shipping to Kenya from the UK | Ellcworth Express", description: "FCL container shipping and air freight UK to Kenya. Mombasa Port and Nairobi Airport. Customs clearance end-to-end." },
 };
 
 const STATS = [

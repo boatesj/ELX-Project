@@ -17,7 +17,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ellcworth.com"),
+  metadataBase: new URL("https://www.ellcworth.com"),
   title: {
     default: "Ellcworth Express | UK to Ghana Freight & Shipping Specialists",
     template: "%s | Ellcworth Express",
