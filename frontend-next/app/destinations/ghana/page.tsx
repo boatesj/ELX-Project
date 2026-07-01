@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     url: "https://www.ellcworth.com/destinations/ghana",
     siteName: "Ellcworth Express",
     type: "website",
-    images: [{ url: "https://www.ellcworth.com/ellc_hero1.png" }],
+    images: [{ url: "https://www.ellcworth.com/ellc_hero1.webp" }],
   },
   twitter: { card: "summary_large_image", title: "Shipping to Ghana from the UK | Ellcworth Express", description: "Container shipping, RoRo and air freight UK to Ghana. Tema Port and Accra Airport. ICUMS clearance end-to-end." },
 };

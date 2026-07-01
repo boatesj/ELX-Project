@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     url: "https://www.ellcworth.com/insights",
     siteName: "Ellcworth Express",
     type: "website",
-    images: [{ url: "https://www.ellcworth.com/ellc_hero1.png" }],
+    images: [{ url: "https://www.ellcworth.com/ellc_hero1.webp" }],
   },
   twitter: { card: "summary_large_image", title: "Insights & Case Studies | Ellcworth Express", description: "Real freight operations — air freight case studies, customs intelligence, and trade guides for UK exporters shipping to West Africa." },
 };

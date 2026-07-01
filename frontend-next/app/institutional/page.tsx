@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     description: "Ellcworth Express ships for universities, hospitals, banks, government ministries and NGOs — sealed, documented, on time. 15+ years. Zero institutional deadlines missed.",
     url: "https://www.ellcworth.com/institutional",
     type: "website",
-    images: [{ url: "https://www.ellcworth.com/ellc_hero1.png" }],
+    images: [{ url: "https://www.ellcworth.com/ellc_hero1.webp" }],
   },
   twitter: {
     card: "summary_large_image",

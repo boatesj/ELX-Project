@@ -30,10 +30,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preload" as="image" href="/ellc_hero4-mobile.webp" media="(max-width: 768px)" fetchPriority="high" />
-        <link rel="preload" as="image" href="/ellc_hero4.webp" media="(min-width: 769px)" fetchPriority="high" />
-      </head>
+
       <body className={`${cabin.variable} ${montserrat.variable} antialiased`}>
         <GoogleAnalytics />
         <Navbar />

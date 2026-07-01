@@ -12,7 +12,7 @@ export const metadata: Metadata = {
       "15+ years shipping critical cargo from the UK to West Africa — including blank degree certificates for Ghana's leading universities. Never missed a deadline.",
     url: "https://www.ellcworth.com/about",
     type: "website",
-    images: [{ url: "https://www.ellcworth.com/ellc_hero1.png" }],
+    images: [{ url: "https://www.ellcworth.com/ellc_hero1.webp" }],
   },
   twitter: {
     card: "summary_large_image",

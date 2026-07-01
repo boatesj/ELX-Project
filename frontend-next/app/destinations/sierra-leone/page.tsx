@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     url: "https://www.ellcworth.com/destinations/sierra-leone",
     siteName: "Ellcworth Express",
     type: "website",
-    images: [{ url: "https://www.ellcworth.com/ellc_hero1.png" }],
+    images: [{ url: "https://www.ellcworth.com/ellc_hero1.webp" }],
   },
   twitter: { card: "summary_large_image", title: "Shipping to Sierra Leone from the UK | Ellcworth Express", description: "FCL container shipping and air freight UK to Sierra Leone. Freetown QEII Quay and Lungi Airport. Full customs clearance." },
 };
