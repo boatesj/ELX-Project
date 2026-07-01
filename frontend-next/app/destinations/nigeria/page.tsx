@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     url: "https://www.ellcworth.com/destinations/nigeria",
     siteName: "Ellcworth Express",
     type: "website",
-    images: [{ url: "https://www.ellcworth.com/ellc_hero1.png" }],
+    images: [{ url: "https://www.ellcworth.com/ellc_hero1.webp" }],
   },
   twitter: { card: "summary_large_image", title: "Shipping to Nigeria from the UK | Ellcworth Express", description: "FCL container shipping and air freight UK to Nigeria. Apapa Port Lagos. Export documentation end-to-end." },
 };

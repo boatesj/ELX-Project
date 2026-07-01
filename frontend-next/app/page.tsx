@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     description: "15+ years shipping containers, vehicles and sensitive cargo from the UK to Ghana, Nigeria and West Africa. Sealed, documented, on time.",
     url: "https://www.ellcworth.com/",
     type: "website",
-    images: [{ url: "https://www.ellcworth.com/ellc_hero1.png" }],
+    images: [{ url: "https://www.ellcworth.com/ellc_hero1.webp" }],
   },
   twitter: {
     card: "summary_large_image",
