@@ -24,9 +24,9 @@ const STATS = [
 ];
 
 const SERVICES = [
-  { icon: "📦", title: "FCL — Full Container Load", price: "20ft from £1,650 · 40ft from £2,800", description: "Dedicated containers from UK ports to Freetown's Queen Elizabeth II Quay — Sierra Leone's principal deep-water port. Suited to commercial stock, household goods, NGO supplies, and institutional cargo.", suited: ["Commercial goods", "Household removals", "NGO supplies", "Industrial equipment"] },
+  { icon: "📦", title: "Container Shipping to Sierra Leone from the UK", price: "20ft from £1,650 · 40ft from £2,800", description: "Dedicated containers from UK ports to Freetown's Queen Elizabeth II Quay — Sierra Leone's principal deep-water port. Suited to commercial stock, household goods, NGO supplies, and institutional cargo.", suited: ["Commercial goods", "Household removals", "NGO supplies", "Industrial equipment"] },
   { icon: "🤝", title: "LCL — Groupage", price: "Quoted per CBM", description: "Share container space with other shippers moving cargo to Freetown. Ideal for smaller loads that do not justify a full container. We consolidate at our UK depot under a single bill of lading.", suited: ["Small commercial loads", "Single pallets", "Samples", "Personal effects"] },
-  { icon: "✈️", title: "Air Freight", price: "Quoted per kg", description: "Direct to Lungi International Airport (FNA), Freetown. Door-to-airport and airport-to-airport options. Fastest route for urgent cargo, medical supplies, and time-critical consignments.", suited: ["Urgent cargo", "Medical supplies", "High-value goods", "Time-sensitive documents"] },
+  { icon: "✈️", title: "Air Freight from the UK to Sierra Leone", price: "Quoted per kg", description: "Direct to Lungi International Airport (FNA), Freetown. Door-to-airport and airport-to-airport options. Fastest route for urgent cargo, medical supplies, and time-critical consignments.", suited: ["Urgent cargo", "Medical supplies", "High-value goods", "Time-sensitive documents"] },
 ];
 
 const CUSTOMS_STEPS = [
@@ -42,7 +42,9 @@ const FAQS = [
   { q: "What documents are required for shipping to Sierra Leone?", a: "You will need a commercial invoice, packing list, bill of lading or air waybill, certificate of origin, and Clean Report of Findings from Cotecna. We provide a full checklist when you book." },
   { q: "How is import duty calculated in Sierra Leone?", a: "NRA calculates duty on CIF value using the ECOWAS Common External Tariff. Rates are typically 0%, 5%, 10%, or 20% depending on product category. A 15% GST also applies. We provide a duty estimate before you commit." },
   { q: "Do you handle delivery from Freetown port?", a: "Yes. Our Freetown-based partners provide port-to-door delivery across the Western Area. Note that Lungi Airport and the main Freetown port are on opposite sides of the Sierra Leone River estuary — we account for this in our logistics planning." },
-  { q: "How do I get a quote?", a: "Use our online quote form or contact us via WhatsApp or email. For FCL or LCL we need cargo dimensions and weight. Quotes are returned within 24 hours." },
+  { q: "Can I send a parcel or courier shipment to Sierra Leone from the UK?", a: "Yes. For smaller consignments — parcels, personal effects, samples, or documents — we offer LCL groupage consolidation from the UK to Freetown. Your goods share container space with other verified shippers, which keeps costs low without compromising security. We also handle air freight for urgent parcels requiring fast delivery to Freetown." },
+  { q: "How do I ship goods to Freetown from the UK?", a: "We offer two main routes: sea freight to Freetown's Queen Elizabeth II Quay (18–24 days) and air freight to Lungi International Airport (5–7 days). For sea freight, choose between a full container (FCL) or shared container space (LCL groupage). We manage UK collection or depot drop-off, Cotecna pre-shipment inspection, export documentation, and NRA customs clearance end-to-end." },
+    { q: "How do I get a quote?", a: "Use our online quote form or contact us via WhatsApp or email. For FCL or LCL we need cargo dimensions and weight. Quotes are returned within 24 hours." },
 ];
 
 export default function SierraLeonePage() {
@@ -90,7 +92,7 @@ export default function SierraLeonePage() {
       <section className="py-16 md:py-24 bg-white">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">The UK–Sierra Leone Corridor</span>
-          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">Strong UK ties. A corridor we know well.</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">Container Shipping &amp; Air Freight from the UK to Sierra Leone.</h2>
           <div className="text-gray-700 space-y-5 text-base md:text-lg leading-relaxed">
             <p>Sierra Leone has one of the strongest UK diaspora connections in West Africa. The freight corridor between the UK and Freetown carries household goods, vehicles, commercial stock, NGO supplies, and institutional cargo on a regular basis. The QEII Quay in Freetown handles containerised imports, with onward distribution across the Western Area and upcountry via road.</p>
             <p>For time-critical or high-value cargo, Lungi International Airport (FNA) provides air freight links from Heathrow — though the airport's position across the Sierra Leone River estuary from Freetown requires careful ground logistics planning, which we account for in every operation.</p>
@@ -102,14 +104,14 @@ export default function SierraLeonePage() {
       <section className="py-16 md:py-24 bg-[#EDECEC]">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">Shipping Options</span>
-          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-10">Three freight modes to Sierra Leone.</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-10">Container Shipping, Groupage &amp; Air Freight to Freetown.</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {SERVICES.map((s) => (
               <div key={s.title} className="rounded-2xl border border-gray-200 bg-white px-6 py-6 flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl flex-shrink-0">{s.icon}</span>
-                    <p className="font-semibold text-[#1A2930]">{s.title}</p>
+                    <h3 className="font-semibold text-[#1A2930] text-base">{s.title}</h3>
                   </div>
                   <span className="text-sm font-semibold text-[#FFA500] whitespace-nowrap">{s.price}</span>
                 </div>
@@ -147,7 +149,7 @@ export default function SierraLeonePage() {
       <section className="py-16 md:py-24 bg-[#EDECEC]">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">FAQ</span>
-          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-2">Common questions answered.</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-2">UK to Sierra Leone Shipping — Frequently Asked Questions.</h2>
           <p className="text-gray-600 mb-8">Shipping to Sierra Leone from the UK.</p>
           <div className="rounded-2xl border border-gray-200 bg-white px-6 md:px-8">
             {FAQS.map((faq) => (
