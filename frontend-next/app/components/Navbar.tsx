@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -191,7 +190,7 @@ export default function Navbar() {
       <div className="w-full bg-[#1A2930] text-white border-b border-white/10">
         <div className="container mx-auto flex justify-between items-center py-2.5 px-4 md:px-8 lg:px-16">
           <Link href="/" className="flex items-center gap-3 group">
-            <Image src="/Logo_w.svg" alt="Ellcworth Express logo" width={56} height={56} className="w-11 h-auto md:w-14 transition-transform duration-150 group-hover:scale-[1.02]" />
+            <img src="/Logo_w.svg" alt="Ellcworth Express logo" width={56} height={56} className="w-11 h-auto md:w-14 transition-transform duration-150 group-hover:scale-[1.02]" />
             <div className="flex flex-col leading-tight">
               <span className="text-sm sm:text-base md:text-xl font-bold tracking-[0.18em] text-white">
                 ELLCWORTH <span className="text-[#FFA500]">EXPRESS</span>
