@@ -24,9 +24,9 @@ const STATS = [
 ];
 
 const SERVICES = [
-  { icon: "📦", title: "FCL — Full Container Load", price: "20ft from £1,700 · 40ft from £2,900", description: "Dedicated containers from UK ports to Mombasa — East Africa's largest port and the principal gateway for landlocked East African countries. Suited to commercial stock, industrial equipment, and institutional cargo.", suited: ["Commercial goods", "Industrial equipment", "Retail stock", "NGO supplies"] },
+  { icon: "📦", title: "Container Shipping to Kenya from the UK", price: "20ft from £1,700 · 40ft from £2,900", description: "Dedicated containers from UK ports to Mombasa — East Africa's largest port and the principal gateway for landlocked East African countries. Suited to commercial stock, industrial equipment, and institutional cargo.", suited: ["Commercial goods", "Industrial equipment", "Retail stock", "NGO supplies"] },
   { icon: "🤝", title: "LCL — Groupage", price: "Quoted per CBM", description: "Share container space with other shippers moving cargo to Mombasa. Ideal when your cargo does not justify a full container. We consolidate at our UK depot under a single bill of lading.", suited: ["Small commercial loads", "Single pallets", "Samples", "Documents"] },
-  { icon: "✈️", title: "Air Freight", price: "Quoted per kg", description: "Direct to Jomo Kenyatta International Airport (NBO), Nairobi. Door-to-airport and airport-to-airport options. Fastest route for urgent cargo, spare parts, pharmaceuticals, and time-critical consignments.", suited: ["Urgent cargo", "Pharmaceuticals", "High-value goods", "Time-sensitive documents"] },
+  { icon: "✈️", title: "Air Freight from the UK to Kenya", price: "Quoted per kg", description: "Direct to Jomo Kenyatta International Airport (NBO), Nairobi. Door-to-airport and airport-to-airport options. Fastest route for urgent cargo, spare parts, pharmaceuticals, and time-critical consignments.", suited: ["Urgent cargo", "Pharmaceuticals", "High-value goods", "Time-sensitive documents"] },
 ];
 
 const CUSTOMS_STEPS = [
@@ -42,7 +42,9 @@ const FAQS = [
   { q: "What documents are required for shipping to Kenya?", a: "You will need a commercial invoice, packing list, bill of lading or air waybill, certificate of origin, and Import Declaration Form (IDF) from the Kenyan consignee. PVoC-regulated goods also need a Certificate of Conformity. We provide a full checklist when you book." },
   { q: "How is import duty calculated in Kenya?", a: "KRA calculates duty on CIF value using the East African Community Common External Tariff. Rates are typically 0% (raw materials), 10% (intermediate goods), or 25% (finished goods). We provide a duty estimate before you commit." },
   { q: "Do you handle delivery from Mombasa to Nairobi or beyond?", a: "Yes. Our Mombasa-based partners provide port-to-door delivery and can arrange onward haulage to Nairobi, Kisumu, and other Kenyan cities via the SGR rail link or road." },
-  { q: "How do I get a quote?", a: "Use our online quote form or contact us via WhatsApp or email. For FCL or LCL we need cargo dimensions and weight. Quotes are returned within 24 hours." },
+  { q: "How do I ship a container to Kenya from the UK?", a: "We book FCL (full container load) shipments from UK ports to Mombasa on a regular sailing schedule. A 20ft container starts from £1,700 and a 40ft from £2,900. We handle export documentation, IDF coordination, PVoC compliance where required, KRA customs clearance, and Mombasa-to-door delivery. Quotes are returned within 24 hours." },
+  { q: "How do I ship goods to Mombasa from the UK?", a: "Sea freight to Mombasa Port takes 21–25 days from UK ports. Choose between a full container (FCL from £1,700 for 20ft) or shared container space (LCL, quoted per CBM). Air freight to Nairobi's Jomo Kenyatta International Airport takes 5–7 days. We manage the full journey — UK collection, export docs, customs clearance, and delivery." },
+    { q: "How do I get a quote?", a: "Use our online quote form or contact us via WhatsApp or email. For FCL or LCL we need cargo dimensions and weight. Quotes are returned within 24 hours." },
 ];
 
 export default function KenyaPage() {
@@ -90,7 +92,7 @@ export default function KenyaPage() {
       <section className="py-16 md:py-24 bg-white">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">The UK–Kenya Corridor</span>
-          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">East Africa's gateway. A growing freight corridor.</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">Container Shipping &amp; Air Freight from the UK to Kenya.</h2>
           <div className="text-gray-700 space-y-5 text-base md:text-lg leading-relaxed">
             <p>Kenya is East Africa's commercial hub and the primary gateway for landlocked neighbours Uganda, Rwanda, South Sudan, and the DRC. Mombasa Port handles the majority of containerised imports from the UK, with the Standard Gauge Railway (SGR) providing fast onward connection to Nairobi's Inland Container Depot at Naivasha.</p>
             <p>Freight demand on the UK-Kenya corridor is driven by commercial importers, NGOs and development organisations procuring equipment and supplies, institutions sourcing UK-manufactured technology and lab materials, and diaspora shippers sending goods home.</p>
@@ -102,14 +104,14 @@ export default function KenyaPage() {
       <section className="py-16 md:py-24 bg-[#EDECEC]">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">Shipping Options</span>
-          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-10">Three freight modes to Kenya.</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-10">Container Shipping, Groupage &amp; Air Freight to Mombasa.</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {SERVICES.map((s) => (
               <div key={s.title} className="rounded-2xl border border-gray-200 bg-white px-6 py-6 flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl flex-shrink-0">{s.icon}</span>
-                    <p className="font-semibold text-[#1A2930]">{s.title}</p>
+                    <h3 className="font-semibold text-[#1A2930] text-base">{s.title}</h3>
                   </div>
                   <span className="text-sm font-semibold text-[#FFA500] whitespace-nowrap">{s.price}</span>
                 </div>
@@ -147,7 +149,7 @@ export default function KenyaPage() {
       <section className="py-16 md:py-24 bg-[#EDECEC]">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">FAQ</span>
-          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-2">Common questions answered.</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-2">UK to Kenya Shipping — Frequently Asked Questions.</h2>
           <p className="text-gray-600 mb-8">Shipping to Kenya from the UK.</p>
           <div className="rounded-2xl border border-gray-200 bg-white px-6 md:px-8">
             {FAQS.map((faq) => (
