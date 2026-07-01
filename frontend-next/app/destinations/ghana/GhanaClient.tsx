@@ -13,9 +13,9 @@ const STATS = [
 
 const SERVICES = [
   { icon: "🚢", title: "RoRo Shipping", price: "From £750", description: "Roll-on/Roll-off is the fastest, most cost-effective method for vehicles and self-propelled machinery. Your unit drives on at Grimsby, Southampton, or Tilbury and drives off at Tema. No containerisation costs, no crane fees.", suited: ["Cars & SUVs", "Vans & pickups", "Agricultural machinery", "Construction equipment"] },
-  { icon: "📦", title: "FCL — Full Container Load", price: "20ft from £1,500 · 40ft from £2,500", description: "Your cargo fills a dedicated container — sealed, secured, shipped under your bill of lading. Preferred for household goods, commercial stock, institutional equipment, and mixed cargo where security and condition matter.", suited: ["Household removals", "Retail stock", "Industrial parts", "Personal effects"] },
+  { icon: "📦", title: "Container Shipping to Ghana from the UK", price: "20ft from £1,500 · 40ft from £2,500", description: "Your cargo fills a dedicated container — sealed, secured, shipped under your bill of lading. Preferred for household goods, commercial stock, institutional equipment, and mixed cargo where security and condition matter.", suited: ["Household removals", "Retail stock", "Industrial parts", "Personal effects"] },
   { icon: "🤝", title: "LCL — Groupage", price: "Quoted per CBM", description: "Share container space with other shippers. Ideal when your cargo does not justify a full box. We consolidate at our UK depot and your freight travels alongside vetted co-loaders.", suited: ["Small commercial loads", "Single pallets", "Samples & documents", "Excess baggage"] },
-  { icon: "✈️", title: "Air Freight", price: "Quoted per kg", description: "When time is the constraint. Direct to Accra International Airport (ACC), with Accra and Tema delivery options. Door-to-door and airport-to-airport both available.", suited: ["Urgent spare parts", "Perishables", "High-value goods", "Time-sensitive documents"] },
+  { icon: "✈️", title: "Air Freight from the UK to Ghana", price: "Quoted per kg", description: "When time is the constraint. Direct to Accra International Airport (ACC), with Accra and Tema delivery options. Door-to-door and airport-to-airport both available.", suited: ["Urgent spare parts", "Perishables", "High-value goods", "Time-sensitive documents"] },
 ];
 
 const ICUMS_STEPS = [
@@ -32,7 +32,8 @@ const FAQS = [
   { q: "Can I ship household goods and a car in the same container?", a: "Yes. A 40ft container can comfortably hold one vehicle plus household effects. We consolidate these under a single shipment, which reduces your total freight cost versus booking them separately." },
   { q: "Do you handle delivery from Tema Port to Accra or beyond?", a: "Yes. Our Tema-based partners provide port-to-door delivery across Greater Accra and can arrange onward haulage to Kumasi, Takoradi, and other major cities." },
   { q: "What is ICUMS and why does it matter?", a: "ICUMS is Ghana's national customs platform, operated by the Ghana Revenue Authority. All imports are processed through it. Correct pre-arrival declarations and accurate documentation are essential — errors lead to holds, physical examinations, and port storage charges. Ellcworth Express manages ICUMS clearance on your behalf." },
-  { q: "How do I get a quote?", a: "Use our online quote form or contact us directly via WhatsApp or email. For RoRo we need the vehicle make, model, and year. For FCL or LCL we need cargo dimensions and weight. Quotes are typically returned within 24 hours." },
+  { q: "How much does it cost to ship a 20ft container from the UK to Ghana?", a: "A 20ft full container load (FCL) from the UK to Ghana starts from £1,500. A 40ft container starts from £2,500. The final price depends on your cargo weight, departure port, and sailing schedule at the time of booking. Both figures include standard freight charges — customs duties and destination handling are quoted separately. We return a full cost breakdown within 24 hours of enquiry." },
+    { q: "How do I get a quote?", a: "Use our online quote form or contact us directly via WhatsApp or email. For RoRo we need the vehicle make, model, and year. For FCL or LCL we need cargo dimensions and weight. Quotes are typically returned within 24 hours." },
 ];
 
 function FAQItem({ q, a }: { q: string; a: string }) {
@@ -96,7 +97,7 @@ export default function GhanaPage() {
       <section className="py-16 md:py-24 bg-white">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">The UK–Ghana Corridor</span>
-          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">The most active freight corridor we serve.</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">Container Shipping &amp; Air Freight from the UK to Ghana.</h2>
           <div className="text-gray-700 space-y-5 text-base md:text-lg leading-relaxed">
             <p>Ghana is one of the busiest shipping corridors from the UK. Demand comes from four directions: the diaspora community sending vehicles and household goods home; UK exporters supplying Ghanaian retailers and construction projects; institutional buyers procuring equipment for agriculture, mining, and infrastructure; and Ghanaian universities, hospitals, and research institutions sourcing degree certificates, lab equipment, library collections, and IT hardware from UK suppliers.</p>
             <p>Tema Port — Ghana&apos;s principal deep-water port on the Atlantic coast, 25km east of Accra — handles the vast majority of containerised and RoRo cargo from the UK. It connects directly to the national road network, making onward delivery to Accra, Kumasi, Takoradi, and beyond straightforward once port formalities are complete.</p>
@@ -109,14 +110,14 @@ export default function GhanaPage() {
       <section className="py-16 md:py-24 bg-[#EDECEC]">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">Shipping Options</span>
-          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-10">Four freight modes. One recommendation.</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-10">Container Shipping, RoRo &amp; Air Freight to Ghana.</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {SERVICES.map((s) => (
               <div key={s.title} className="rounded-2xl border border-gray-200 bg-white px-6 py-6 flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl flex-shrink-0">{s.icon}</span>
-                    <p className="font-semibold text-[#1A2930]">{s.title}</p>
+                    <h3 className="font-semibold text-[#1A2930] text-base">{s.title}</h3>
                   </div>
                   <span className="text-sm font-semibold text-[#FFA500] whitespace-nowrap">{s.price}</span>
                 </div>
@@ -185,7 +186,7 @@ export default function GhanaPage() {
       <section className="py-16 md:py-24 bg-white">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">Why Ellcworth</span>
-          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-10">What makes this corridor different for us.</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-10">Why Choose Ellcworth for UK to Ghana Freight.</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               { icon: "🔗", title: "Single point of contact", body: "One team manages your shipment from UK pickup to Ghana delivery. No handoffs, no finger-pointing between multiple parties." },
@@ -211,7 +212,7 @@ export default function GhanaPage() {
       <section className="py-16 md:py-24 bg-[#EDECEC]">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">FAQ</span>
-          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-2">Common questions answered.</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-2">UK to Ghana Shipping — Frequently Asked Questions.</h2>
           <p className="text-gray-600 mb-8">Shipping to Ghana from the UK.</p>
           <div className="rounded-2xl border border-gray-200 bg-white px-6 md:px-8">
             {FAQS.map((faq) => <FAQItem key={faq.q} {...faq} />)}
