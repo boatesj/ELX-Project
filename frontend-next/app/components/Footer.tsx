@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { FaEnvelope, FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
 
@@ -8,7 +9,7 @@ const Footer = () => {
         <div className="grid gap-8 md:grid-cols-4">
           <div className="md:col-span-2">
             <Link href="/" className="flex items-center gap-3 mb-4">
-              <img src="/Logo_w.svg" alt="Ellcworth Express Logo" className="w-12 h-auto" />
+              <Image src="/Logo_w.svg" alt="Ellcworth Express Logo" width={48} height={48} className="w-12 h-auto" />
               <span className="text-lg md:text-xl font-semibold tracking-tight">
                 ELLCWORTH <span className="text-[#FFA500]">EXPRESS</span>
               </span>
