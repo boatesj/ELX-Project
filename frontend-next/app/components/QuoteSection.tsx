@@ -59,16 +59,16 @@ const labelClasses = "block text-sm md:text-base font-medium text-gray-800 mb-1.
 const ContainerFields = () => (
   <>
     <div>
-      <label className={labelClasses}>From (UK port or town)</label>
-      <input type="text" name="container_from" placeholder="e.g. London, Tilbury, Felixstowe" className={commonInputClasses} required />
+      <label className={labelClasses} htmlFor="container_from">From (UK port or town)</label>
+      <input id="container_from" type="text" name="container_from" placeholder="e.g. London, Tilbury, Felixstowe" className={commonInputClasses} required />
     </div>
     <div>
-      <label className={labelClasses}>To (destination port / country)</label>
-      <input type="text" name="container_to" placeholder="e.g. Tema, Lagos, Freetown" className={commonInputClasses} required />
+      <label className={labelClasses} htmlFor="container_to">To (destination port / country)</label>
+      <input id="container_to" type="text" name="container_to" placeholder="e.g. Tema, Lagos, Freetown" className={commonInputClasses} required />
     </div>
     <div>
-      <label className={labelClasses}>Cargo type</label>
-      <select name="container_cargo_type" className={commonInputClasses} defaultValue="" required>
+      <label className={labelClasses} htmlFor="container_cargo_type">Cargo type</label>
+      <select id="container_cargo_type" name="container_cargo_type" className={commonInputClasses} defaultValue="" required>
         <option value="" disabled>Select option</option>
         <option value="fcl20">FCL 20ft container</option>
         <option value="fcl40">FCL 40ft container</option>
@@ -77,17 +77,17 @@ const ContainerFields = () => (
     </div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
-        <label className={labelClasses}>Approx. total weight (kg)</label>
-        <input type="number" name="container_weight" min="0" placeholder="e.g. 1,200" className={commonInputClasses} />
+        <label className={labelClasses} htmlFor="container_weight">Approx. total weight (kg)</label>
+        <input id="container_weight" type="number" name="container_weight" min="0" placeholder="e.g. 1,200" className={commonInputClasses} />
       </div>
       <div>
-        <label className={labelClasses}>Ready date (approx.)</label>
-        <input type="date" name="container_ready_date" className={commonInputClasses} />
+        <label className={labelClasses} htmlFor="container_ready_date">Ready date (approx.)</label>
+        <input id="container_ready_date" type="date" name="container_ready_date" className={commonInputClasses} />
       </div>
     </div>
     <div className="md:col-span-2">
-      <label className={labelClasses}>What are you shipping?</label>
-      <input type="text" name="container_description" placeholder="e.g. household goods, commercial stock, machinery" className={commonInputClasses} />
+      <label className={labelClasses} htmlFor="container_description">What are you shipping?</label>
+      <input id="container_description" type="text" name="container_description" placeholder="e.g. household goods, commercial stock, machinery" className={commonInputClasses} />
     </div>
   </>
 );
@@ -95,16 +95,16 @@ const ContainerFields = () => (
 const RoroFields = () => (
   <>
     <div>
-      <label className={labelClasses}>From (UK RoRo port)</label>
-      <input type="text" name="roro_from" placeholder="e.g. Tilbury, Sheerness, Southampton" className={commonInputClasses} required />
+      <label className={labelClasses} htmlFor="roro_from">From (UK RoRo port)</label>
+      <input id="roro_from" type="text" name="roro_from" placeholder="e.g. Tilbury, Sheerness, Southampton" className={commonInputClasses} required />
     </div>
     <div>
-      <label className={labelClasses}>To (destination port)</label>
-      <input type="text" name="roro_to" placeholder="e.g. Tema, Lagos, Cotonou" className={commonInputClasses} required />
+      <label className={labelClasses} htmlFor="roro_to">To (destination port)</label>
+      <input id="roro_to" type="text" name="roro_to" placeholder="e.g. Tema, Lagos, Cotonou" className={commonInputClasses} required />
     </div>
     <div>
-      <label className={labelClasses}>Vehicle type</label>
-      <select name="roro_vehicle_type" className={commonInputClasses} defaultValue="" required>
+      <label className={labelClasses} htmlFor="roro_vehicle_type">Vehicle type</label>
+      <select id="roro_vehicle_type" name="roro_vehicle_type" className={commonInputClasses} defaultValue="" required>
         <option value="" disabled>Select vehicle</option>
         <option value="car">Car</option>
         <option value="4x4">4x4 / SUV</option>
@@ -115,8 +115,8 @@ const RoroFields = () => (
       </select>
     </div>
     <div>
-      <label className={labelClasses}>Make &amp; model</label>
-      <input type="text" name="roro_make_model" placeholder="e.g. Toyota RAV4 2018" className={commonInputClasses} required />
+      <label className={labelClasses} htmlFor="roro_make_model">Make &amp; model</label>
+      <input id="roro_make_model" type="text" name="roro_make_model" placeholder="e.g. Toyota RAV4 2018" className={commonInputClasses} required />
     </div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm md:text-base text-gray-800 md:col-span-2">
       <div>
@@ -135,8 +135,8 @@ const RoroFields = () => (
       </div>
     </div>
     <div className="md:col-span-2">
-      <label className={labelClasses}>Vehicle dimensions (L x W x H, metres)</label>
-      <input type="text" name="roro_dimensions" placeholder="e.g. 4.5 x 1.8 x 1.6" className={commonInputClasses} />
+      <label className={labelClasses} htmlFor="roro_dimensions">Vehicle dimensions (L x W x H, metres)</label>
+      <input id="roro_dimensions" type="text" name="roro_dimensions" placeholder="e.g. 4.5 x 1.8 x 1.6" className={commonInputClasses} />
     </div>
   </>
 );
@@ -144,16 +144,16 @@ const RoroFields = () => (
 const AirFields = () => (
   <>
     <div>
-      <label className={labelClasses}>From (UK town / airport)</label>
-      <input type="text" name="air_from" placeholder="e.g. London, Heathrow" className={commonInputClasses} required />
+      <label className={labelClasses} htmlFor="air_from">From (UK town / airport)</label>
+      <input id="air_from" type="text" name="air_from" placeholder="e.g. London, Heathrow" className={commonInputClasses} required />
     </div>
     <div>
-      <label className={labelClasses}>To (city / airport)</label>
-      <input type="text" name="air_to" placeholder="e.g. Accra, Kotoka" className={commonInputClasses} required />
+      <label className={labelClasses} htmlFor="air_to">To (city / airport)</label>
+      <input id="air_to" type="text" name="air_to" placeholder="e.g. Accra, Kotoka" className={commonInputClasses} required />
     </div>
     <div>
-      <label className={labelClasses}>Shipment type</label>
-      <select name="air_type" className={commonInputClasses} defaultValue="" required>
+      <label className={labelClasses} htmlFor="air_type">Shipment type</label>
+      <select id="air_type" name="air_type" className={commonInputClasses} defaultValue="" required>
         <option value="" disabled>Select type</option>
         <option value="docs">Documents only</option>
         <option value="parcels">Parcels / small packages</option>
@@ -162,17 +162,17 @@ const AirFields = () => (
     </div>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
-        <label className={labelClasses}>Total weight (kg)</label>
-        <input type="number" name="air_weight" min="0" placeholder="e.g. 75" className={commonInputClasses} />
+        <label className={labelClasses} htmlFor="air_weight">Total weight (kg)</label>
+        <input id="air_weight" type="number" name="air_weight" min="0" placeholder="e.g. 75" className={commonInputClasses} />
       </div>
       <div>
-        <label className={labelClasses}>Dimensions (optional)</label>
-        <input type="text" name="air_dimensions" placeholder="e.g. 80 x 60 x 40 cm" className={commonInputClasses} />
+        <label className={labelClasses} htmlFor="air_dimensions">Dimensions (optional)</label>
+        <input id="air_dimensions" type="text" name="air_dimensions" placeholder="e.g. 80 x 60 x 40 cm" className={commonInputClasses} />
       </div>
     </div>
     <div className="md:col-span-2">
-      <label className={labelClasses}>Latest delivery date (if time-critical)</label>
-      <input type="date" name="air_deadline" className={commonInputClasses} />
+      <label className={labelClasses} htmlFor="air_deadline">Latest delivery date (if time-critical)</label>
+      <input id="air_deadline" type="date" name="air_deadline" className={commonInputClasses} />
     </div>
   </>
 );
@@ -383,7 +383,8 @@ const QuoteSection = () => {
 
               <p className="text-xs md:text-sm text-gray-500 mt-3">We usually respond within one business day. If your shipment is urgent, mention your latest delivery date so we can prioritise it.</p>
             </div>
-          </form>
+            <input type="text" name="_company_url" tabIndex={-1} autoComplete="off" aria-hidden="true" style={{position:"absolute",left:"-9999px",width:"1px",height:"1px",overflow:"hidden"}} />
+            </form>
         </div>
       </div>
     </section>

@@ -25,7 +25,7 @@ const TrustStories = () => {
             <p className="text-base md:text-lg text-gray-700">Universities, traders and families trust Ellcworth to move sensitive, time-critical cargo between the UK and Africa. Here&rsquo;s what a few of them say about working with us.</p>
           </div>
           <div className="rounded-2xl border border-[#9A9EAB]/40 bg-white p-4 md:p-5 shadow-sm max-w-xs">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9A9EAB] mb-1">Customer satisfaction</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-1">Customer satisfaction</p>
             <div className="flex items-center gap-3 mb-2">{renderStars(5)}<span className="text-sm font-semibold text-[#111827]">4.9 / 5</span></div>
             <p className="text-xs md:text-sm text-gray-600">Based on repeat shippers for <span className="font-medium">UK–Africa</span> routes and secure document movements.</p>
           </div>
@@ -38,7 +38,7 @@ const TrustStories = () => {
             { label: "Care", title: "Extra attention for sensitive cargo", body: "Whether it&rsquo;s secure documents, a non-runner vehicle or personal effects, we take time to understand what&rsquo;s important about your shipment." },
           ].map((item) => (
             <div key={item.label} className="rounded-2xl border border-[#9A9EAB]/40 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9A9EAB] mb-2">{item.label}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500 mb-2">{item.label}</p>
               <h3 className="text-sm md:text-base font-semibold text-[#111827] mb-1">{item.title}</h3>
               <p className="text-sm md:text-[15px] text-gray-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: item.body }} />
             </div>
@@ -51,7 +51,7 @@ const TrustStories = () => {
               <div className="mb-4 flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1A2930] text-[#FFA500]">{story.icon}</div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9A9EAB]">{story.label}</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{story.label}</p>
                   <p className="text-sm font-semibold text-[#111827]">{story.title}</p>
                 </div>
               </div>
