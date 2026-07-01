@@ -20,13 +20,13 @@ const Footer = () => {
               to delivery.
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <Link href="/#services" className="text-[11px] px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:text-[#FFA500] hover:border-[#FFA500]/40 transition">
+              <Link href="/#services" className="text-[11px] px-3 py-2 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:text-[#FFA500] hover:border-[#FFA500]/40 transition">
                 RoRo &amp; Containers
               </Link>
-              <Link href="/#services" className="text-[11px] px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:text-[#FFA500] hover:border-[#FFA500]/40 transition">
+              <Link href="/#services" className="text-[11px] px-3 py-2 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:text-[#FFA500] hover:border-[#FFA500]/40 transition">
                 Air Freight
               </Link>
-              <Link href="/#services" className="text-[11px] px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:text-[#FFA500] hover:border-[#FFA500]/40 transition">
+              <Link href="/#services" className="text-[11px] px-3 py-2 rounded-full bg-white/5 border border-white/10 text-slate-300 hover:text-[#FFA500] hover:border-[#FFA500]/40 transition">
                 Secure Documents
               </Link>
             </div>
