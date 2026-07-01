@@ -24,9 +24,9 @@ const STATS = [
 ];
 
 const SERVICES = [
-  { icon: "📦", title: "FCL — Full Container Load", price: "20ft from £1,600 · 40ft from £2,800", description: "Dedicated containers from UK ports to Apapa Port, Lagos — Nigeria's principal deep-water port. Suited to commercial stock, industrial equipment, and institutional cargo where security and condition matter.", suited: ["Commercial goods", "Industrial parts", "Retail stock", "Institutional equipment"] },
+  { icon: "📦", title: "Container Shipping to Nigeria from the UK", price: "20ft from £1,600 · 40ft from £2,800", description: "Dedicated containers from UK ports to Apapa Port, Lagos — Nigeria's principal deep-water port. Suited to commercial stock, industrial equipment, and institutional cargo where security and condition matter.", suited: ["Commercial goods", "Industrial parts", "Retail stock", "Institutional equipment"] },
   { icon: "🤝", title: "LCL — Groupage", price: "Quoted per CBM", description: "Share container space with other shippers moving cargo to Lagos. We consolidate at our UK depot and your freight travels alongside vetted co-loaders under a single bill of lading.", suited: ["Small commercial loads", "Single pallets", "Samples", "Documents"] },
-  { icon: "✈️", title: "Air Freight", price: "Quoted per kg", description: "Direct to Murtala Muhammed International Airport (LOS), Lagos. Door-to-airport and airport-to-airport options. Fastest route for time-critical cargo, spare parts, and high-value consignments.", suited: ["Urgent spare parts", "High-value goods", "Time-sensitive documents", "Perishables"] },
+  { icon: "✈️", title: "Air Freight from the UK to Nigeria", price: "Quoted per kg", description: "Direct to Murtala Muhammed International Airport (LOS), Lagos. Door-to-airport and airport-to-airport options. Fastest route for time-critical cargo, spare parts, and high-value consignments.", suited: ["Urgent spare parts", "High-value goods", "Time-sensitive documents", "Perishables"] },
 ];
 
 const CUSTOMS_STEPS = [
@@ -42,7 +42,8 @@ const FAQS = [
   { q: "What documents are required for shipping to Nigeria?", a: "You will need a commercial invoice, packing list, bill of lading (sea) or air waybill (air), certificate of origin, and Form M from the Nigerian consignee. Some goods also require NAFDAC or SON permits. We provide a full checklist when you book." },
   { q: "How is import duty calculated in Nigeria?", a: "NCS calculates duty on the CIF value (Cost + Insurance + Freight) using the applicable HS tariff rate. Rates range from 5% to 35% depending on the category of goods. We provide a duty estimate before you commit to shipment." },
   { q: "Do you handle delivery from Apapa Port to Lagos or beyond?", a: "Yes. Our Lagos-based partners provide port-to-door delivery across Lagos and can arrange onward haulage to Abuja, Port Harcourt, and other major cities." },
-  { q: "How do I get a quote?", a: "Use our online quote form or contact us directly via WhatsApp or email. For FCL or LCL we need cargo dimensions and weight. For air freight we need weight and dimensions. Quotes are typically returned within 24 hours." },
+  { q: "How do I ship a container to Nigeria from the UK?", a: "We book FCL (full container load) shipments from UK ports to Apapa Port, Lagos on a weekly sailing schedule. A 20ft container starts from £1,600 and a 40ft from £2,800. We handle export documentation, Form M coordination with your Nigerian bank, Nigeria Customs Service clearance, and port-to-door delivery in Lagos. Quotes are returned within 24 hours." },
+    { q: "How do I get a quote?", a: "Use our online quote form or contact us directly via WhatsApp or email. For FCL or LCL we need cargo dimensions and weight. For air freight we need weight and dimensions. Quotes are typically returned within 24 hours." },
 ];
 
 export default function NigeriaPage() {
@@ -90,7 +91,7 @@ export default function NigeriaPage() {
       <section className="py-16 md:py-24 bg-white">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">The UK–Nigeria Corridor</span>
-          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">West Africa's largest economy. A major freight destination.</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">Container Shipping &amp; Air Freight from the UK to Nigeria.</h2>
           <div className="text-gray-700 space-y-5 text-base md:text-lg leading-relaxed">
             <p>Nigeria is the largest economy in Africa and one of the UK's most significant trading partners on the continent. Freight demand runs across every sector: commercial importers supplying Lagos's retail and construction markets, diaspora shippers sending goods home, industrial buyers procuring UK machinery and equipment, and institutions importing technology, laboratory supplies, and printed materials.</p>
             <p>Apapa Port, Lagos — Nigeria's primary deep-water port — handles the bulk of containerised imports from the UK. It connects to the national road network and onward haulage routes to Abuja, Port Harcourt, Kano, and beyond. For time-critical cargo, Murtala Muhammed International Airport (LOS) in Lagos provides direct air freight links from Heathrow.</p>
@@ -102,14 +103,14 @@ export default function NigeriaPage() {
       <section className="py-16 md:py-24 bg-[#EDECEC]">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">Shipping Options</span>
-          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-10">Three freight modes to Nigeria.</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-10">Container Shipping, Groupage &amp; Air Freight to Lagos.</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {SERVICES.map((s) => (
               <div key={s.title} className="rounded-2xl border border-gray-200 bg-white px-6 py-6 flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl flex-shrink-0">{s.icon}</span>
-                    <p className="font-semibold text-[#1A2930]">{s.title}</p>
+                    <h3 className="font-semibold text-[#1A2930] text-base">{s.title}</h3>
                   </div>
                   <span className="text-sm font-semibold text-[#FFA500] whitespace-nowrap">{s.price}</span>
                 </div>
@@ -147,7 +148,7 @@ export default function NigeriaPage() {
       <section className="py-16 md:py-24 bg-[#EDECEC]">
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
           <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">FAQ</span>
-          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-2">Common questions answered.</h2>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-2">UK to Nigeria Shipping — Frequently Asked Questions.</h2>
           <p className="text-gray-600 mb-8">Shipping to Nigeria from the UK.</p>
           <div className="rounded-2xl border border-gray-200 bg-white px-6 md:px-8">
             {FAQS.map((faq) => (
