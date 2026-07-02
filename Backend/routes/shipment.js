@@ -371,3 +371,4 @@ router.get(
   downloadQuotePdf,
 );
 
+module.exports = router;
