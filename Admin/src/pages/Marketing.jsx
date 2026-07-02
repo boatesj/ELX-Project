@@ -162,6 +162,7 @@ function SubscribersTab() {
       alert(err.message);
     } finally {
       setRemoving(null);
+    }
   };
   const fetchSubscribers = async () => {
     setLoading(true); setError("");
