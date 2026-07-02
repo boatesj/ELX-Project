@@ -836,17 +836,17 @@ export default function Settings() {
 
                 <div className="mt-4 flex flex-col sm:flex-row gap-2">
                   <Button
-                    onClick={() => save("alerts", readNotificationsPayload())}
-                    disabled={busyKey === "alerts"}
+                    onClick={() => save("notifications", readNotificationsPayload())}
+                    disabled={busyKey === "notifications"}
                   >
-                    {busyKey === "alerts" ? "Saving..." : "Save alerts"}
+                    {busyKey === "notifications" ? "Saving..." : "Save alerts"}
                   </Button>
                   <Button
                     variant="ghost"
                     onClick={() =>
                       showBanner("success", "Preview digest (UI): coming next")
                     }
-                    disabled={busyKey === "alerts"}
+                    disabled={busyKey === "notifications"}
                   >
                     Preview digest
                   </Button>
