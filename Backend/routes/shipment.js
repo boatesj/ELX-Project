@@ -49,6 +49,8 @@ const {
 } = require("../utils/validators");
 
 const Shipment = require("../models/Shipment");
+const Setting = require("../models/Setting");
+const { generateQuotePdf } = require("../utils/generateQuotePdf");
 
 function escapeRegExp(str) {
   return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -340,4 +342,32 @@ router.patch(
   updateStatus,
 );
 
-module.exports = router;
+async function downloadQuotePdf(req, res) {
+  try {
+    const shipment = await Shipment.findById(req.params.id).lean();
+    if (!shipment) return res.status(404).json({ ok: false, message: "Shipment not found" });
+    let settings = await Setting.findOne().lean();
+    if (!settings) settings = {};
+    const pdfBuffer = await generateQuotePdf(shipment, settings);
+    const ref = shipment.referenceNo || shipment._id;
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="ELX-Quote-${ref}.pdf"`,
+      "Content-Length": pdfBuffer.length,
+    });
+    return res.end(pdfBuffer);
+  } catch (err) {
+    console.error("PDF generation error:", err);
+    return res.status(500).json({ ok: false, message: "Failed to generate PDF", error: err.message });
+  }
+}
+
+router.get(
+  "/:id/quote/pdf",
+  requireAuth,
+  requireRole("admin"),
+  validateObjectIdParam("id"),
+  handleValidation,
+  downloadQuotePdf,
+);
+

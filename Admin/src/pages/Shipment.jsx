@@ -303,6 +303,7 @@ const Shipment = () => {
 
   // Quote section state
   const [quoteSaving, setQuoteSaving] = useState(false);
+  const [quotePdfBusy, setQuotePdfBusy] = useState(false);
   const [quoteSending, setQuoteSending] = useState(false);
   const [quoteError, setQuoteError] = useState("");
   const [quoteMsg, setQuoteMsg] = useState("");
@@ -798,6 +799,29 @@ const Shipment = () => {
   };
 
   // ---------------- QUOTE: UI handlers ----------------
+  const handleDownloadQuotePdf = async () => {
+    setQuotePdfBusy(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/api/v1/shipments/${shipment._id}/quote/pdf`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) throw new Error("Failed to generate PDF");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ELX-Quote-${shipment.referenceNo || shipment._id}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.message || "PDF download failed");
+    } finally {
+      setQuotePdfBusy(false);
+    }
+  };
+
   const quoteTotals = useMemo(() => {
     return computeUiTotals(quoteForm.lineItems);
   }, [quoteForm.lineItems]);
@@ -1744,6 +1768,14 @@ const Shipment = () => {
                   >
                     {quoteSending ? "Sending..." : "Email quote to customer"}
                   </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadQuotePdf}
+                    disabled={quotePdfBusy}
+                    className="inline-flex items-center justify-center px-3 py-2 text-xs font-semibold rounded-md bg-white border border-gray-300 text-[#1A2930] hover:bg-gray-50 transition disabled:opacity-60 disabled:cursor-not-allowed col-span-full"
+                  >
+                    {quotePdfBusy ? "Generating PDF..." : "⬇ Download quote PDF"}
+                  </button>
                 </div>
 
                 {/* Option B status actions */}
@@ -2051,6 +2083,14 @@ const Shipment = () => {
                       {quoteSending ? "Sending..." : "Email quote to customer"}
                     </button>
                   </div>
+                    <button
+                      type="button"
+                      onClick={handleDownloadQuotePdf}
+                      disabled={quotePdfBusy}
+                      className="inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-md bg-white border border-gray-300 text-[#1A2930] hover:bg-gray-50 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {quotePdfBusy ? "Generating..." : "⬇ PDF"}
+                    </button>
                 </div>
 
                 {/* Option B status actions */}
