@@ -29,6 +29,16 @@ const {
 } = require("../controllers/shipment");
 
 const { requireAuth, requireRole } = require("../middleware/auth");
+const spamFilter = require("../middleware/spamFilter");
+const rateLimit = require("express-rate-limit");
+
+const publicQuoteLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, message: "Too many quote requests — please try again in 10 minutes." },
+});
 const { handleValidation } = require("../middleware/validate");
 const uploadShipmentDocument = require("../middleware/uploadShipmentDocument");
 const {
@@ -57,6 +67,8 @@ function escapeRegExp(str) {
  */
 router.post(
   "/public-request",
+  publicQuoteLimiter,
+  spamFilter,
   validateShipmentCreate,
   handleValidation,
   createPublicLeadShipment,
