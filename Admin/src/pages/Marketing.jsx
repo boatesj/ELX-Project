@@ -147,6 +147,22 @@ function SubscribersTab() {
     }
   };
 
+  const handleDelete = async (id, email) => {
+    if (!window.confirm(`Permanently delete ${email} from subscribers?`)) return;
+    setRemoving(id);
+    try {
+      const res = await fetch(`${MARKETING_API}/subscribers/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed to delete");
+      setSubscribers((prev) => prev.filter((s) => s._id !== id));
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setRemoving(null);
+  };
   const fetchSubscribers = async () => {
     setLoading(true); setError("");
     try {
@@ -291,6 +307,13 @@ function SubscribersTab() {
                         {removing === s._id ? "…" : "Unsub"}
                       </button>
                     )}
+                    <button
+                      onClick={() => handleDelete(s._id, s.email)}
+                      disabled={removing === s._id}
+                      className="text-xs text-gray-500 hover:text-red-400 border border-gray-700 rounded-lg px-3 py-1 hover:bg-red-500/10 hover:border-red-500/30 transition disabled:opacity-40"
+                    >
+                      {removing === s._id ? "…" : "Delete"}
+                    </button>
                   </div>
                 </td>
               </tr>
