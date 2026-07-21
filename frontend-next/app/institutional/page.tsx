@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Institutional Cargo UK to Africa | Ellcworth Express",
+  title: "Institutional Cargo UK to Africa",
   description: "Ellcworth Express ships for universities, hospitals, banks, government ministries and NGOs — sealed, documented, on time. Book a 15-minute call to discuss your institutional shipping needs.",
   alternates: { canonical: "https://www.ellcworth.com/institutional" },
   openGraph: {
-    title: "Institutional Cargo UK to Africa | Ellcworth Express",
+    title: "Institutional Cargo UK to Africa",
     description: "Ellcworth Express ships for universities, hospitals, banks, government ministries and NGOs — sealed, documented, on time. 15+ years. Zero institutional deadlines missed.",
     url: "https://www.ellcworth.com/institutional",
     type: "website",
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Institutional Cargo UK to Africa | Ellcworth Express",
+    title: "Institutional Cargo UK to Africa",
     description: "Ellcworth Express ships for universities, hospitals, banks, government ministries and NGOs — sealed, documented, on time. 15+ years. Zero institutional deadlines missed.",
   },
 };

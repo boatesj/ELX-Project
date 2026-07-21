@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "80,000 Certificates. Two Pallets. One Seamless Operation. | Ellcworth Express",
+  title: "80,000 Certificates. Two Pallets. One Seamless Operation.",
   description:
     "How Ellcworth Express moved 80,000 secure-printed degree certificates — 840kg across two pallets — from a UK print facility to the University of Ghana, Legon in five days.",
   alternates: {

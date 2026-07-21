@@ -28,11 +28,11 @@ const jsonLd = {
 };
 
 export const metadata: Metadata = {
-  title: "UK to Ghana Freight Forwarder | Ellcworth Express",
+  title: "UK to Ghana Freight Forwarder",
   description: "15+ years shipping containers, vehicles and sensitive cargo from the UK to Ghana, Nigeria and West Africa. Sealed, documented, on time.",
   alternates: { canonical: "https://www.ellcworth.com/" },
   openGraph: {
-    title: "UK to Ghana Freight Forwarder | Ellcworth Express",
+    title: "UK to Ghana Freight Forwarder",
     description: "15+ years shipping containers, vehicles and sensitive cargo from the UK to Ghana, Nigeria and West Africa. Sealed, documented, on time.",
     url: "https://www.ellcworth.com/",
     type: "website",
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "UK to Ghana Freight Forwarder | Ellcworth Express",
+    title: "UK to Ghana Freight Forwarder",
     description: "15+ years shipping containers, vehicles and sensitive cargo from the UK to Ghana, Nigeria and West Africa. Sealed, documented, on time.",
   },
 };
