@@ -47,9 +47,23 @@ const FAQS = [
     { q: "How do I get a quote?", a: "Use our online quote form or contact us via WhatsApp or email. For FCL or LCL we need cargo dimensions and weight. Quotes are returned within 24 hours." },
 ];
 
+const FAQ_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQS.map((faq) => ({
+    "@type": "Question",
+    name: faq.q,
+    acceptedAnswer: { "@type": "Answer", text: faq.a },
+  })),
+};
+
 export default function KenyaPage() {
   return (
     <div className="bg-[#EDECEC]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_SCHEMA) }}
+      />
       <section className="relative w-full bg-[#1A2930] text-white py-24 md:py-32 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(255,165,0,0.08),transparent_60%)]" />
         <div className="relative mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
