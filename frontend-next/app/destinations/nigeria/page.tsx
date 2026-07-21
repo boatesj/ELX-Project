@@ -2,18 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Shipping to Nigeria from the UK | Container & Air Freight | Ellcworth Express",
+  title: "Shipping to Nigeria from the UK | Container & Air Freight",
   description: "FCL container shipping and air freight from the UK to Nigeria. Apapa Port Lagos and Murtala Muhammed Airport. Export documentation, customs clearance end-to-end.",
   alternates: { canonical: "https://www.ellcworth.com/destinations/nigeria" },
   openGraph: {
-    title: "Shipping to Nigeria from the UK | Container & Air Freight | Ellcworth Express",
+    title: "Shipping to Nigeria from the UK | Container & Air Freight",
     description: "FCL container shipping and air freight from the UK to Nigeria. Apapa Port Lagos and Murtala Muhammed Airport. Export documentation, customs clearance end-to-end.",
     url: "https://www.ellcworth.com/destinations/nigeria",
     siteName: "Ellcworth Express",
     type: "website",
     images: [{ url: "https://www.ellcworth.com/ellc_hero1.webp" }],
   },
-  twitter: { card: "summary_large_image", title: "Shipping to Nigeria from the UK | Ellcworth Express", description: "FCL container shipping and air freight UK to Nigeria. Apapa Port Lagos. Export documentation end-to-end." },
+  twitter: { card: "summary_large_image", title: "Shipping to Nigeria from the UK", description: "FCL container shipping and air freight UK to Nigeria. Apapa Port Lagos. Export documentation end-to-end." },
 };
 
 const STATS = [

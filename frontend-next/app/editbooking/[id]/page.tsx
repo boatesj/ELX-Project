@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import EditBookingClient from "../../components/EditBookingClient";
 
 export const metadata: Metadata = {
-  title: "Edit Booking | Ellcworth Express",
+  title: "Edit Booking",
   robots: { index: false, follow: false },
 };
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Race Against the Clock: UDS Degree Certificates by Air | Ellcworth Express",
+  title: "Race Against the Clock: UDS Degree Certificates by Air",
   description:
     "How Ellcworth Express delivered 10 cartons of secure-printed degree certificates from Grays, Essex to the University for Development Studies, Tamale — 48 hours printer to Heathrow, 7 days UK to Ghana, 100% intact.",
   alternates: {

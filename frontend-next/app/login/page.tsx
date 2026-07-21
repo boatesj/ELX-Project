@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import CustomerLoginClient from "../components/CustomerLoginClient";
 
 export const metadata: Metadata = {
-  title: "Customer Login | Ellcworth Express",
+  title: "Customer Login",
   robots: { index: false, follow: false },
 };
 

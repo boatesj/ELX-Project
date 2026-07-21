@@ -17,7 +17,7 @@ const SERVICES = [
 
 const SEO: Record<string, { title: string; desc: string }> = {
   container: {
-    title: "Container Shipping UK to West Africa | Ellcworth Express",
+    title: "Container Shipping UK to West Africa",
     desc: "FCL and LCL container shipping from the UK to Ghana and West Africa. Full and shared containers with milestone tracking.",
   },
   roro: {
@@ -25,23 +25,23 @@ const SEO: Record<string, { title: string; desc: string }> = {
     desc: "Ship cars, vans, trucks and rolling stock from the UK to Ghana and West Africa via RoRo — reliable sailings and documentation guidance.",
   },
   air: {
-    title: "Air Freight Ghana from UK — Urgent Cargo | Ellcworth Express",
+    title: "Air Freight Ghana from UK — Urgent Cargo",
     desc: "Urgent air freight from the UK to Ghana and West Africa. Academic certificate runs, medical supplies, IT equipment — tight deadlines handled professionally.",
   },
   documents: {
-    title: "Secure Document Shipping UK | Ellcworth Express",
+    title: "Secure Document Shipping UK",
     desc: "Controlled handling for certificates, cheques, and sensitive paperwork. Accountable document logistics from the UK.",
   },
   repacking: {
-    title: "Repacking & Consolidation Service UK | Ellcworth Express",
+    title: "Repacking & Consolidation Service UK",
     desc: "Consolidate multiple UK deliveries into one export shipment — checked, repacked, and organised for West Africa.",
   },
   jit: {
-    title: "Just In Time (JIT) Delivery UK to Ghana | Ellcworth Express",
+    title: "Just In Time (JIT) Delivery UK to Ghana",
     desc: "Dedicated time-critical air freight for graduation certificates and high-integrity cargo. 15+ years. Zero failures. UK to Ghana.",
   },
   customs: {
-    title: "Export & Customs Support UK to West Africa | Ellcworth Express",
+    title: "Export & Customs Support UK to West Africa",
     desc: "Practical guidance on export paperwork, valuations and destination customs rules for Ghana and West Africa.",
   },
 };
@@ -51,7 +51,7 @@ type Props = { params: Promise<{ id: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const seo = SEO[id];
-  if (!seo) return { title: "Service | Ellcworth Express" };
+  if (!seo) return { title: "Service" };
   return {
     title: seo.title,
     description: seo.desc,

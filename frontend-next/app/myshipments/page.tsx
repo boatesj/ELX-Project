@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import MyShipmentsClient from "../components/MyShipmentsClient";
 
 export const metadata: Metadata = {
-  title: "My Shipments | Ellcworth Express",
+  title: "My Shipments",
   robots: { index: false, follow: false },
 };
 

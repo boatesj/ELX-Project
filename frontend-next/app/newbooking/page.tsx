@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import NewBookingClient from "../components/NewBookingClient";
 
 export const metadata: Metadata = {
-  title: "New Booking | Ellcworth Express",
+  title: "New Booking",
   robots: { index: false, follow: false },
 };
 
