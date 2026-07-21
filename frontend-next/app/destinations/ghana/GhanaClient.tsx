@@ -12,7 +12,7 @@ const STATS = [
 ];
 
 const SERVICES = [
-  { icon: "🚢", title: "RoRo Shipping", price: "From £750", description: "Roll-on/Roll-off is the fastest, most cost-effective method for vehicles and self-propelled machinery. Your unit drives on at Grimsby, Southampton, or Tilbury and drives off at Tema. No containerisation costs, no crane fees.", suited: ["Cars & SUVs", "Vans & pickups", "Agricultural machinery", "Construction equipment"] },
+  { icon: "🚢", title: "RoRo Shipping", price: "From £750", description: "Roll-on/Roll-off is the fastest, most cost-effective method for vehicles and self-propelled machinery. You deliver the vehicle to the departure port yourself using the shipping note we issue — the port team takes it from there and drives it onto the vessel, off again at Tema. No containerisation costs, no crane fees.", suited: ["Cars & SUVs", "Vans & pickups", "Agricultural machinery", "Construction equipment"] },
   { icon: "📦", title: "Container Shipping to Ghana from the UK", price: "20ft from £1,500 · 40ft from £2,500", description: "Your cargo fills a dedicated container — sealed, secured, shipped under your bill of lading. Preferred for household goods, commercial stock, institutional equipment, and mixed cargo where security and condition matter.", suited: ["Household removals", "Retail stock", "Industrial parts", "Personal effects"] },
   { icon: "🤝", title: "LCL — Groupage", price: "Quoted per CBM", description: "Share container space with other shippers. Ideal when your cargo does not justify a full box. We consolidate at our UK depot and your freight travels alongside vetted co-loaders.", suited: ["Small commercial loads", "Single pallets", "Samples & documents", "Excess baggage"] },
   { icon: "✈️", title: "Air Freight from the UK to Ghana", price: "Quoted per kg", description: "When time is the constraint. Direct to Accra International Airport (ACC), with Accra and Tema delivery options. Door-to-door and airport-to-airport both available.", suited: ["Urgent spare parts", "Perishables", "High-value goods", "Time-sensitive documents"] },
@@ -30,6 +30,7 @@ const FAQS = [
   { q: "What documents do I need to ship a car to Ghana?", a: "You will need the original V5C logbook, a valid passport copy, proof of ownership or purchase receipt, and a commercial invoice. For the ICUMS pre-arrival declaration, your agent also needs the Bill of Lading once issued. We provide a full checklist when you book." },
   { q: "How is import duty calculated on a used vehicle?", a: "GRA calculates duty on the CIF value (Cost + Insurance + Freight). Most used vehicles attract 20% import duty plus 12.5% VAT plus an ECOWAS levy. The exact figure depends on GRA's depreciated valuation of the vehicle. We provide a duty estimate before you commit." },
   { q: "Can I ship household goods and a car in the same container?", a: "Yes. A 40ft container can comfortably hold one vehicle plus household effects. We consolidate these under a single shipment, which reduces your total freight cost versus booking them separately." },
+  { q: "Do you collect the vehicle, or do I need to deliver it to the port for RoRo shipping?", a: "For RoRo, you deliver the vehicle to the departure port yourself — typically Grimsby, Southampton, or Tilbury. Once you book, we issue a shipping note for you to bring on the day. From there, the port team takes over and drives the vehicle onto the vessel — you don't drive it on yourself. We handle all export documentation, port booking, and ICUMS customs clearance at the Ghana end." },
   { q: "Do you handle delivery from Tema Port to Accra or beyond?", a: "Yes. Our Tema-based partners provide port-to-door delivery across Greater Accra and can arrange onward haulage to Kumasi, Takoradi, and other major cities." },
   { q: "What is ICUMS and why does it matter?", a: "ICUMS is Ghana's national customs platform, operated by the Ghana Revenue Authority. All imports are processed through it. Correct pre-arrival declarations and accurate documentation are essential — errors lead to holds, physical examinations, and port storage charges. Ellcworth Express manages ICUMS clearance on your behalf." },
   { q: "How much does it cost to ship a 20ft container from the UK to Ghana?", a: "A 20ft full container load (FCL) from the UK to Ghana starts from £1,500. A 40ft container starts from £2,500. The final price depends on your cargo weight, departure port, and sailing schedule at the time of booking. Both figures include standard freight charges — customs duties and destination handling are quoted separately. We return a full cost breakdown within 24 hours of enquiry." },
@@ -49,9 +50,23 @@ function FAQItem({ q, a }: { q: string; a: string }) {
   );
 }
 
+const FAQ_SCHEMA = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQS.map((faq) => ({
+    "@type": "Question",
+    name: faq.q,
+    acceptedAnswer: { "@type": "Answer", text: faq.a },
+  })),
+};
+
 export default function GhanaPage() {
   return (
     <div className="bg-[#EDECEC]">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_SCHEMA) }}
+      />
       {/* Hero */}
       <section className="relative w-full bg-[#1A2930] text-white py-24 md:py-32 overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(255,165,0,0.08),transparent_60%)]" />
@@ -138,7 +153,7 @@ export default function GhanaPage() {
           <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">Shipping a car to Ghana — how RoRo works.</h2>
           <div className="grid md:grid-cols-2 gap-10 items-start">
             <div className="text-gray-700 space-y-5 text-base leading-relaxed">
-              <p>RoRo (Roll-on/Roll-off) is the industry standard for shipping vehicles to Ghana. Your car, van, or SUV is driven onto a purpose-built vessel at a UK RoRo port — typically Grimsby, Southampton, or Tilbury — and driven off at Tema. No craning, no containerisation, no risk of strapping damage.</p>
+              <p>RoRo (Roll-on/Roll-off) is the industry standard for shipping vehicles to Ghana. Once you book, we issue a shipping note — you deliver your car, van, or SUV to the departure port yourself, typically Grimsby, Southampton, or Tilbury. From there, the port team takes over: they drive it onto the vessel and off again at Tema. No craning, no containerisation, no risk of strapping damage.</p>
               <p>Vessels depart weekly. Transit time from the UK to Tema is typically 15–18 days depending on routing and intermediate ports of call. From the moment the vessel berths at Tema, our Ghanaian agents begin the ICUMS customs clearance process.</p>
               <p>RoRo rates start from £750 per vehicle. The final price depends on vehicle dimensions, departure port, and the sailing schedule at time of booking. We can typically confirm a rate and sailing date within 24 hours of enquiry.</p>
             </div>
