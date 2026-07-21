@@ -17,13 +17,14 @@ export const metadata: Metadata = {
 };
 
 const STATS = [
+  { value: "£950", label: "RoRo from", sub: "per vehicle / unit" },
   { value: "£1,600", label: "FCL from", sub: "20ft container to Apapa" },
-  { value: "21–28", label: "Transit days", sub: "UK ports → Apapa" },
-  { value: "5–7", label: "Air freight days", sub: "LHR → Lagos (LOS)" },
+  { value: "20–25", label: "Transit days", sub: "UK ports → Lagos" },
   { value: "100%", label: "NCS compliant", sub: "Nigeria Customs Service" },
 ];
 
 const SERVICES = [
+  { icon: "🚢", title: "RoRo Shipping", price: "From £950", description: "Roll-on/Roll-off is the fastest, most cost-effective method for vehicles and self-propelled machinery. You deliver the vehicle to the departure port yourself using the shipping note we issue — the port team takes it from there and drives it onto the vessel, off again at Lagos. No containerisation costs, no crane fees.", suited: ["Cars & SUVs", "Vans & pickups", "Agricultural machinery", "Construction equipment"] },
   { icon: "📦", title: "Container Shipping to Nigeria from the UK", price: "20ft from £1,600 · 40ft from £2,800", description: "Dedicated containers from UK ports to Apapa Port, Lagos — Nigeria's principal deep-water port. Suited to commercial stock, industrial equipment, and institutional cargo where security and condition matter.", suited: ["Commercial goods", "Industrial parts", "Retail stock", "Institutional equipment"] },
   { icon: "🤝", title: "LCL — Groupage", price: "Quoted per CBM", description: "Share container space with other shippers moving cargo to Lagos. We consolidate at our UK depot and your freight travels alongside vetted co-loaders under a single bill of lading.", suited: ["Small commercial loads", "Single pallets", "Samples", "Documents"] },
   { icon: "✈️", title: "Air Freight from the UK to Nigeria", price: "Quoted per kg", description: "Direct to Murtala Muhammed International Airport (LOS), Lagos. Door-to-airport and airport-to-airport options. Fastest route for time-critical cargo, spare parts, and high-value consignments.", suited: ["Urgent spare parts", "High-value goods", "Time-sensitive documents", "Perishables"] },
@@ -43,6 +44,8 @@ const FAQS = [
   { q: "How is import duty calculated in Nigeria?", a: "NCS calculates duty on the CIF value (Cost + Insurance + Freight) using the applicable HS tariff rate. Rates range from 5% to 35% depending on the category of goods. We provide a duty estimate before you commit to shipment." },
   { q: "Do you handle delivery from Apapa Port to Lagos or beyond?", a: "Yes. Our Lagos-based partners provide port-to-door delivery across Lagos and can arrange onward haulage to Abuja, Port Harcourt, and other major cities." },
   { q: "How do I ship a container to Nigeria from the UK?", a: "We book FCL (full container load) shipments from UK ports to Apapa Port, Lagos on a weekly sailing schedule. A 20ft container starts from £1,600 and a 40ft from £2,800. We handle export documentation, Form M coordination with your Nigerian bank, Nigeria Customs Service clearance, and port-to-door delivery in Lagos. Quotes are returned within 24 hours." },
+  { q: "How much does it cost to ship a car to Nigeria by RoRo?", a: "RoRo rates start from £950 per vehicle. The final price depends on vehicle dimensions, departure port, and the sailing schedule at time of booking. Transit time from the UK to Lagos is typically 20–25 days. We can usually confirm a rate and sailing date within 24 hours of enquiry." },
+  { q: "Do you collect the vehicle, or do I need to deliver it to the port for RoRo shipping?", a: "For RoRo, you deliver the vehicle to the departure port yourself — typically Grimsby, Southampton, or Tilbury. Once you book, we issue a shipping note for you to bring on the day. From there, the port team takes over and drives the vehicle onto the vessel — you don't drive it on yourself. We handle all export documentation, port booking, Form M coordination, and Nigeria Customs Service clearance at the Lagos end." },
     { q: "How do I get a quote?", a: "Use our online quote form or contact us directly via WhatsApp or email. For FCL or LCL we need cargo dimensions and weight. For air freight we need weight and dimensions. Quotes are typically returned within 24 hours." },
 ];
 
@@ -134,6 +137,31 @@ export default function NigeriaPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16 md:py-24 bg-white">
+        <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
+          <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">Most Popular</span>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">Shipping a car to Nigeria — how RoRo works.</h2>
+          <div className="grid md:grid-cols-2 gap-10 items-start">
+            <div className="text-gray-700 space-y-5 text-base leading-relaxed">
+              <p>RoRo (Roll-on/Roll-off) is the industry standard for shipping vehicles to Nigeria. Once you book, we issue a shipping note — you deliver your car, van, or SUV to the departure port yourself, typically Grimsby, Southampton, or Tilbury. From there, the port team takes over: they drive it onto the vessel and off again at Lagos. No craning, no containerisation, no risk of strapping damage.</p>
+              <p>Vessels depart weekly. Transit time from the UK to Lagos is typically 20–25 days depending on routing and intermediate ports of call. From the moment the vessel berths, our Lagos-based agents begin the Nigeria Customs Service clearance process.</p>
+              <p>RoRo rates start from £950 per vehicle. The final price depends on vehicle dimensions, departure port, and the sailing schedule at time of booking. We can typically confirm a rate and sailing date within 24 hours of enquiry.</p>
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-[#F9FAFB] px-6 py-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#FFA500] mb-4">What you will need</p>
+              <ul className="space-y-3">
+                {["Original V5C logbook","Valid passport copy (ID page)","Proof of purchase / commercial invoice","Bill of Lading (once issued)","Form M (arranged via your Nigerian bank)","Vehicle clean inside and out","Fuel tank no more than ¼ full","No personal items left inside the vehicle"].map((item) => (
+                  <li key={item} className="flex items-start gap-3 text-sm text-gray-600">
+                    <span className="text-[#FFA500] mt-0.5 flex-shrink-0">✓</span>{item}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-gray-400 mt-5 pt-4 border-t border-gray-200">Missing a document? Contact us before delaying your booking — we will advise on alternatives.</p>
+            </div>
           </div>
         </div>
       </section>
