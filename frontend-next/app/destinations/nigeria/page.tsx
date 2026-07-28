@@ -125,12 +125,12 @@ export default function NigeriaPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {SERVICES.map((s) => (
               <div key={s.title} className="rounded-2xl border border-gray-200 bg-white px-6 py-6 flex flex-col gap-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-3">
                     <span className="text-2xl flex-shrink-0">{s.icon}</span>
                     <h3 className="font-semibold text-[#1A2930] text-base break-words">{s.title}</h3>
                   </div>
-                  <span className="text-sm font-semibold text-[#FFA500] whitespace-nowrap flex-shrink-0">{s.price}</span>
+                  <span className="text-sm font-semibold text-[#FFA500]">{s.price}</span>
                 </div>
                 <p className="text-sm text-gray-600 leading-relaxed">{s.description}</p>
                 <div className="flex flex-wrap gap-2 mt-auto pt-2">
