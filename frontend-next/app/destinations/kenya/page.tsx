@@ -17,13 +17,14 @@ export const metadata: Metadata = {
 };
 
 const STATS = [
+  { value: "£1,050", label: "RoRo from", sub: "per vehicle / unit" },
   { value: "£1,700", label: "FCL from", sub: "20ft container to Mombasa" },
-  { value: "21–25", label: "Transit days", sub: "UK ports → Mombasa" },
-  { value: "5–7", label: "Air freight days", sub: "LHR → Nairobi (NBO)" },
+  { value: "22–26", label: "Transit days", sub: "Sheerness → Mombasa" },
   { value: "100%", label: "KRA compliant", sub: "Kenya Revenue Authority" },
 ];
 
 const SERVICES = [
+  { icon: "🚢", title: "RoRo Shipping", price: "From £1,050", description: "Roll-on/Roll-off is the fastest, most cost-effective method for vehicles and self-propelled machinery. You deliver the vehicle to the departure port yourself using the shipping note we issue — the port team takes it from there and drives it onto the vessel, off again at Mombasa. No containerisation costs, no crane fees.", suited: ["Cars & SUVs", "Vans & pickups", "Agricultural machinery", "Construction equipment"] },
   { icon: "📦", title: "Container Shipping to Kenya from the UK", price: "20ft from £1,700 · 40ft from £2,900", description: "Dedicated containers from UK ports to Mombasa — East Africa's largest port and the principal gateway for landlocked East African countries. Suited to commercial stock, industrial equipment, and institutional cargo.", suited: ["Commercial goods", "Industrial equipment", "Retail stock", "NGO supplies"] },
   { icon: "🤝", title: "LCL — Groupage", price: "Quoted per CBM", description: "Share container space with other shippers moving cargo to Mombasa. Ideal when your cargo does not justify a full container. We consolidate at our UK depot under a single bill of lading.", suited: ["Small commercial loads", "Single pallets", "Samples", "Documents"] },
   { icon: "✈️", title: "Air Freight from the UK to Kenya", price: "Quoted per kg", description: "Direct to Jomo Kenyatta International Airport (NBO), Nairobi. Door-to-airport and airport-to-airport options. Fastest route for urgent cargo, spare parts, pharmaceuticals, and time-critical consignments.", suited: ["Urgent cargo", "Pharmaceuticals", "High-value goods", "Time-sensitive documents"] },
@@ -44,6 +45,9 @@ const FAQS = [
   { q: "Do you handle delivery from Mombasa to Nairobi or beyond?", a: "Yes. Our Mombasa-based partners provide port-to-door delivery and can arrange onward haulage to Nairobi, Kisumu, and other Kenyan cities via the SGR rail link or road." },
   { q: "How do I ship a container to Kenya from the UK?", a: "We book FCL (full container load) shipments from UK ports to Mombasa on a regular sailing schedule. A 20ft container starts from £1,700 and a 40ft from £2,900. We handle export documentation, IDF coordination, PVoC compliance where required, KRA customs clearance, and Mombasa-to-door delivery. Quotes are returned within 24 hours." },
   { q: "How do I ship goods to Mombasa from the UK?", a: "Sea freight to Mombasa Port takes 21–25 days from UK ports. Choose between a full container (FCL from £1,700 for 20ft) or shared container space (LCL, quoted per CBM). Air freight to Nairobi's Jomo Kenyatta International Airport takes 5–7 days. We manage the full journey — UK collection, export docs, customs clearance, and delivery." },
+  { q: "How much does it cost to ship a car to Kenya by RoRo?", a: "RoRo rates start from £1,050 per vehicle. The final price depends on vehicle dimensions, departure port, and the sailing schedule at time of booking. Transit time from Sheerness to Mombasa is typically 22–26 days. We can usually confirm a rate and sailing date within 24 hours of enquiry." },
+  { q: "Do you collect the vehicle, or do I need to deliver it to the port for RoRo shipping?", a: "For RoRo, you deliver the vehicle to the departure port yourself — typically Sheerness. Once you book, we issue a shipping note for you to bring on the day. From there, the port team takes over and drives the vehicle onto the vessel — you don't drive it on yourself. We handle all export documentation, port booking, and KRA customs clearance at the Mombasa end." },
+  { q: "Can you ship oversized or high vehicles by RoRo?", a: "Yes. Standard sailings have a height limit, but we also arrange specialised high-and-heavy vessels for oversized vehicles, vans, and construction or agricultural machinery. Send us the dimensions and we'll confirm the right vessel and rate." },
     { q: "How do I get a quote?", a: "Use our online quote form or contact us via WhatsApp or email. For FCL or LCL we need cargo dimensions and weight. Quotes are returned within 24 hours." },
 ];
 
@@ -135,6 +139,32 @@ export default function KenyaPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16 md:py-24 bg-white">
+        <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
+          <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">Most Popular</span>
+          <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-6">Shipping a car to Kenya — how RoRo works.</h2>
+          <div className="grid md:grid-cols-2 gap-10 items-start">
+            <div className="text-gray-700 space-y-5 text-base leading-relaxed">
+              <p>RoRo (Roll-on/Roll-off) is the industry standard for shipping vehicles to Kenya. Once you book, we issue a shipping note — you deliver your car, van, or SUV to the departure port yourself, typically Sheerness. From there, the port team takes over: they drive it onto the vessel and off again at Mombasa. No craning, no containerisation, no risk of strapping damage.</p>
+              <p>Transit time from Sheerness to Mombasa is typically 22–26 days depending on routing and intermediate ports of call. From the moment the vessel berths, our Mombasa-based agents begin the KRA customs clearance process.</p>
+              <p>RoRo rates start from £1,050 per vehicle. The final price depends on vehicle dimensions, departure port, and the sailing schedule at time of booking. We can typically confirm a rate and sailing date within 24 hours of enquiry.</p>
+              <p>Sailings operate to a strict receiving cut-off — typically weekdays only, with a firm delivery deadline before the vessel closes for loading. We confirm this cut-off date and time as part of your booking. Sailing schedules are set by our shipping line partners and can change at short notice; we'll notify you of any changes as soon as we're informed.</p>
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-[#F9FAFB] px-6 py-6">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#FFA500] mb-4">What you will need</p>
+              <ul className="space-y-3">
+                {["Original V5C logbook","Valid passport copy (ID page)","Proof of purchase / commercial invoice","Bill of Lading (once issued)","Vehicle clean inside and out","Fuel tank no more than ¼ full","Check personal-items policy for your vessel (varies by sailing)"].map((item) => (
+                  <li key={item} className="flex items-start gap-3 text-sm text-gray-600">
+                    <span className="text-[#FFA500] mt-0.5 flex-shrink-0">✓</span>{item}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-gray-400 mt-5 pt-4 border-t border-gray-200">Missing a document? Contact us before delaying your booking — we will advise on alternatives.</p>
+            </div>
           </div>
         </div>
       </section>
