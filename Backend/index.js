@@ -23,6 +23,7 @@ const shipmentRoute = require("./routes/shipment");
 
 // Admin system routes (already present in your build)
 const configRoute = require("./routes/config");
+const ratesRoute = require("./routes/rates");
 const settingsRoute = require("./routes/settings");
 const backupsRoute = require("./routes/backups");
 const analyticsRoute = require("./routes/analytics");
@@ -281,6 +282,7 @@ app.use(
 
 // Config (ports, service types, cargo categories)
 app.use("/api/v1/config", configRoute);
+app.use("/api/v1/rates", ratesRoute);
 
 // Admin system routes
 app.use("/api/v1/admin/settings", settingsRoute);
