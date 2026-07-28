@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import InstantQuoteEstimate from "../../components/InstantQuoteEstimate";
 import Link from "next/link";
 
 
@@ -105,6 +106,20 @@ export default function GhanaPage() {
                 <p className="text-xs text-gray-500 mt-1">{s.sub}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Instant Quote Estimate */}
+      <section className="py-16 md:py-20 bg-[#EDECEC]">
+        <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-10 items-center">
+            <div>
+              <span className="inline-flex items-center rounded-full bg-[#1A2930] text-[#FFA500] px-3 py-1 text-[11px] font-semibold tracking-[0.16em] uppercase mb-4">No Waiting</span>
+              <h2 className="text-2xl md:text-3xl font-semibold uppercase text-[#1A2930] mb-4">See a price before you enquire.</h2>
+              <p className="text-gray-600 text-base leading-relaxed">Pick a service to see an instant indicative rate — no email required. We'll confirm your exact quote within 24 hours of booking.</p>
+            </div>
+            <InstantQuoteEstimate destination="ghana" />
           </div>
         </div>
       </section>
