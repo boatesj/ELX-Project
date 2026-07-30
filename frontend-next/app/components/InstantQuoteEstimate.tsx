@@ -122,10 +122,7 @@ export default function InstantQuoteEstimate({ destination }: { destination: str
             </p>
           </div>
 
-          
-            href="/#quote"
-            className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-[#FFA500] text-black px-6 py-3 text-sm font-semibold tracking-[0.1em] uppercase hover:bg-[#ffb733] transition"
-          >
+          <a href="/#quote" className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-[#FFA500] text-black px-6 py-3 text-sm font-semibold tracking-[0.1em] uppercase hover:bg-[#ffb733] transition">
             Confirm this quote
           </a>
         </>
