@@ -1,9 +1,12 @@
 const Rate = require("../models/Rate");
 
-// -------- PUBLIC: GET RATES (optionally filtered by destination) --------
+// -------- GET RATES (optionally filtered by destination) --------
+// Returns all rates regardless of isActive — the public widget filters
+// active-only client-side, and the admin panel needs to see inactive
+// rates too so they can be reviewed and re-activated.
 exports.getRates = async (req, res) => {
   try {
-    const query = { isActive: true };
+    const query = {};
     if (req.query.destination) {
       query.destination = String(req.query.destination).toLowerCase();
     }
