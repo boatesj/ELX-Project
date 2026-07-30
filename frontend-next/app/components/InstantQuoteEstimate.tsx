@@ -49,7 +49,8 @@ export default function InstantQuoteEstimate({ destination }: { destination: str
       })
       .then((data: Rate[]) => {
         if (cancelled) return;
-        const sorted = [...data].sort(
+        const activeOnly = data.filter((r: any) => r.isActive !== false);
+        const sorted = [...activeOnly].sort(
           (a, b) => SERVICE_ORDER.indexOf(a.service) - SERVICE_ORDER.indexOf(b.service)
         );
         setRates(sorted);

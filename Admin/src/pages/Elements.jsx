@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { FaShip, FaRoute, FaBoxes } from "react-icons/fa";
+import { FaShip, FaRoute, FaBoxes, FaPoundSign } from "react-icons/fa";
 
 function Elements() {
   const cards = [
@@ -23,6 +23,13 @@ function Elements() {
       icon: FaBoxes,
       title: "Cargo categories",
       body: "Define cargo types like vehicles, containers, LCL, and documents.",
+    },
+    {
+      id: "rates",
+      to: "/elements/rates",
+      icon: FaPoundSign,
+      title: "Instant quote rates",
+      body: "Update the prices shown in the instant quote estimate widget on the public site.",
     },
   ];
 
