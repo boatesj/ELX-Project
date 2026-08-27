@@ -1,10 +1,66 @@
 import { FaUserTie, FaUniversity, FaCarSide, FaCheckCircle, FaStar } from "react-icons/fa";
+import { API_BASE_URL } from "../lib/customerAuth";
 
-const testimonials = [
-  { id: 1, icon: <FaUniversity className="text-lg" />, label: "Higher education", title: "Secure documents for Ghanaian universities", quote: "Ellcworth handled our degree certificates with care from the UK printer to our campus. The updates were clear, and the handover documentation helped us maintain full control at every stage.", name: "Mr. Andy Lumor", role: "Representative of Universities of Ghana Overseas", rating: 5 },
-  { id: 2, icon: <FaCarSide className="text-lg" />, label: "Vehicle trader", title: "RoRo shipment for a vehicle dealer", quote: "They confirmed sailing options, guided us on port delivery and issued documents our buyers in Tema can rely on. It's now straightforward to quote delivery dates with confidence.", name: "Faheed Wassef", role: "Vehicle trader, Accra", rating: 5 },
-  { id: 3, icon: <FaUserTie className="text-lg" />, label: "Health Products shipper", title: "Small business, consolidated and tracked", quote: "Instead of sending multiple parcels, we shipped everything through Ellcworth. They checked and consolidated our boxes, so we had one shipment, one bill and full visibility until delivery.", name: "Amma Asafo-Agyei", role: "Business shipper, Accra", rating: 5 },
+type Testimonial = {
+  id: string;
+  icon: React.ReactNode;
+  label: string;
+  title: string;
+  quote: string;
+  name: string;
+  role: string;
+  rating: number;
+};
+
+// Shown only if there are no approved, published testimonials yet — keeps the
+// section from looking empty while real reviews accumulate. Once live
+// testimonials exist, they replace this entirely.
+const fallbackTestimonials: Testimonial[] = [
+  { id: "fallback-1", icon: <FaUniversity className="text-lg" />, label: "Higher education", title: "Secure documents for Ghanaian universities", quote: "Ellcworth handled our degree certificates with care from the UK printer to our campus. The updates were clear, and the handover documentation helped us maintain full control at every stage.", name: "Mr. Andy Lumor", role: "Representative of Universities of Ghana Overseas", rating: 5 },
+  { id: "fallback-2", icon: <FaCarSide className="text-lg" />, label: "Vehicle trader", title: "RoRo shipment for a vehicle dealer", quote: "They confirmed sailing options, guided us on port delivery and issued documents our buyers in Tema can rely on. It's now straightforward to quote delivery dates with confidence.", name: "Faheed Wassef", role: "Vehicle trader, Accra", rating: 5 },
+  { id: "fallback-3", icon: <FaUserTie className="text-lg" />, label: "Health Products shipper", title: "Small business, consolidated and tracked", quote: "Instead of sending multiple parcels, we shipped everything through Ellcworth. They checked and consolidated our boxes, so we had one shipment, one bill and full visibility until delivery.", name: "Amma Asafo-Agyei", role: "Business shipper, Accra", rating: 5 },
 ];
+
+const LIVE_ICONS = [FaUniversity, FaCarSide, FaUserTie];
+
+type PublicFeedback = {
+  _id: string;
+  displayName?: string;
+  displayQuote?: string;
+  rating?: number;
+  organisation?: string;
+};
+
+async function getLiveTestimonials(): Promise<Testimonial[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/v1/feedback?public=true`, {
+      next: { revalidate: 3600 }, // real reviews don't need to be instant — hourly is plenty
+    });
+    if (!res.ok) return [];
+
+    const data: PublicFeedback[] = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return [];
+
+    return data
+      .filter((item) => item.displayQuote)
+      .map((item, index) => {
+        const Icon = LIVE_ICONS[index % LIVE_ICONS.length];
+        return {
+          id: item._id,
+          icon: <Icon className="text-lg" />,
+          label: "Verified feedback",
+          title: item.organisation || "Ellcworth customer",
+          quote: item.displayQuote || "",
+          name: item.displayName || item.organisation || "Ellcworth customer",
+          role: "",
+          rating: item.rating || 5,
+        };
+      });
+  } catch {
+    // Backend unreachable, etc. — fall back rather than break the homepage.
+    return [];
+  }
+}
 
 const renderStars = (rating = 5) => (
   <div className="flex items-center gap-1">
@@ -14,7 +70,10 @@ const renderStars = (rating = 5) => (
   </div>
 );
 
-const TrustStories = () => {
+const TrustStories = async () => {
+  const liveTestimonials = await getLiveTestimonials();
+  const testimonials = liveTestimonials.length > 0 ? liveTestimonials : fallbackTestimonials;
+
   return (
     <section id="stories" className="w-full bg-[#F9FAFB] py-16 md:py-20 border-t border-gray-200 scroll-mt-[120px] md:scroll-mt-[160px]" aria-label="Ellcworth customer reviews">
       <div className="mx-auto w-full max-w-6xl px-4 md:px-6 lg:px-8">
@@ -60,7 +119,7 @@ const TrustStories = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold text-[#111827]">{story.name}</span>
-                    <span className="text-xs md:text-sm text-gray-500">{story.role}</span>
+                    {story.role && <span className="text-xs md:text-sm text-gray-500">{story.role}</span>}
                   </div>
                   {renderStars(story.rating)}
                 </div>
