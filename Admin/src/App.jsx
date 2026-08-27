@@ -35,6 +35,7 @@ import Charts from "./pages/Charts";
 import Logs from "./pages/Logs";
 import Calendar from "./pages/Calendar";
 import Marketing from "./pages/Marketing";
+import Testimonials from "./pages/Testimonials";
 
 // -------------------- route guards --------------------
 function RequireAuth({ children }) {
@@ -272,6 +273,7 @@ const router = createBrowserRouter([
       { path: "logs", element: <Logs /> },
       { path: "calendar", element: <Calendar /> },
       { path: "marketing", element: <Marketing /> },
+      { path: "testimonials", element: <Testimonials /> },
 
       // 404 inside the authenticated shell
       { path: "*", element: <NotFound /> },
