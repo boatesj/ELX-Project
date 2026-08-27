@@ -6,6 +6,7 @@ const SERVICE_TYPES = ["Air Freight", "RoRo", "FCL/LCL", "Document", "Other"];
 
 const initialForm = {
   name: "",
+  clientTitle: "",
   organisation: "",
   contactEmail: "",
   contactPhone: "",
@@ -27,6 +28,10 @@ function formatDate(iso) {
 }
 
 function QuickLog() {
+  // "log": save a QuickLog record you can request feedback from later.
+  // "manual": skip the record entirely, just send a one-off feedback request.
+  const [mode, setMode] = useState("log");
+
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(initialForm);
@@ -53,6 +58,13 @@ function QuickLog() {
     fetchLogs();
   }, []);
 
+  const handleModeChange = (next) => {
+    setMode(next);
+    setForm(initialForm);
+    setError("");
+    setSuccess("");
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -63,6 +75,32 @@ function QuickLog() {
     setSaving(true);
     setError("");
     setSuccess("");
+
+    if (mode === "manual") {
+      if (!form.name || !form.organisation || !form.contactEmail) {
+        setError("Name, organisation and email are all required.");
+        setSaving(false);
+        return;
+      }
+      try {
+        await authRequest.post("/feedback/request", {
+          source: "manual",
+          clientName: form.name,
+          clientTitle: form.clientTitle,
+          organisation: form.organisation,
+          email: form.contactEmail,
+          context: form.notes,
+        });
+        setForm(initialForm);
+        setSuccess(`Feedback request emailed to ${form.contactEmail}.`);
+      } catch (err) {
+        console.error(err);
+        setError(err?.response?.data?.message || "Could not send feedback request.");
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
 
     try {
       const res = await authRequest.post("/quicklog", form);
@@ -127,8 +165,8 @@ function QuickLog() {
       <header>
         <h1 className="text-2xl font-semibold text-[#1A2930]">Customer log</h1>
         <p className="mt-1 text-sm text-gray-500">
-          For pre-existing customers you're still serving outside the website — log them here so
-          you can request feedback from them the same way as any other shipment.
+          For customers outside the normal shipment flow — log a pre-existing customer to request
+          feedback from later, or send a one-off request right away.
         </p>
       </header>
 
@@ -144,7 +182,37 @@ function QuickLog() {
       )}
 
       <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-semibold text-[#1A2930] mb-3">Log a customer</h2>
+        <div className="flex items-center gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => handleModeChange("log")}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] ${
+              mode === "log"
+                ? "bg-[#1A2930] text-white"
+                : "border border-gray-300 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            Log &amp; request later
+          </button>
+          <button
+            type="button"
+            onClick={() => handleModeChange("manual")}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] ${
+              mode === "manual"
+                ? "bg-[#1A2930] text-white"
+                : "border border-gray-300 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            One-off request
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-500 mb-3">
+          {mode === "log"
+            ? "Saves this customer below so you can send a feedback request whenever you're ready."
+            : "Sends the feedback request immediately \u2014 nothing is saved to the customer log."}
+        </p>
+
         <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-6 md:items-end">
           <div className="flex flex-col gap-1 md:col-span-1">
             <label className="text-xs font-semibold text-gray-600">Name</label>
@@ -157,6 +225,19 @@ function QuickLog() {
               required
             />
           </div>
+
+          {mode === "manual" && (
+            <div className="flex flex-col gap-1 md:col-span-1">
+              <label className="text-xs font-semibold text-gray-600">Title (optional)</label>
+              <input
+                name="clientTitle"
+                value={form.clientTitle}
+                onChange={handleChange}
+                placeholder="Director of Procurement"
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#FFA500] focus:outline-none"
+              />
+            </div>
+          )}
 
           <div className="flex flex-col gap-1 md:col-span-1">
             <label className="text-xs font-semibold text-gray-600">Organisation</label>
@@ -181,32 +262,36 @@ function QuickLog() {
             />
           </div>
 
-          <div className="flex flex-col gap-1 md:col-span-1">
-            <label className="text-xs font-semibold text-gray-600">Phone</label>
-            <input
-              name="contactPhone"
-              value={form.contactPhone}
-              onChange={handleChange}
-              placeholder="+233 20 000 0000"
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#FFA500] focus:outline-none"
-            />
-          </div>
+          {mode === "log" && (
+            <div className="flex flex-col gap-1 md:col-span-1">
+              <label className="text-xs font-semibold text-gray-600">Phone</label>
+              <input
+                name="contactPhone"
+                value={form.contactPhone}
+                onChange={handleChange}
+                placeholder="+233 20 000 0000"
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#FFA500] focus:outline-none"
+              />
+            </div>
+          )}
 
-          <div className="flex flex-col gap-1 md:col-span-1">
-            <label className="text-xs font-semibold text-gray-600">Service</label>
-            <select
-              name="serviceType"
-              value={form.serviceType}
-              onChange={handleChange}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#FFA500] focus:outline-none"
-            >
-              {SERVICE_TYPES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
+          {mode === "log" && (
+            <div className="flex flex-col gap-1 md:col-span-1">
+              <label className="text-xs font-semibold text-gray-600">Service</label>
+              <select
+                name="serviceType"
+                value={form.serviceType}
+                onChange={handleChange}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#FFA500] focus:outline-none"
+              >
+                {SERVICE_TYPES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex items-center md:col-span-1 md:justify-end">
             <button
@@ -214,17 +299,29 @@ function QuickLog() {
               disabled={saving}
               className="rounded-lg bg-[#FFA500] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#1A2930] hover:bg-[#ffb732] disabled:opacity-60"
             >
-              {saving ? "Saving..." : "Log customer"}
+              {saving
+                ? mode === "manual"
+                  ? "Sending..."
+                  : "Saving..."
+                : mode === "manual"
+                ? "Send request"
+                : "Log customer"}
             </button>
           </div>
 
           <div className="flex flex-col gap-1 md:col-span-6">
-            <label className="text-xs font-semibold text-gray-600">Notes (optional)</label>
+            <label className="text-xs font-semibold text-gray-600">
+              {mode === "manual" ? "Context (optional, shown in the email)" : "Notes (optional)"}
+            </label>
             <input
               name="notes"
               value={form.notes}
               onChange={handleChange}
-              placeholder="Route, cargo, or anything worth remembering"
+              placeholder={
+                mode === "manual"
+                  ? "Air freight — lab equipment"
+                  : "Route, cargo, or anything worth remembering"
+              }
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#FFA500] focus:outline-none"
             />
           </div>
