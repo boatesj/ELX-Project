@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import { API_BASE_URL } from "@/app/lib/customerAuth";
 
@@ -38,7 +38,7 @@ export default function FeedbackPage() {
       .catch(() => setState("error"));
   }, [token]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!rating || !communication || !timeliness || wouldRecommend === null) return;
 
@@ -190,7 +190,7 @@ function StarField({ label, value, onChange }: { label: string; value: number; o
   );
 }
 
-function CenteredMessage({ children }: { children: React.ReactNode }) {
+function CenteredMessage({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center px-6 py-24 text-center">
       <p className="text-lg text-gray-700</p>
