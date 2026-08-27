@@ -245,3 +245,21 @@ exports.rejectFeedback = async (req, res) => {
     res.status(500).json({ message: "Could not update feedback" });
   }
 };
+
+/**
+ * @route   DELETE /api/v1/feedback/:id
+ * @desc    Hard delete — for test entries or requests sent in error.
+ *          Rejecting (above) is for real feedback you don't want public;
+ *          this is for removing the record entirely.
+ * @access  Admin
+ */
+exports.deleteFeedback = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await Feedback.findByIdAndDelete(id);
+    return res.status(200).json({ message: "Feedback request deleted." });
+  } catch (err) {
+    console.error("deleteFeedback error:", err);
+    return res.status(500).json({ message: "Server error." });
+  }
+};

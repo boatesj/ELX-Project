@@ -10,6 +10,7 @@ const {
   listFeedback,
   approveFeedback,
   rejectFeedback,
+  deleteFeedback,
 } = require("../controllers/feedback");
 
 const { requireAuth, requireAdmin } = require("../middleware/auth");
@@ -30,6 +31,7 @@ const publicSubmitLimiter = rateLimit({
 router.post("/request", requireAuth, requireAdmin, requestFeedback);
 router.patch("/:id/approve", requireAuth, requireAdmin, approveFeedback);
 router.patch("/:id/reject", requireAuth, requireAdmin, rejectFeedback);
+router.delete("/:id", requireAuth, requireAdmin, deleteFeedback);
 
 // -----------------------------------------------
 // Public — token-gated survey + homepage testimonials feed
