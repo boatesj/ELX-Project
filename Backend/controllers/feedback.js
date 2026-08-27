@@ -35,7 +35,7 @@ function buildFeedbackEmail({ clientName, context, token }) {
     `Share your experience: ${link}`,
     "",
     "With thanks,",
-    "Jake Boateng",
+    "Customer Service Team",
     BRAND.name,
   ].join("\n");
 
@@ -48,7 +48,7 @@ function buildFeedbackEmail({ clientName, context, token }) {
           Share your experience
         </a>
       </p>
-      <p>With thanks,<br/>Jake Boateng<br/>${BRAND.name}</p>
+      <p>With thanks,<br/>Customer Service Team<br/>${BRAND.name}</p>
     </div>
   `;
 
@@ -109,7 +109,11 @@ exports.requestFeedback = async (req, res) => {
       ref: String(feedback._id),
     });
 
-    res.status(201).json({ id: feedback._id, token: feedback.token });
+    res.status(201).json({
+      id: feedback._id,
+      token: feedback.token,
+      link: `${siteUrl()}/feedback/${feedback.token}`,
+    });
   } catch (err) {
     console.error("requestFeedback error:", err);
     res.status(500).json({ message: "Could not send feedback request", error: err.message });
@@ -192,7 +196,8 @@ exports.listFeedback = async (req, res) => {
     }
 
     const all = await Feedback.find().sort({ createdAt: -1 }).lean();
-    res.status(200).json(all);
+    const withLinks = all.map((f) => ({ ...f, link: `${siteUrl()}/feedback/${f.token}` }));
+    res.status(200).json(withLinks);
   } catch (err) {
     console.error("listFeedback error:", err);
     res.status(500).json({ message: "Something went wrong" });

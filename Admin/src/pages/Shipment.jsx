@@ -328,6 +328,8 @@ const Shipment = () => {
   const [feedbackSending, setFeedbackSending] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState("");
   const [feedbackError, setFeedbackError] = useState("");
+  const [feedbackLink, setFeedbackLink] = useState("");
+  const [feedbackLinkCopied, setFeedbackLinkCopied] = useState(false);
 
   const [form, setForm] = useState({
     // Core identifiers
@@ -1008,6 +1010,8 @@ const Shipment = () => {
 
     setFeedbackMsg("");
     setFeedbackError("");
+    setFeedbackLink("");
+    setFeedbackLinkCopied(false);
 
     if (!feedbackForm.clientName || !feedbackForm.organisation || !feedbackForm.email) {
       setFeedbackError("Name, organisation and email are all required.");
@@ -1017,7 +1021,7 @@ const Shipment = () => {
     try {
       setFeedbackSending(true);
 
-      await authRequest.post("/feedback/request", {
+      const res = await authRequest.post("/feedback/request", {
         source: "shipment",
         shipmentId,
         clientName: feedbackForm.clientName,
@@ -1028,6 +1032,7 @@ const Shipment = () => {
       });
 
       setFeedbackMsg(`Feedback request emailed to ${feedbackForm.email}.`);
+      setFeedbackLink(res.data?.link || "");
     } catch (err) {
       console.error("\u274c Error requesting feedback:", err?.response?.data || err);
       setFeedbackError(
@@ -1035,6 +1040,18 @@ const Shipment = () => {
       );
     } finally {
       setFeedbackSending(false);
+    }
+  };
+
+  const handleCopyFeedbackLink = async () => {
+    if (!feedbackLink) return;
+    try {
+      await navigator.clipboard.writeText(feedbackLink);
+      setFeedbackLinkCopied(true);
+      setTimeout(() => setFeedbackLinkCopied(false), 2000);
+    } catch (err) {
+      console.error(err);
+      setFeedbackError("Could not copy link — your browser may be blocking clipboard access.");
     }
   };
 
@@ -2727,6 +2744,18 @@ const Shipment = () => {
                 {feedbackMsg}
               </p>
             ) : null}
+            {feedbackLink ? (
+              <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 mb-2">
+                <span className="flex-1 truncate text-[11px] text-gray-600">{feedbackLink}</span>
+                <button
+                  type="button"
+                  onClick={handleCopyFeedbackLink}
+                  className="shrink-0 text-[11px] font-semibold text-[#1A2930] hover:text-[#FFA500]"
+                >
+                  {feedbackLinkCopied ? "Copied!" : "Copy link"}
+                </button>
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               <Field label="Name">
@@ -2889,6 +2918,18 @@ const Shipment = () => {
               <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-md mb-2">
                 {feedbackMsg}
               </p>
+            ) : null}
+            {feedbackLink ? (
+              <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 mb-2">
+                <span className="flex-1 truncate text-[11px] text-gray-600">{feedbackLink}</span>
+                <button
+                  type="button"
+                  onClick={handleCopyFeedbackLink}
+                  className="shrink-0 text-[11px] font-semibold text-[#1A2930] hover:text-[#FFA500]"
+                >
+                  {feedbackLinkCopied ? "Copied!" : "Copy link"}
+                </button>
+              </div>
             ) : null}
 
             <div className="space-y-2">
