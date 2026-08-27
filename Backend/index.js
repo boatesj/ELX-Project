@@ -21,6 +21,7 @@ const authRoute = require("./routes/auth");
 const userRoute = require("./routes/user");
 const shipmentRoute = require("./routes/shipment");
 const feedbackRoute = require("./routes/feedback");
+const quickLogRoute = require("./routes/quickLog");
 
 // Admin system routes (already present in your build)
 const configRoute = require("./routes/config");
@@ -262,6 +263,7 @@ app.use("/api/v1/auth", authLimiter, authRoute);
 app.use("/api/v1/users", userRoute);
 app.use("/api/v1/shipments", shipmentRoute);
 app.use("/api/v1/feedback", feedbackRoute);
+app.use("/api/v1/quicklog", quickLogRoute);
 
 // Legacy aliases (temporary) + logging
 app.use(
