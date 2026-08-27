@@ -317,6 +317,17 @@ const Shipment = () => {
   const [openDocs, setOpenDocs] = useState(false);
   const [openServices, setOpenServices] = useState(false);
   const [openQuote, setOpenQuote] = useState(false);
+  const [openFeedback, setOpenFeedback] = useState(false);
+  const [feedbackForm, setFeedbackForm] = useState({
+    clientName: "",
+    clientTitle: "",
+    organisation: "",
+    email: "",
+    context: "",
+  });
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackMsg, setFeedbackMsg] = useState("");
+  const [feedbackError, setFeedbackError] = useState("");
 
   const [form, setForm] = useState({
     // Core identifiers
@@ -452,6 +463,16 @@ const Shipment = () => {
         const uiMode = backendModeToUiMode(inferredServiceType, s.mode);
 
         setShipment({ ...s, documents: s.documents || [] });
+
+        setFeedbackForm({
+          clientName: s.consignee?.name || s.shipper?.name || "",
+          clientTitle: "",
+          organisation: s.consignee?.name || s.shipper?.name || "",
+          email: s.consignee?.email || s.shipper?.email || "",
+          context: [s.serviceType, s.cargo?.description]
+            .filter(Boolean)
+            .join(" \u2014 "),
+        });
 
         setForm({
           referenceNo: s.referenceNo || "",
@@ -975,6 +996,45 @@ const Shipment = () => {
       setQuoteError(err?.response?.data?.message || "Failed to email quote.");
     } finally {
       setQuoteSending(false);
+    }
+  };
+
+  const handleFeedbackChange = (field) => (e) => {
+    setFeedbackForm((prev) => ({ ...prev, [field]: e.target.value }));
+  };
+
+  const handleRequestFeedback = async () => {
+    if (!shipmentId) return;
+
+    setFeedbackMsg("");
+    setFeedbackError("");
+
+    if (!feedbackForm.clientName || !feedbackForm.organisation || !feedbackForm.email) {
+      setFeedbackError("Name, organisation and email are all required.");
+      return;
+    }
+
+    try {
+      setFeedbackSending(true);
+
+      await authRequest.post("/feedback/request", {
+        source: "shipment",
+        shipmentId,
+        clientName: feedbackForm.clientName,
+        clientTitle: feedbackForm.clientTitle,
+        organisation: feedbackForm.organisation,
+        email: feedbackForm.email,
+        context: feedbackForm.context,
+      });
+
+      setFeedbackMsg(`Feedback request emailed to ${feedbackForm.email}.`);
+    } catch (err) {
+      console.error("\u274c Error requesting feedback:", err?.response?.data || err);
+      setFeedbackError(
+        err?.response?.data?.message || "Failed to send feedback request.",
+      );
+    } finally {
+      setFeedbackSending(false);
     }
   };
 
@@ -2649,6 +2709,74 @@ const Shipment = () => {
             </Section>
           </div>
 
+          {/* Feedback request (mobile section) */}
+          <div className="xl:hidden">
+            <Section
+              title="Customer feedback"
+              subtitle="Email a link inviting this customer to review the shipment."
+              open={openFeedback}
+              onToggle={() => setOpenFeedback((v) => !v)}
+            >
+            {feedbackError ? (
+              <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md mb-2">
+                {feedbackError}
+              </p>
+            ) : null}
+            {feedbackMsg ? (
+              <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-md mb-2">
+                {feedbackMsg}
+              </p>
+            ) : null}
+
+            <div className="space-y-2">
+              <Field label="Name">
+                <Input
+                  value={feedbackForm.clientName}
+                  onChange={handleFeedbackChange("clientName")}
+                />
+              </Field>
+              <Field label="Title (optional)">
+                <Input
+                  value={feedbackForm.clientTitle}
+                  onChange={handleFeedbackChange("clientTitle")}
+                  placeholder="Director of Procurement"
+                />
+              </Field>
+              <Field label="Organisation">
+                <Input
+                  value={feedbackForm.organisation}
+                  onChange={handleFeedbackChange("organisation")}
+                />
+              </Field>
+              <Field label="Email">
+                <Input
+                  type="email"
+                  value={feedbackForm.email}
+                  onChange={handleFeedbackChange("email")}
+                />
+              </Field>
+              <Field label="Context (optional, shown in the email)">
+                <Input
+                  value={feedbackForm.context}
+                  onChange={handleFeedbackChange("context")}
+                  placeholder="Air freight \u2014 lab equipment"
+                />
+              </Field>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleRequestFeedback}
+                  disabled={feedbackSending}
+                  className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#FFA500] hover:text-black transition disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {feedbackSending ? "Sending\u2026" : "Send feedback request"}
+                </button>
+              </div>
+            </div>
+            </Section>
+          </div>
+
           {/* Documents (desktop card) */}
           <div className="hidden xl:block">
             <Card title="Documents">
@@ -2746,6 +2874,69 @@ const Shipment = () => {
                   </button>
                 </div>
               </div>
+            </Card>
+          </div>
+
+          {/* Feedback request (desktop card) */}
+          <div className="hidden xl:block">
+            <Card title="Customer feedback">
+            {feedbackError ? (
+              <p className="text-[11px] text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-md mb-2">
+                {feedbackError}
+              </p>
+            ) : null}
+            {feedbackMsg ? (
+              <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-md mb-2">
+                {feedbackMsg}
+              </p>
+            ) : null}
+
+            <div className="space-y-2">
+              <Field label="Name">
+                <Input
+                  value={feedbackForm.clientName}
+                  onChange={handleFeedbackChange("clientName")}
+                />
+              </Field>
+              <Field label="Title (optional)">
+                <Input
+                  value={feedbackForm.clientTitle}
+                  onChange={handleFeedbackChange("clientTitle")}
+                  placeholder="Director of Procurement"
+                />
+              </Field>
+              <Field label="Organisation">
+                <Input
+                  value={feedbackForm.organisation}
+                  onChange={handleFeedbackChange("organisation")}
+                />
+              </Field>
+              <Field label="Email">
+                <Input
+                  type="email"
+                  value={feedbackForm.email}
+                  onChange={handleFeedbackChange("email")}
+                />
+              </Field>
+              <Field label="Context (optional, shown in the email)">
+                <Input
+                  value={feedbackForm.context}
+                  onChange={handleFeedbackChange("context")}
+                  placeholder="Air freight \u2014 lab equipment"
+                />
+              </Field>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleRequestFeedback}
+                  disabled={feedbackSending}
+                  className="inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-md bg-[#1A2930] text-white hover:bg-[#FFA500] hover:text-black transition disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {feedbackSending ? "Sending\u2026" : "Send feedback request"}
+                </button>
+              </div>
+            </div>
             </Card>
           </div>
 
