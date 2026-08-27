@@ -36,6 +36,7 @@ import Logs from "./pages/Logs";
 import Calendar from "./pages/Calendar";
 import Marketing from "./pages/Marketing";
 import Testimonials from "./pages/Testimonials";
+import QuickLog from "./pages/QuickLog";
 
 // -------------------- route guards --------------------
 function RequireAuth({ children }) {
@@ -274,6 +275,7 @@ const router = createBrowserRouter([
       { path: "calendar", element: <Calendar /> },
       { path: "marketing", element: <Marketing /> },
       { path: "testimonials", element: <Testimonials /> },
+      { path: "quicklog", element: <QuickLog /> },
 
       // 404 inside the authenticated shell
       { path: "*", element: <NotFound /> },

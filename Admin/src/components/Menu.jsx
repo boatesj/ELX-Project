@@ -12,6 +12,7 @@ import {
   FaCalendarAlt,
   FaEnvelope,
   FaStar,
+  FaAddressBook,
 } from "react-icons/fa";
 import { NavLink, useNavigate } from "react-router-dom";
 
@@ -198,6 +199,13 @@ function Menu({ onNavigate }) {
             <NavLink to="/testimonials" className={linkClass} onClick={handleNavClick}>
               <FaStar className="text-[18px]" />
               <span>Testimonials</span>
+            </NavLink>
+          </li>
+
+          <li>
+            <NavLink to="/quicklog" className={linkClass} onClick={handleNavClick}>
+              <FaAddressBook className="text-[18px]" />
+              <span>Customer log</span>
             </NavLink>
           </li>
         </ul>
