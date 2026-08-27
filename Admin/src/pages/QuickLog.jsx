@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { authRequest } from "../requestMethods";
-import { FaTrash, FaPaperPlane } from "react-icons/fa";
+import { FaTrash, FaPaperPlane, FaLink } from "react-icons/fa";
 
 const SERVICE_TYPES = ["Air Freight", "RoRo", "FCL/LCL", "Document", "Other"];
 
@@ -39,6 +39,20 @@ function QuickLog() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [sendingId, setSendingId] = useState(null);
+  const [lastManualLink, setLastManualLink] = useState("");
+  const [copiedKey, setCopiedKey] = useState(null);
+
+  const handleCopyLink = async (link, key) => {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey((cur) => (cur === key ? null : cur)), 2000);
+    } catch (err) {
+      console.error(err);
+      setError("Could not copy link — your browser may be blocking clipboard access.");
+    }
+  };
 
   const fetchLogs = async () => {
     try {
@@ -83,7 +97,7 @@ function QuickLog() {
         return;
       }
       try {
-        await authRequest.post("/feedback/request", {
+        const res = await authRequest.post("/feedback/request", {
           source: "manual",
           clientName: form.name,
           clientTitle: form.clientTitle,
@@ -92,6 +106,7 @@ function QuickLog() {
           context: form.notes,
         });
         setForm(initialForm);
+        setLastManualLink(res.data?.link || "");
         setSuccess(`Feedback request emailed to ${form.contactEmail}.`);
       } catch (err) {
         console.error(err);
@@ -140,7 +155,7 @@ function QuickLog() {
     setSuccess("");
 
     try {
-      await authRequest.post("/feedback/request", {
+      const res = await authRequest.post("/feedback/request", {
         source: "quicklog",
         quickLogId: log._id,
         clientName: log.name,
@@ -149,7 +164,9 @@ function QuickLog() {
         context: [log.serviceType, log.notes].filter(Boolean).join(" — "),
       });
       setLogs((prev) =>
-        prev.map((l) => (l._id === log._id ? { ...l, feedbackRequested: true } : l))
+        prev.map((l) =>
+          l._id === log._id ? { ...l, feedbackRequested: true, link: res.data?.link || l.link } : l
+        )
       );
       setSuccess(`Feedback request emailed to ${log.contactEmail}.`);
     } catch (err) {
@@ -326,6 +343,20 @@ function QuickLog() {
             />
           </div>
         </form>
+
+        {mode === "manual" && lastManualLink && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+            <FaLink className="text-[12px] text-gray-400 shrink-0" />
+            <span className="flex-1 truncate text-xs text-gray-600">{lastManualLink}</span>
+            <button
+              type="button"
+              onClick={() => handleCopyLink(lastManualLink, "manual")}
+              className="shrink-0 text-xs font-semibold text-[#1A2930] hover:text-[#FFA500]"
+            >
+              {copiedKey === "manual" ? "Copied!" : "Copy"}
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -382,6 +413,16 @@ function QuickLog() {
                         <FaPaperPlane className="text-[12px]" />
                         <span>{sendingId === log._id ? "Sending..." : "Request feedback"}</span>
                       </button>
+                      {log.link && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyLink(log.link, log._id)}
+                          className="inline-flex items-center gap-1 text-gray-500 hover:text-[#1A2930]"
+                        >
+                          <FaLink className="text-[12px]" />
+                          <span>{copiedKey === log._id ? "Copied!" : "Copy link"}</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleDelete(log)}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { authRequest } from "../requestMethods";
-import { FaCheck, FaTimes, FaTrash, FaGlobe, FaGlobeEurope } from "react-icons/fa";
+import { FaCheck, FaTimes, FaTrash, FaGlobe, FaGlobeEurope, FaLink } from "react-icons/fa";
 
 function formatDate(iso) {
   if (!iso) return "—";
@@ -28,6 +28,19 @@ function Testimonials() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [drafts, setDrafts] = useState({});
+  const [copiedId, setCopiedId] = useState(null);
+
+  const handleCopyLink = async (item) => {
+    if (!item.link) return;
+    try {
+      await navigator.clipboard.writeText(item.link);
+      setCopiedId(item._id);
+      setTimeout(() => setCopiedId((cur) => (cur === item._id ? null : cur)), 2000);
+    } catch (err) {
+      console.error(err);
+      setError("Could not copy link — your browser may be blocking clipboard access.");
+    }
+  };
 
   const fetchFeedback = async () => {
     try {
@@ -160,6 +173,16 @@ function Testimonials() {
                       Requested {formatDate(item.createdAt)}
                       {item.respondedAt ? ` · Responded ${formatDate(item.respondedAt)}` : ""}
                     </p>
+                    {item.link && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyLink(item)}
+                        className="mt-1 inline-flex items-center gap-1 text-[11px] text-[#1A2930] hover:text-[#FFA500]"
+                      >
+                        <FaLink className="text-[10px]" />
+                        {copiedId === item._id ? "Copied!" : "Copy survey link"}
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
