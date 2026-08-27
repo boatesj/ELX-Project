@@ -193,7 +193,7 @@ function StarField({ label, value, onChange }: { label: string; value: number; o
 function CenteredMessage({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center px-6 py-24 text-center">
-      <p className="text-lg text-gray-700</p>
+      <p className="text-lg text-gray-700">{children}</p>
     </div>
   );
 }
