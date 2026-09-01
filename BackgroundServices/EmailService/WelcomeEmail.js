@@ -2,7 +2,7 @@ const ejs = require("ejs");
 const path = require("path");
 const dotenv = require("dotenv");
 const jwt = require("jsonwebtoken");
-const { dispatchMail } = require("../helpers/sendmail"); // Gmail transporter
+const { dispatchMail } = require("../helpers/sendmail"); // Postmark transporter
 const User = require("../models/User");
 const crypto = require("crypto");
 
