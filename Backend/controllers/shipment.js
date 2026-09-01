@@ -846,6 +846,41 @@ async function createPublicLeadShipment(req, res) {
       console.error("\u26a0\ufe0f prospect auto-create failed (non-fatal):", prospectErr.message);
     }
 
+    // Notify admin of new quote request — non-fatal, never blocks the response
+    try {
+      const adminAlertEmail =
+        process.env.ADMIN_ALERT_EMAIL || "cs@ellcworth.com";
+      const ref = shipment.referenceNo || shipment._id;
+      const modeLabel = String(
+        payload?.mode || payload?.meta?.serviceTab || "Not specified",
+      );
+      const adminUrl = `${process.env.ADMIN_CLIENT_URL || "https://admin.ellcworth.com"}/shipments/${shipment._id}`;
+
+      await dispatchMail({
+        to: adminAlertEmail,
+        subject: `New Quote Request [${ref}] — Action Required`,
+        html: `
+          <p>A new quote request has come in via the website.</p>
+          <p>
+            <strong>Name:</strong> ${requestorName || "Not provided"}<br/>
+            <strong>Email:</strong> ${requestorEmail || "Not provided"}<br/>
+            <strong>Phone:</strong> ${requestorPhone || "Not provided"}<br/>
+            <strong>Service:</strong> ${modeLabel}<br/>
+            <strong>Reference:</strong> ${ref}
+          </p>
+          <p><a href="${adminUrl}">View and action this request in the admin panel</a></p>
+        `,
+        text: `New quote request via the website.\n\nName: ${requestorName || "Not provided"}\nEmail: ${requestorEmail || "Not provided"}\nPhone: ${requestorPhone || "Not provided"}\nService: ${modeLabel}\nReference: ${ref}\n\nView in admin: ${adminUrl}`,
+      });
+
+      console.log("✅ admin notification sent for new lead:", ref);
+    } catch (adminMailErr) {
+      console.error(
+        "⚠️ admin notification failed (non-fatal):",
+        adminMailErr.message,
+      );
+    }
+
     return res.status(201).json({
       message: "Lead request created successfully.",
       shipment,
