@@ -826,50 +826,158 @@ const TEMPLATES = Object.fromEntries(
 // ─── CONTENT BLOCKS ──────────────────────────────────────────────────────────
 // Pre-styled HTML snippets insertable via the block panel
 const CONTENT_BLOCKS = [
+  // ── Rate tables ──────────────────────────────────────────────────────────
   {
-    label: "Rate table",
+    label: "Rate table — All routes",
     icon: "table",
     html: `<table>
-  <tr><td>Service</td><td>Rate</td></tr>
-  <tr><td>FCL 20ft</td><td>From £1,500</td></tr>
-  <tr><td>FCL 40ft</td><td>From £2,500</td></tr>
-  <tr><td>RoRo vehicle</td><td>From £750</td></tr>
-  <tr><td>Air freight</td><td>Quoted per kg</td></tr>
+  <tr><td><strong>Service</strong></td><td><strong>Route</strong></td><td><strong>Rate</strong></td><td><strong>Transit</strong></td></tr>
+  <tr><td>FCL 20ft</td><td>London Gateway → Tema, Ghana</td><td>From £1,500</td><td>15–21 days</td></tr>
+  <tr><td>FCL 40ft</td><td>London Gateway → Tema, Ghana</td><td>From £2,500</td><td>15–21 days</td></tr>
+  <tr><td>LCL consolidation</td><td>UK → Tema, Ghana</td><td>Quoted per CBM</td><td>18–25 days</td></tr>
+  <tr><td>RoRo vehicle</td><td>Grimsby / Tilbury → Tema, Ghana</td><td>From £750 per unit</td><td>14–18 days</td></tr>
+  <tr><td>RoRo vehicle</td><td>Grimsby / Tilbury → Apapa, Nigeria</td><td>From £850 per unit</td><td>16–20 days</td></tr>
+  <tr><td>Air freight</td><td>Heathrow (LHR) → Accra (ACC)</td><td>Quoted per kg</td><td>3–5 days</td></tr>
+  <tr><td>Air freight</td><td>Heathrow (LHR) → Lagos (LOS)</td><td>Quoted per kg</td><td>3–5 days</td></tr>
+  <tr><td>Air freight</td><td>Heathrow (LHR) → Nairobi (NBO)</td><td>Quoted per kg</td><td>4–6 days</td></tr>
 </table>`,
   },
   {
-    label: "Route line",
+    label: "Rate table — Ghana only",
+    icon: "table",
+    html: `<table>
+  <tr><td><strong>Service</strong></td><td><strong>Rate</strong></td><td><strong>Transit</strong></td></tr>
+  <tr><td>FCL 20ft — London Gateway → Tema</td><td>From £1,500</td><td>15–21 days</td></tr>
+  <tr><td>FCL 40ft — London Gateway → Tema</td><td>From £2,500</td><td>15–21 days</td></tr>
+  <tr><td>LCL consolidation — UK → Tema</td><td>Quoted per CBM</td><td>18–25 days</td></tr>
+  <tr><td>RoRo vehicle — Grimsby/Tilbury → Tema</td><td>From £750 per unit</td><td>14–18 days</td></tr>
+  <tr><td>Air freight — LHR → Accra (ACC)</td><td>Quoted per kg</td><td>3–5 days</td></tr>
+</table>`,
+  },
+  // ── Route lines ──────────────────────────────────────────────────────────
+  {
+    label: "Route — Air to Accra",
     icon: "route",
-    html: `<p><strong>Route:</strong> Heathrow (LHR) → Accra International Airport (ACC) · Transit: 3–5 days</p>`,
+    html: `<p><strong>Route:</strong> Heathrow (LHR) → Accra International Airport (ACC) · Air freight · Transit: 3–5 business days door to door</p>`,
   },
   {
-    label: "Case study callout",
+    label: "Route — Air to Lagos",
+    icon: "route",
+    html: `<p><strong>Route:</strong> Heathrow (LHR) → Murtala Muhammed Airport (LOS), Lagos · Air freight · Transit: 3–5 business days door to door</p>`,
+  },
+  {
+    label: "Route — Air to Nairobi",
+    icon: "route",
+    html: `<p><strong>Route:</strong> Heathrow (LHR) → Jomo Kenyatta International Airport (NBO), Nairobi · Air freight · Transit: 4–6 business days door to door</p>`,
+  },
+  {
+    label: "Route — Container to Tema",
+    icon: "route",
+    html: `<p><strong>Route:</strong> London Gateway → Tema Port, Ghana · FCL/LCL container · Transit: 15–21 days · ICUMS customs clearance included</p>`,
+  },
+  {
+    label: "Route — RoRo to Tema",
+    icon: "route",
+    html: `<p><strong>Route:</strong> Grimsby / Tilbury → Tema Port, Ghana · RoRo vehicle shipping · Transit: 14–18 days · From £750 per vehicle</p>`,
+  },
+  {
+    label: "Route — RoRo to Apapa",
+    icon: "route",
+    html: `<p><strong>Route:</strong> Grimsby / Tilbury → Apapa Port, Lagos, Nigeria · RoRo vehicle shipping · Transit: 16–20 days · From £850 per vehicle</p>`,
+  },
+  // ── Social proof ─────────────────────────────────────────────────────────
+  {
+    label: "Case study — UG certificates",
     icon: "case",
-    html: `<blockquote><strong>Case study:</strong> University of Ghana — 80,000 certificates, 2 pallets, 840kg. Collected from UK print partner direct to Heathrow. Confirmed at Accra International Airport in 5 days. <em>March 2026.</em></blockquote>`,
+    html: `<blockquote><strong>Case study:</strong> University of Ghana — 80,000 degree certificates, 2 pallets, 840kg. Collected from UK print partner direct to Heathrow. Confirmed arrival at Accra International Airport in 5 days. <em>March 2026.</em></blockquote>`,
   },
   {
-    label: "Client quote",
+    label: "Case study — UDS emergency",
+    icon: "case",
+    html: `<blockquote><strong>Case study:</strong> University for Development Studies, Tamale — 10 cartons of blank degree certificates, emergency air freight. Collected same day from UK printer, delivered to campus ahead of a compressed graduation deadline. <em>January 2026.</em></blockquote>`,
+  },
+  {
+    label: "Client quote — UDS",
     icon: "quote",
-    html: `<blockquote>"I am pleased to inform you that the templates have finally arrived. I want to thank all stakeholders for ensuring a smooth transaction." — Procurement Director, University for Development Studies, January 2026</blockquote>`,
+    html: `<blockquote>
+  <p style="margin:0 0 12px;">"I am pleased to inform you that the certificates have finally arrived. I want to thank all stakeholders for ensuring a smooth transaction."</p>
+  <p style="margin:0;font-size:13px;"><strong>Procurement Director</strong><br/>University for Development Studies<br/><em>January 2026</em></p>
+</blockquote>`,
   },
   {
-    label: "Checklist",
+    label: "Stats strip",
+    icon: "stats",
+    html: `<table style="width:100%;text-align:center;margin:24px 0;">
+  <tr>
+    <td style="padding:16px;border-right:1px solid #1f2937;">
+      <p style="font-size:28px;font-weight:700;color:#FFA500;margin:0;">15+</p>
+      <p style="font-size:12px;color:#6b7280;margin:4px 0 0;text-transform:uppercase;letter-spacing:0.1em;">Years operating</p>
+    </td>
+    <td style="padding:16px;border-right:1px solid #1f2937;">
+      <p style="font-size:28px;font-weight:700;color:#FFA500;margin:0;">0</p>
+      <p style="font-size:12px;color:#6b7280;margin:4px 0 0;text-transform:uppercase;letter-spacing:0.1em;">Deadlines missed</p>
+    </td>
+    <td style="padding:16px;">
+      <p style="font-size:28px;font-weight:700;color:#FFA500;margin:0;">10+</p>
+      <p style="font-size:12px;color:#6b7280;margin:4px 0 0;text-transform:uppercase;letter-spacing:0.1em;">Institutions served</p>
+    </td>
+  </tr>
+</table>`,
+  },
+  // ── Checklists ───────────────────────────────────────────────────────────
+  {
+    label: "Checklist — Pre-shipment docs",
     icon: "check",
     html: `<ul>
-  <li>✓ Item one</li>
-  <li>✓ Item two</li>
-  <li>✓ Item three</li>
+  <li>✓ Commercial invoice — signed, dated, with HS codes</li>
+  <li>✓ Packing list — gross/net weights and dimensions per carton</li>
+  <li>✓ Bill of Lading or Air Waybill — carrier-issued</li>
+  <li>✓ ICUMS pre-arrival declaration (Ghana shipments)</li>
+  <li>✓ NAFDAC permit if applicable (Nigeria pharmaceutical/food cargo)</li>
+  <li>✓ Certificate of origin if duty exemption is claimed</li>
 </ul>`,
   },
   {
-    label: "Divider",
-    icon: "divider",
-    html: `<hr/>`,
+    label: "Checklist — RoRo vehicle docs",
+    icon: "check",
+    html: `<ul>
+  <li>✓ V5C logbook (original or certified copy)</li>
+  <li>✓ Purchase invoice showing vehicle value</li>
+  <li>✓ Valid photo ID of exporter</li>
+  <li>✓ DVLA export confirmation</li>
+  <li>✓ Pre-shipment inspection certificate (Ghana CEPS requirement)</li>
+  <li>✓ Destination agent details for customs entry</li>
+</ul>`,
+  },
+  // ── Urgency ──────────────────────────────────────────────────────────────
+  {
+    label: "Urgency notice",
+    icon: "alert",
+    html: `<div style="background:#78350f;border-left:4px solid #FFA500;border-radius:4px;padding:14px 20px;margin:20px 0;">
+  <p style="margin:0;font-size:13px;font-weight:700;color:#FFA500;text-transform:uppercase;letter-spacing:0.1em;">Limited capacity</p>
+  <p style="margin:6px 0 0;font-size:14px;color:#fef3c7;line-height:1.6;">We currently have limited air freight allocations on UK to Accra routes over the next 30 days. Once these slots are filled, lead times extend. Reply today to secure your slot.</p>
+</div>`,
+  },
+  // ── CTAs ─────────────────────────────────────────────────────────────────
+  {
+    label: "CTA — Get a quote",
+    icon: "cta",
+    html: `<div style="text-align:center;margin:28px 0;">
+  <a href="https://ellcworth.com/#quote" style="display:inline-block;background:#FFA500;color:#000000;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:0.14em;padding:14px 36px;border-radius:50px;text-decoration:none;">Get a Quote &rarr;</a>
+</div>`,
   },
   {
-    label: "CTA button",
+    label: "CTA — Email us directly",
     icon: "cta",
-    html: `<p style="text-align:center"><a href="https://ellcworth.com/#quote"><strong>→ Request a Quote</strong></a></p>`,
+    html: `<div style="text-align:center;margin:28px 0;">
+  <a href="mailto:cs@ellcworth.com?subject=Freight%20Enquiry" style="display:inline-block;background:transparent;color:#FFA500;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:0.14em;padding:13px 36px;border-radius:50px;text-decoration:none;border:2px solid #FFA500;">Email Us Directly &rarr;</a>
+</div>`,
+  },
+  // ── Utilities ────────────────────────────────────────────────────────────
+  {
+    label: "Divider",
+    icon: "divider",
+    html: `<div style="border-top:1px solid #1f2937;margin:28px 0;"></div>`,
   },
   {
     label: "Contact line",
