@@ -615,6 +615,7 @@ const TEMPLATE_GROUPS = [
     templates: [
       {
         key: "blank",
+        bannerUrl: "https://res.cloudinary.com/dihqxuiom/image/upload/v1789218451/Container_ellcworth.png",
         label: "Blank",
         subject: "",
         accent: "#FFA500",
@@ -623,6 +624,7 @@ const TEMPLATE_GROUPS = [
       },
       {
         key: "newsletter",
+        bannerUrl: "https://res.cloudinary.com/dihqxuiom/image/upload/v1789218451/Container_ellcworth.png",
         label: "Newsletter",
         subject: "Ellcworth Express — Freight Intelligence & Route Updates",
         accent: "#FFA500",
@@ -640,6 +642,7 @@ const TEMPLATE_GROUPS = [
       },
       {
         key: "promo",
+        bannerUrl: "https://res.cloudinary.com/dihqxuiom/image/upload/v1789218451/Container_ellcworth.png",
         label: "Rate Offer",
         subject: "Current Rates — UK to West Africa | Ellcworth Express",
         accent: "#FFA500",
@@ -663,6 +666,7 @@ const TEMPLATE_GROUPS = [
     templates: [
       {
         key: "institutional_certificates",
+        bannerUrl: "https://res.cloudinary.com/dihqxuiom/image/upload/v1789218451/air_ellcworth.png",
         label: "Certificate Freight",
         subject: "Degree Certificate Freight — UK to Ghana | Ellcworth Express",
         accent: "#FFA500",
@@ -682,6 +686,7 @@ const TEMPLATE_GROUPS = [
       },
       {
         key: "institutional_equipment",
+        bannerUrl: "https://res.cloudinary.com/dihqxuiom/image/upload/v1789218451/air_ellcworth.png",
         label: "Lab & IT Equipment",
         subject: "Lab & IT Equipment Freight — UK to Ghana | Ellcworth Express",
         accent: "#38bdf8",
@@ -700,6 +705,7 @@ const TEMPLATE_GROUPS = [
       },
       {
         key: "institutional_ngo",
+        bannerUrl: "https://res.cloudinary.com/dihqxuiom/image/upload/v1789218451/air_ellcworth.png",
         label: "NGO / Donor Freight",
         subject: "Donor-Compliant Freight Documentation — UK to Ghana | Ellcworth Express",
         accent: "#34d399",
@@ -723,6 +729,7 @@ const TEMPLATE_GROUPS = [
     templates: [
       {
         key: "commercial_roro",
+        bannerUrl: "https://res.cloudinary.com/dihqxuiom/image/upload/v1789218452/Roro_ellcworth.png",
         label: "RoRo — Vehicle Exporters",
         subject: "Tema Documentation — Your Clearance Time | Ellcworth Express",
         accent: "#a78bfa",
@@ -741,6 +748,7 @@ const TEMPLATE_GROUPS = [
       },
       {
         key: "commercial_container",
+        bannerUrl: "https://res.cloudinary.com/dihqxuiom/image/upload/v1789218451/Container_ellcworth.png",
         label: "Container — Commercial",
         subject: "Container Shipping UK to Ghana — Current Rates | Ellcworth Express",
         accent: "#38bdf8",
@@ -765,6 +773,7 @@ const TEMPLATE_GROUPS = [
       },
       {
         key: "commercial_air",
+        bannerUrl: "https://res.cloudinary.com/dihqxuiom/image/upload/v1789218451/air_ellcworth.png",
         label: "Air Freight — Urgent",
         subject: "Urgent Air Freight UK to Accra — Same Week | Ellcworth Express",
         accent: "#fcd34d",
@@ -788,6 +797,7 @@ const TEMPLATE_GROUPS = [
     templates: [
       {
         key: "community_lcl",
+        bannerUrl: "https://res.cloudinary.com/dihqxuiom/image/upload/v1789218451/Container_ellcworth.png",
         label: "LCL — Community Shippers",
         subject: "Shipping to Ghana — Pay Only for What You Send | Ellcworth Express",
         accent: "#FFA500",
@@ -873,7 +883,7 @@ const CONTENT_BLOCKS = [
 // Wraps editable body content in the full branded Ellcworth email shell.
 // Used for Preview and Send — the Visual editor only shows the body.
 
-function wrapInTemplate(bodyHtml, accentColor = "#FFA500", serviceLabel = "Container · RoRo · Air Freight") {
+function wrapInTemplate(bodyHtml, accentColor = "#FFA500", serviceLabel = "Container · RoRo · Air Freight", bannerUrl = "") {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -911,6 +921,9 @@ function wrapInTemplate(bodyHtml, accentColor = "#FFA500", serviceLabel = "Conta
       <div style="width:48px;height:2px;background:${accentColor};margin:0 auto 16px;border-radius:2px;"></div>
       <p style="font-size:13px;color:${accentColor};margin:0;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">${serviceLabel}</p>
     </div>
+
+    <!-- Banner image -->
+    ${bannerUrl ? `<img src="${bannerUrl}" alt="Ellcworth Express" style="display:block;width:100%;height:auto;margin:0;" />` : ""}
 
     <!-- Body -->
     <div class="body-content" style="padding:36px 40px;">
@@ -1020,7 +1033,7 @@ function CampaignTab() {
     setTemplate(key);
     setSubject(TEMPLATES[key].subject);
     setHtmlBody(TEMPLATES[key].body);
-    setTemplateMeta({ accent: TEMPLATES[key].accent || "#FFA500", serviceLabel: TEMPLATES[key].serviceLabel || "" });
+    setTemplateMeta({ accent: TEMPLATES[key].accent || "#FFA500", serviceLabel: TEMPLATES[key].serviceLabel || "", bannerUrl: TEMPLATES[key].bannerUrl || "" });
     setResult(null); setError("");
   };
 
@@ -1032,7 +1045,7 @@ function CampaignTab() {
       if (selected.length === 1 && TEMPLATES[selected[0]]) {
         const tpl = TEMPLATES[selected[0]];
         setTemplate(selected[0]);
-        setTemplateMeta({ accent: tpl.accent || "#FFA500", serviceLabel: tpl.serviceLabel || "" });
+        setTemplateMeta({ accent: tpl.accent || "#FFA500", serviceLabel: tpl.serviceLabel || "", bannerUrl: tpl.bannerUrl || "" });
         // Only auto-fill subject/body if the user hasn't written anything yet
         setSubject((prev) => prev.trim() ? prev : tpl.subject);
         setHtmlBody((prev) => prev.trim() ? prev : tpl.body);
@@ -1046,7 +1059,7 @@ function CampaignTab() {
     if (!window.confirm(`Send this campaign to all active subscribers${tags.length ? ` tagged: ${tags.join(", ")}` : ""}?\n\nThis cannot be undone.`)) return;
     setSending(true); setError(""); setResult(null);
     try {
-      const fullHtml = wrapInTemplate(htmlBody, templateMeta.accent, templateMeta.serviceLabel);
+      const fullHtml = wrapInTemplate(htmlBody, templateMeta.accent, templateMeta.serviceLabel, templateMeta.bannerUrl);
       const res = await fetch(`${MARKETING_API}/campaigns/send`, {
         method: "POST",
         headers: authHeaders(),
@@ -1225,7 +1238,7 @@ function CampaignTab() {
         {mode === "preview" && (
           <div className="bg-white rounded-xl overflow-hidden border border-[#1f2937] min-h-[400px]">
             <iframe
-              srcDoc={wrapInTemplate(htmlBody, templateMeta.accent, templateMeta.serviceLabel)}
+              srcDoc={wrapInTemplate(htmlBody, templateMeta.accent, templateMeta.serviceLabel, templateMeta.bannerUrl)}
               title="Email preview"
               className="w-full min-h-[400px] border-0"
               sandbox="allow-same-origin"

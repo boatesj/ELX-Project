@@ -46,8 +46,8 @@ function buildTouch2Html(name) {
       <table width="600" cellpadding="0" cellspacing="0"
              style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
         <tr>
-          <td style="background:#1a3c6e;padding:28px 40px;">
-            <p style="margin:0;color:#fff;font-size:20px;font-weight:bold;letter-spacing:1px;">ELLCWORTH EXPRESS</p>
+          <td style="background:#1A2930;padding:0;">
+            <img src="https://res.cloudinary.com/dihqxuiom/image/upload/v1789218451/air_ellcworth.png" alt="Ellcworth Express Air Freight" style="display:block;width:100%;height:auto;" />
           </td>
         </tr>
         <tr>
@@ -70,9 +70,9 @@ function buildTouch2Html(name) {
             </p>
             <table cellpadding="0" cellspacing="0">
               <tr>
-                <td style="background:#e8621a;border-radius:6px;">
+                <td style="background:#FFA500;border-radius:6px;">
                   <a href="https://ellcworth.com/quote?utm_source=drip&utm_medium=email&utm_campaign=air_accra&touch=2"
-                     style="display:inline-block;padding:14px 28px;color:#fff;font-size:15px;font-weight:bold;text-decoration:none;">
+                     style="display:inline-block;padding:14px 28px;color:#000;font-size:15px;font-weight:bold;text-decoration:none;">
                     Request a freight quote &rarr;
                   </a>
                 </td>
@@ -126,7 +126,7 @@ function buildTouch3Html(name) {
       <table width="600" cellpadding="0" cellspacing="0"
              style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
         <tr>
-          <td style="background:#1a3c6e;padding:28px 40px;">
+          <td style="background:#1A2930;padding:0;">
             <p style="margin:0;color:#fff;font-size:20px;font-weight:bold;letter-spacing:1px;">ELLCWORTH EXPRESS</p>
           </td>
         </tr>
@@ -156,16 +156,16 @@ function buildTouch3Html(name) {
             </p>
             <table cellpadding="0" cellspacing="0">
               <tr>
-                <td style="background:#e8621a;border-radius:6px;">
+                <td style="background:#FFA500;border-radius:6px;">
                   <a href="https://ellcworth.com/quote?utm_source=drip&utm_medium=email&utm_campaign=air_accra&touch=3"
-                     style="display:inline-block;padding:14px 24px;color:#fff;font-size:15px;font-weight:bold;text-decoration:none;">
+                     style="display:inline-block;padding:14px 24px;color:#000;font-size:15px;font-weight:bold;text-decoration:none;">
                     Secure my freight slot &rarr;
                   </a>
                 </td>
                 <td style="width:12px;"></td>
-                <td style="border:2px solid #1a3c6e;border-radius:6px;">
+                <td style="border:2px solid #1A2930;border-radius:6px;">
                   <a href="mailto:info@ellcworth.com?subject=Air%20Freight%20Enquiry%20UK%20to%20Accra"
-                     style="display:inline-block;padding:12px 24px;color:#1a3c6e;font-size:15px;font-weight:bold;text-decoration:none;">
+                     style="display:inline-block;padding:12px 24px;color:#1A2930;font-size:15px;font-weight:bold;text-decoration:none;">
                     Email us directly
                   </a>
                 </td>
