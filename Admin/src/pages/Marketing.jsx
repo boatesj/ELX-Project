@@ -24,6 +24,7 @@ const TAG_META = {
   air:       { label: "Air",       color: "bg-amber-500/15 text-amber-300 border-amber-500/40" },
   general:   { label: "General",   color: "bg-slate-500/15 text-slate-300 border-slate-500/40" },
   test:      { label: "Test",      color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40" },
+  whatsapp:  { label: "WhatsApp",  color: "bg-green-500/15 text-green-300 border-green-500/40" },
 };
 
 function TagChip({ tag }) {
@@ -1084,6 +1085,38 @@ function CampaignTab() {
   const [uploading, setUploading]   = useState(false);
   const [dripEnabled, setDripEnabled] = useState(false);
   const [allSubs, setAllSubs]       = useState([]);
+  const [channel, setChannel]       = useState("email"); // "email" | "whatsapp"
+  const [waBody, setWaBody]         = useState("");
+  const [waCopied, setWaCopied]     = useState(false);
+
+  const htmlToWhatsApp = (html) => {
+    return html
+      .replace(/<strong>(.*?)<\/strong>/gi, "*$1*")
+      .replace(/<b>(.*?)<\/b>/gi, "*$1*")
+      .replace(/<em>(.*?)<\/em>/gi, "_$1_")
+      .replace(/<i>(.*?)<\/i>/gi, "_$1_")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<\/li>/gi, "\n")
+      .replace(/<li>/gi, "• ")
+      .replace(/<\/tr>/gi, "\n")
+      .replace(/<td[^>]*>/gi, " | ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&rarr;/g, "→")
+      .replace(/&amp;/g, "&")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  };
+
+  const copyWaMessage = () => {
+    navigator.clipboard.writeText(waBody).then(() => {
+      setWaCopied(true);
+      setTimeout(() => setWaCopied(false), 2000);
+    });
+  };
 
   // Fetch subscriber list once so we can show live audience counts
   useEffect(() => {
@@ -1142,6 +1175,7 @@ function CampaignTab() {
     setSubject(TEMPLATES[key].subject);
     setHtmlBody(TEMPLATES[key].body);
     setTemplateMeta({ accent: TEMPLATES[key].accent || "#FFA500", serviceLabel: TEMPLATES[key].serviceLabel || "", bannerUrl: TEMPLATES[key].bannerUrl || "" });
+    setWaBody(htmlToWhatsApp(TEMPLATES[key].body));
     setResult(null); setError("");
   };
 
@@ -1185,6 +1219,21 @@ function CampaignTab() {
 
   return (
     <div className="max-w-4xl">
+      {/* Channel toggle */}
+      <div className="flex items-center gap-2 mb-6 p-1 bg-[#020617] border border-[#1f2937] rounded-xl w-fit">
+        {[
+          { id: "email",     label: "✉️  Email" },
+          { id: "whatsapp",  label: "💬  WhatsApp" },
+        ].map((c) => (
+          <button key={c.id} onClick={() => setChannel(c.id)}
+            className={`px-5 py-2 rounded-lg text-xs font-semibold transition ${
+              channel === c.id ? "bg-[#FFA500] text-black" : "text-gray-400 hover:text-white"
+            }`}>
+            {c.label}
+          </button>
+        ))}
+      </div>
+
       {/* Template picker — grouped */}
       <div className="mb-6">
         <p className="text-xs uppercase tracking-widest text-gray-400 mb-3">Start from a template</p>
@@ -1373,10 +1422,60 @@ function CampaignTab() {
           <p className="text-xs text-gray-500 mt-0.5">Automatically follow up with non-openers at Day 3 and Day 7 after sending.</p>
         </div>
       </div>
-      <button onClick={handleSend} disabled={sending || !subject.trim() || !htmlBody.trim()}
-        className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#FFA500] text-black font-semibold text-sm uppercase tracking-[0.14em] shadow-lg shadow-[#FFA500]/20 hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed">
-        {sending ? "Sending…" : "Send Campaign"}
-      </button>
+      {channel === "email" && (
+        <button onClick={handleSend} disabled={sending || !subject.trim() || !htmlBody.trim()}
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#FFA500] text-black font-semibold text-sm uppercase tracking-[0.14em] shadow-lg shadow-[#FFA500]/20 hover:brightness-110 transition disabled:opacity-40 disabled:cursor-not-allowed">
+          {sending ? "Sending…" : "Send Campaign"}
+        </button>
+      )}
+
+      {/* WhatsApp composer */}
+      {channel === "whatsapp" && (
+        <div className="mt-6 space-y-5">
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs uppercase tracking-widest text-gray-400">WhatsApp message</label>
+              <span className={`text-xs ${waBody.length > 1024 ? "text-red-400" : "text-gray-600"}`}>{waBody.length} / 1024 chars</span>
+            </div>
+            <textarea
+              value={waBody}
+              onChange={(e) => setWaBody(e.target.value)}
+              rows={10}
+              placeholder="Select a template above to generate a WhatsApp message, or write one here. Use *bold* for emphasis."
+              className="w-full bg-[#020617] border border-[#1f2937] rounded-xl px-4 py-3 text-sm outline-none focus:border-green-500/50 transition placeholder:text-gray-600 resize-y font-mono"
+            />
+            <p className="text-xs text-gray-600 mt-1">Use *bold*, _italic_. Keep under 1,024 chars. No HTML — plain text only.</p>
+          </div>
+
+          {/* Phone preview */}
+          {waBody && (
+            <div>
+              <p className="text-xs uppercase tracking-widest text-gray-400 mb-3">Preview</p>
+              <div className="bg-[#0a0f14] rounded-2xl p-4 max-w-sm border border-[#1f2937]">
+                <div className="bg-[#1f2937] rounded-xl p-3 mb-2">
+                  <p className="text-[11px] text-green-400 font-semibold mb-1">Ellcworth Express</p>
+                  <p className="text-sm text-gray-200 whitespace-pre-wrap leading-relaxed">{waBody}</p>
+                </div>
+                <p className="text-[10px] text-gray-600 text-right">WhatsApp Business</p>
+              </div>
+            </div>
+          )}
+
+          {/* Segment note */}
+          <div className="px-4 py-3 rounded-xl border border-green-500/20 bg-green-500/5 text-sm text-green-300">
+            💬 This message is for manual sending via WhatsApp Business.
+            {tags.length > 0 && (
+              <span> Filtered to <strong>{audienceCount}</strong> subscriber{audienceCount !== 1 ? "s" : ""} tagged <strong>{tags.join(", ")}</strong>.</span>
+            )}
+            {" "}Copy and paste into WhatsApp Business broadcast lists for contacts tagged with WhatsApp channel.
+          </div>
+
+          <button onClick={copyWaMessage} disabled={!waBody.trim()}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-green-600 text-white font-semibold text-sm uppercase tracking-[0.14em] hover:bg-green-500 transition disabled:opacity-40 disabled:cursor-not-allowed">
+            {waCopied ? "✓ Copied!" : "💬 Copy WhatsApp Message"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
