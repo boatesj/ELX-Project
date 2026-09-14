@@ -93,7 +93,7 @@ export default function Sailings() {
     setSaving(true); setError("");
     try {
       if (editingId) {
-        await authRequest.put(\`/api/v1/sailings/\${editingId}\`, form);
+        await authRequest.put(`/api/v1/sailings/${editingId}`, form);
       } else {
         await authRequest.post("/api/v1/sailings", form);
       }
@@ -105,9 +105,9 @@ export default function Sailings() {
   };
 
   const handleDelete = async (id, label) => {
-    if (!window.confirm(\`Delete "\${label}"? This cannot be undone.\`)) return;
+    if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return;
     try {
-      await authRequest.delete(\`/api/v1/sailings/\${id}\`);
+      await authRequest.delete(`/api/v1/sailings/${id}`);
       load();
     } catch { setError("Failed to delete sailing."); }
   };
