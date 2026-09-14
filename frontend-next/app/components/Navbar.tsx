@@ -47,6 +47,7 @@ const DESTINATION_LINKS = [
   { label: "Kenya (Mombasa)",         to: "/destinations/kenya" },
   { label: "Sierra Leone (Freetown)", to: "/destinations/sierra-leone" },
   { label: "Cote d'Ivoire (Abidjan)", to: "/destinations/cote-divoire" },
+  { label: "Benin (Cotonou)",          to: "/destinations/benin" },
 ];
 
 interface DropdownItem { label: string; to: string; }
@@ -236,6 +237,7 @@ export default function Navbar() {
             <Dropdown label="Key Destinations" items={DESTINATION_LINKS} mapLink />
             <li><Link href="/about" className="hover:text-black/70 transition">About</Link></li>
             <li><Link href="/insights" className="hover:text-black/70 transition">Insights</Link></li>
+            <li><Link href="/pricing" className="hover:text-black/70 transition">Rates</Link></li>
           </ul>
 
           <div className="flex items-center gap-3">
@@ -366,6 +368,11 @@ export default function Navbar() {
               <Link href="/insights" onClick={closeMenu}
                 className="block rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold tracking-[0.14em] uppercase text-white/90 hover:bg-white/10 transition mb-2">
                 Insights →
+              </Link>
+
+              <Link href="/pricing" onClick={closeMenu}
+                className="block rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold tracking-[0.14em] uppercase text-white/90 hover:bg-white/10 transition mb-2">
+                Rates →
               </Link>
 
               <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
