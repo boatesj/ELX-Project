@@ -97,7 +97,7 @@ export default function PricingPage() {
               ["Côte d'Ivoire", "/destinations/cote-divoire"],
               ["Benin", "/destinations/benin"],
             ].map(([label, href]) => (
-              <Link key={href} href={href} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">{label} \u2192</Link>
+              <Link key={href} href={href} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">{label} →</Link>
             ))}
           </div>
         </div>
@@ -108,7 +108,7 @@ export default function PricingPage() {
         <div className="mx-auto max-w-5xl px-4 md:px-6 lg:px-8 text-center">
           <h2 className="text-2xl font-bold mb-4">Ready for a confirmed quote?</h2>
           <p className="text-gray-300 mb-8">Indicative rates are a starting point. Get a confirmed quote with full cost breakdown within one business day.</p>
-          <Link href="/#quote" className="inline-flex items-center gap-2 rounded-full bg-[#FFA500] px-8 py-4 text-sm font-bold text-black uppercase tracking-widest hover:brightness-110 transition">Get a Quote \u2192</Link>
+          <Link href="/#quote" className="inline-flex items-center gap-2 rounded-full bg-[#FFA500] px-8 py-4 text-sm font-bold text-black uppercase tracking-widest hover:brightness-110 transition">Get a Quote →</Link>
         </div>
       </section>
     </main>
