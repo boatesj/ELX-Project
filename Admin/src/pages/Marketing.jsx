@@ -635,7 +635,7 @@ const TEMPLATE_GROUPS = [
 <h2>In this issue</h2>
 <ul>
   <li>Tema Port congestion update — current clearance times</li>
-  <li>RoRo vessel schedule — next sailings from Grimsby and Tilbury</li>
+  <li>RoRo vessel schedule — next sailings from Grimsby, Tilbury and Southampton</li>
   <li>New route: UK to Mombasa — FCL rates now available</li>
   <li>Customs documentation checklist — avoid the three most common errors</li>
 </ul>
@@ -879,12 +879,12 @@ const CONTENT_BLOCKS = [
   {
     label: "Route — RoRo to Tema",
     icon: "route",
-    html: `<p><strong>Route:</strong> Grimsby / Tilbury → Tema Port, Ghana · RoRo vehicle shipping · Transit: 14–18 days · From £750 per vehicle</p>`,
+    html: `<p><strong>Route:</strong> Grimsby / Tilbury / Southampton → Tema Port, Ghana · RoRo vehicle shipping · Transit: 14–18 days · From £750 per vehicle</p>`,
   },
   {
     label: "Route — RoRo to Apapa",
     icon: "route",
-    html: `<p><strong>Route:</strong> Grimsby / Tilbury → Apapa Port, Lagos, Nigeria · RoRo vehicle shipping · Transit: 16–20 days · From £850 per vehicle</p>`,
+    html: `<p><strong>Route:</strong> Grimsby / Tilbury / Southampton → Apapa Port, Lagos, Nigeria · RoRo vehicle shipping · Transit: 16–20 days · From £850 per vehicle</p>`,
   },
   // ── Social proof ─────────────────────────────────────────────────────────
   {
