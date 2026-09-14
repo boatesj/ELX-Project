@@ -37,6 +37,7 @@ const FAQS = [
   { q: "What is ICUMS and why does it matter?", a: "ICUMS is Ghana's national customs platform, operated by the Ghana Revenue Authority. All imports are processed through it. Correct pre-arrival declarations and accurate documentation are essential — errors lead to holds, physical examinations, and port storage charges. Ellcworth Express manages ICUMS clearance on your behalf." },
   { q: "How much does it cost to ship a 20ft container from the UK to Ghana?", a: "A 20ft full container load (FCL) from the UK to Ghana starts from £1,500. A 40ft container starts from £2,500. The final price depends on your cargo weight, departure port, and sailing schedule at the time of booking. Both figures include standard freight charges — customs duties and destination handling are quoted separately. We return a full cost breakdown within 24 hours of enquiry." },
     { q: "How do I get a quote?", a: "Use our online quote form or contact us directly via WhatsApp or email. For RoRo we need the vehicle make, model, and year. For FCL or LCL we need cargo dimensions and weight. Quotes are typically returned within 24 hours." },
+    { q: "Do you offer door to door shipping from the UK to Ghana?", a: "Yes. Our door to door service covers collection from your UK address, export documentation, sea or air freight, ICUMS customs clearance at Tema or Accra, and last-mile delivery to your Ghana address. One contact, one invoice. See our dedicated door to door guide for full details including pricing." },
 ];
 
 function FAQItem({ q, a }: { q: string; a: string }) {
