@@ -31,6 +31,13 @@ function Elements() {
       title: "Instant quote rates",
       body: "Update the prices shown in the instant quote estimate widget on the public site.",
     },
+    {
+      id: "sailings",
+      to: "/elements/sailings",
+      icon: FaShip,
+      title: "Upcoming sailings",
+      body: "Add and manage confirmed vessel sailings and air freight routes shown on the homepage.",
+    },
   ];
 
   return (
