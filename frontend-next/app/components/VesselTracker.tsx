@@ -5,11 +5,11 @@ import { useState } from "react";
 const VIEWS: Record<string, { label: string; src: string }> = {
   tema: {
     label: "Tema Port",
-    src: "https://www.vesselfinder.com/aismap?zoom=11&lat=5.6037&lon=-0.0167&width=100%25&height=400&names=false",
+    src: "https://www.vesselfinder.com/aismap?zoom=11&lat=5.6037&lon=-0.0167&width=800&height=400&names=false",
   },
   westAfrica: {
     label: "West Africa",
-    src: "https://www.vesselfinder.com/aismap?zoom=5&lat=5.0&lon=-1.0&width=100%25&height=400&names=false",
+    src: "https://www.vesselfinder.com/aismap?zoom=5&lat=5.0&lon=-1.0&width=800&height=400&names=false",
   },
 };
 
