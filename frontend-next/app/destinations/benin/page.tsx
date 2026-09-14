@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 const SERVICES = [
-  { icon: "\u{1F6A2}", title: "RoRo Vehicle Shipping to Benin", price: "From \u00a3850", description: "Cotonou Port Autonome is a direct RoRo call on regular West Africa sailings from Grimsby and Tilbury. You deliver the vehicle to the UK departure port using the shipping note we issue \u2014 the port team drives it onto the vessel and off again at Cotonou. No containerisation costs, no crane fees.", suited: ["Cars & SUVs", "Vans & pickups", "Agricultural machinery", "Construction equipment"] },
+  { icon: "\u{1F6A2}", title: "RoRo Vehicle Shipping to Benin", price: "From \u00a3850", description: "Cotonou Port Autonome is a direct RoRo call on regular West Africa sailings from Grimsby, Tilbury or Southampton. You deliver the vehicle to your nearest departure port using the shipping note we issue \u2014 the port team drives it onto the vessel and off again at Cotonou. No containerisation costs, no crane fees.", suited: ["Cars & SUVs", "Vans & pickups", "Agricultural machinery", "Construction equipment"] },
   { icon: "\u{1F4E6}", title: "Container Shipping to Benin", price: "20ft from \u00a31,600 \u00b7 40ft from \u00a32,800", description: "FCL containers from UK ports to Cotonou \u2014 Benin\u2019s principal deep-water port and a key transit gateway for landlocked Niger, Burkina Faso and northern Nigeria.", suited: ["Commercial goods", "Industrial equipment", "Retail stock", "NGO supplies"] },
   { icon: "\u{1F91D}", title: "LCL \u2014 Groupage", price: "Quoted per CBM", description: "Share container space with other shippers moving cargo to Cotonou. We consolidate at our UK depot under a single bill of lading.", suited: ["Small commercial loads", "Single pallets", "Samples", "Personal effects"] },
 ];
@@ -30,7 +30,7 @@ const CUSTOMS = [
 ];
 
 const FAQS = [
-  { q: "Is Cotonou a direct RoRo port from the UK?", a: "Yes. Cotonou Port Autonome is a direct call on regular West Africa RoRo sailings from Grimsby and Tilbury. Transit time from UK ports to Cotonou is typically 16\u201320 days. There is no transhipment." },
+  { q: "Is Cotonou a direct RoRo port from the UK?", a: "Yes. Cotonou Port Autonome is a direct call on regular West Africa RoRo sailings from Grimsby, Tilbury and Southampton. Transit time from UK ports to Cotonou is typically 16\u201320 days. There is no transhipment." },
   { q: "How much does it cost to ship a car to Benin?", a: "RoRo rates to Cotonou start from \u00a3850 per vehicle. The final price depends on vehicle dimensions and the sailing schedule at time of booking. We can usually confirm a rate and sailing date within 24 hours of enquiry." },
   { q: "Can I use Cotonou as a gateway to Niger or Burkina Faso?", a: "Yes. Cotonou is the principal transit port for landlocked Niger and Burkina Faso, and a secondary gateway for northern Nigeria. We can arrange port-to-port shipping to Cotonou with your nominated inland agent handling onward movement." },
 ];
