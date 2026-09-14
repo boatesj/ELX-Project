@@ -28,6 +28,7 @@ import Elements from "./pages/Elements";
 import Ports from "./pages/Ports";
 import ServiceTypes from "./pages/ServiceTypes";
 import Rates from "./pages/Rates";
+import Sailings from "./pages/Sailings";
 import CargoCategories from "./pages/CargoCategories";
 import Settings from "./pages/Settings";
 import Backups from "./pages/Backups";
@@ -265,6 +266,7 @@ const router = createBrowserRouter([
       { path: "elements/ports", element: <Ports /> },
       { path: "elements/service-types", element: <ServiceTypes /> },
       { path: "elements/rates", element: <Rates /> },
+      { path: "elements/sailings", element: <Sailings /> },
       { path: "elements/cargo-categories", element: <CargoCategories /> },
 
       // System pages
