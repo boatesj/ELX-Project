@@ -23,7 +23,7 @@ const DESTINATIONS = [
   { id: "nigeria",     label: "Nigeria",        port: "Apapa Port, Lagos",      flag: "\u{1F1F3}\u{1F1EC}" },
   { id: "kenya",       label: "Kenya",          port: "Mombasa Port",           flag: "\u{1F1F0}\u{1F1EA}" },
   { id: "sierra-leone",label: "Sierra Leone",   port: "Freetown QEII Quay",     flag: "\u{1F1F8}\u{1F1F1}" },
-  { id: "cote-divoire",label: "C\u00f4te d'Ivoire", port: "Abidjan Port Autonome", flag: "\u{1F1E8}\u{1F1EE}" },
+  { id: "cote-divoire",label: "Côte d'Ivoire", port: "Abidjan Port Autonome", flag: "\u{1F1E8}\u{1F1EE}" },
 ];
 
 const SERVICE_ORDER = ["roro", "fcl20", "fcl40", "lcl", "air"];
@@ -36,7 +36,7 @@ const SERVICE_LABEL: Record<string, string> = {
 };
 
 function formatPrice(price: number, currency: string) {
-  const symbol = currency === "GBP" ? "\u00a3" : currency + " ";
+  const symbol = currency === "GBP" ? "£" : currency + " ";
   return `${symbol}${price.toLocaleString("en-GB")}`;
 }
 
@@ -120,7 +120,7 @@ export default function PricingClient() {
             </div>
             <Link href={`/destinations/${activeTab}`}
               className="inline-flex items-center gap-1.5 rounded-full border border-[#1A2930] px-5 py-2.5 text-sm font-semibold text-[#1A2930] hover:bg-[#1A2930] hover:text-white transition whitespace-nowrap">
-              {dest.label} full guide \u2192
+              {dest.label} full guide →
             </Link>
           </div>
         </>
