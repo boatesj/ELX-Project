@@ -261,6 +261,7 @@ export default function GhanaPage() {
             <Link href="/destinations/kenya" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Kenya &rarr;</Link>
             <Link href="/destinations/sierra-leone" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Sierra Leone &rarr;</Link>
             <Link href="/destinations/cote-divoire" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Côte d'Ivoire &rarr;</Link>
+            <Link href="/destinations/benin" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Benin &rarr;</Link>
           </div>
         </div>
       </section>

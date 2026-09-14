@@ -21,8 +21,8 @@ const SEO: Record<string, { title: string; desc: string }> = {
     desc: "FCL and LCL container shipping from the UK to Ghana and West Africa. Full and shared containers with milestone tracking.",
   },
   roro: {
-    title: "Car Shipping UK to Ghana — RoRo Tema & Apapa | Ellcworth",
-    desc: "Ship cars, vans, trucks and rolling stock from the UK to Ghana and West Africa via RoRo — reliable sailings and documentation guidance.",
+    title: "RoRo Vehicle Shipping UK to West Africa | Ghana, Nigeria, Kenya, Côte d'Ivoire | Ellcworth",
+    desc: "Ship cars, vans, trucks and rolling stock from UK ports to Tema (Ghana), Apapa Lagos (Nigeria), Mombasa (Kenya), Abidjan (Côte d'Ivoire) and Cotonou (Benin). From £750 per vehicle. Regular sailings from Grimsby and Tilbury.",
   },
   air: {
     title: "Air Freight Ghana from UK — Urgent Cargo",
