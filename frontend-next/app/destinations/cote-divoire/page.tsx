@@ -3,17 +3,17 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Shipping to Côte d'Ivoire from the UK | Container & Air Freight",
-  description: "FCL container shipping and air freight from the UK to Côte d'Ivoire. Abidjan Port Autonome and Félix Houphouët-Boigny International Airport. Full customs clearance end-to-end.",
+  description: "Container shipping, RoRo vehicle shipping and air freight from the UK to Côte d'Ivoire. Ship cars and trucks to Abidjan Port Autonome from £850. Full customs clearance end-to-end.",
   alternates: { canonical: "https://www.ellcworth.com/destinations/cote-divoire" },
   openGraph: {
     title: "Shipping to Côte d'Ivoire from the UK | Container & Air Freight",
-    description: "FCL container shipping and air freight from the UK to Côte d'Ivoire. Abidjan Port Autonome and Félix Houphouët-Boigny International Airport. Full customs clearance end-to-end.",
+    description: "Container shipping, RoRo vehicle shipping and air freight from the UK to Côte d'Ivoire. Ship cars and trucks to Abidjan Port Autonome from £850. Full customs clearance end-to-end.",
     url: "https://www.ellcworth.com/destinations/cote-divoire",
     siteName: "Ellcworth Express",
     type: "website",
     images: [{ url: "https://www.ellcworth.com/ellc_hero1.webp" }],
   },
-  twitter: { card: "summary_large_image", title: "Shipping to Côte d'Ivoire from the UK", description: "FCL container shipping and air freight UK to Côte d'Ivoire. Abidjan Port Autonome. Full customs clearance end-to-end." },
+  twitter: { card: "summary_large_image", title: "Shipping to Côte d'Ivoire from the UK", description: "Container shipping, RoRo and air freight UK to Côte d'Ivoire. Abidjan Port Autonome from £850. Full customs clearance end-to-end." },
 };
 
 const STATS = [
@@ -24,6 +24,7 @@ const STATS = [
 ];
 
 const SERVICES = [
+  { icon: "🚢", title: "RoRo Shipping to Côte d'Ivoire", price: "From £850", description: "Roll-on/Roll-off is the fastest, most cost-effective method for vehicles and self-propelled machinery. Abidjan Port Autonome is a direct RoRo call on regular West Africa sailings from UK ports. You deliver the vehicle to Grimsby or Tilbury using the shipping note we issue — the port team drives it onto the vessel, off again at Abidjan.", suited: ["Cars & SUVs", "Vans & pickups", "Agricultural machinery", "Construction equipment"] },
   { icon: "📦", title: "FCL — Full Container Load", price: "20ft from £1,600 · 40ft from £2,800", description: "Dedicated containers from UK ports to Abidjan Port Autonome — one of West Africa's busiest and most efficient deep-water ports. Abidjan serves as a regional hub for landlocked countries including Mali, Burkina Faso, and Niger.", suited: ["Commercial goods", "Industrial equipment", "Retail stock", "Regional distribution"] },
   { icon: "🤝", title: "LCL — Groupage", price: "Quoted per CBM", description: "Share container space with other shippers moving cargo to Abidjan. Ideal for smaller loads. We consolidate at our UK depot under a single bill of lading, with Abidjan delivery through our local agent network.", suited: ["Small commercial loads", "Single pallets", "Samples", "Personal effects"] },
   { icon: "✈️", title: "Air Freight", price: "Quoted per kg", description: "Direct to Félix Houphouët-Boigny International Airport (ABJ), Abidjan. Door-to-airport and airport-to-airport options. Fastest route for urgent cargo, perishables, and time-critical consignments.", suited: ["Urgent cargo", "Perishables", "High-value goods", "Time-sensitive documents"] },
@@ -169,6 +170,7 @@ export default function CoteDIvoirePage() {
             <Link href="/destinations/nigeria" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Nigeria &rarr;</Link>
             <Link href="/destinations/kenya" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Kenya &rarr;</Link>
             <Link href="/destinations/sierra-leone" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Sierra Leone &rarr;</Link>
+            <Link href="/destinations/benin" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Benin &rarr;</Link>
           </div>
         </div>
       </section>

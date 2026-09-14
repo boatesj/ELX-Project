@@ -4,11 +4,11 @@ import InstantQuoteEstimate from "../../components/InstantQuoteEstimate";
 
 export const metadata: Metadata = {
   title: "Shipping to Nigeria from the UK | Container & Air Freight",
-  description: "FCL container shipping and air freight from the UK to Nigeria. Apapa Port Lagos and Murtala Muhammed Airport. Export documentation, customs clearance end-to-end.",
+  description: "Container shipping, RoRo vehicle shipping and air freight from the UK to Nigeria. Ship cars and trucks to Apapa Port Lagos from £950. Form M, NCS customs clearance end-to-end.",
   alternates: { canonical: "https://www.ellcworth.com/destinations/nigeria" },
   openGraph: {
     title: "Shipping to Nigeria from the UK | Container & Air Freight",
-    description: "FCL container shipping and air freight from the UK to Nigeria. Apapa Port Lagos and Murtala Muhammed Airport. Export documentation, customs clearance end-to-end.",
+    description: "Container shipping, RoRo vehicle shipping and air freight from the UK to Nigeria. Ship cars and trucks to Apapa Port Lagos from £950. Form M, NCS customs clearance end-to-end.",
     url: "https://www.ellcworth.com/destinations/nigeria",
     siteName: "Ellcworth Express",
     type: "website",
@@ -229,6 +229,7 @@ export default function NigeriaPage() {
             <Link href="/destinations/kenya" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Kenya &rarr;</Link>
             <Link href="/destinations/sierra-leone" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Sierra Leone &rarr;</Link>
             <Link href="/destinations/cote-divoire" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Côte d'Ivoire &rarr;</Link>
+            <Link href="/destinations/benin" className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">Benin &rarr;</Link>
           </div>
         </div>
       </section>
