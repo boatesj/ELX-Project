@@ -44,8 +44,8 @@ export default function BeninPage() {
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">Shipping to Benin from the UK</h1>
           <p className="text-lg text-gray-300 leading-relaxed max-w-2xl">RoRo vehicle shipping and container freight to Cotonou Port \u2014 a direct call on regular West Africa sailings. Gateway to Niger, Burkina Faso and northern Nigeria.</p>
           <div className="flex flex-wrap gap-3 mt-8">
-            <Link href="/#quote" className="inline-flex items-center gap-2 rounded-full bg-[#FFA500] px-6 py-3 text-sm font-bold text-black uppercase tracking-widest hover:brightness-110 transition">Get a Quote \u2192</Link>
-            <Link href="/destinations/ghana" className="inline-flex items-center gap-2 rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white hover:border-white/50 transition">Also shipping to Ghana</Link>
+            <Link href="/#quote" className="inline-flex items-center gap-2 rounded-full bg-[#FFA500] px-6 py-3 text-sm font-bold text-black uppercase tracking-widest hover:brightness-110 transition">Get a Quote →</Link>
+            <Link href="/destinations/ghana" className="inline-flex items-center gap-2 rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white hover:border-white/50 transition">Also shipping to Ghana →</Link>
           </div>
         </div>
       </section>
@@ -131,7 +131,7 @@ export default function BeninPage() {
               ["Kenya", "/destinations/kenya"],
               ["Sierra Leone", "/destinations/sierra-leone"],
             ].map(([label, href]) => (
-              <Link key={href} href={href} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">{label} \u2192</Link>
+              <Link key={href} href={href} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-[#1A2930] hover:border-[#FFA500] hover:text-[#FFA500] transition">{label} →</Link>
             ))}
           </div>
         </div>
@@ -141,7 +141,7 @@ export default function BeninPage() {
         <div className="mx-auto max-w-4xl px-4 md:px-6 lg:px-8 text-center">
           <h2 className="text-2xl font-bold mb-4">Ready to ship to Benin?</h2>
           <p className="text-gray-300 mb-8">Get a quote within one business day. RoRo, container and groupage options available.</p>
-          <Link href="/#quote" className="inline-flex items-center gap-2 rounded-full bg-[#FFA500] px-8 py-4 text-sm font-bold text-black uppercase tracking-widest hover:brightness-110 transition">Get a Quote \u2192</Link>
+          <Link href="/#quote" className="inline-flex items-center gap-2 rounded-full bg-[#FFA500] px-8 py-4 text-sm font-bold text-black uppercase tracking-widest hover:brightness-110 transition">Get a Quote →</Link>
         </div>
       </section>
     </main>
