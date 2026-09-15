@@ -46,6 +46,11 @@ const SailingSchema = new mongoose.Schema(
       trim: true,
       default: "Available",
     },
+    frequency: {
+      type: String,
+      enum: ["once", "daily", "weekly", "twice-weekly"],
+      default: "once",
+    },
     notes: {
       type: String,
       trim: true,
