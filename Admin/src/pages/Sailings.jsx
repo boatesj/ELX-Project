@@ -53,7 +53,7 @@ export default function Sailings() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await authRequest.get("/api/v1/sailings/all");
+      const res = await authRequest.get("/api/v1/sailings?showAll=true");
       setSailings(res.data);
     } catch { setError("Failed to load sailings."); }
     finally { setLoading(false); }
