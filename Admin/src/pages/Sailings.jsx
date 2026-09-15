@@ -115,7 +115,7 @@ export default function Sailings() {
   const modeChip = (mode) => {
     const map = { sea: "bg-sky-500/15 text-sky-300 border-sky-500/40", roro: "bg-violet-500/15 text-violet-300 border-violet-500/40", air: "bg-amber-500/15 text-amber-300 border-amber-500/40" };
     const labels = { sea: "Sea", roro: "RoRo", air: "Air" };
-    return <span className={\`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border \${map[mode] || ""}\`}>{labels[mode] || mode}</span>;
+    return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${map[mode] || ""}`}>{labels[mode] || mode}</span>;
   };
 
   return (
