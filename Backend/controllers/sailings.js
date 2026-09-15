@@ -4,10 +4,11 @@ const Sailing = require("../models/Sailing");
 // Returns active sailings with departure date >= today
 exports.getSailings = async (req, res) => {
   try {
-    const query = { isActive: true, departureDate: { $gte: new Date() } };
+    const showAll = req.query.showAll === "true";
+    const query = showAll ? {} : { isActive: true, departureDate: { $gte: new Date() } };
     if (req.query.mode) query.mode = req.query.mode;
     if (req.query.destination) query.destination = req.query.destination.toLowerCase();
-    const sailings = await Sailing.find(query).sort({ departureDate: 1 });
+    const sailings = await Sailing.find(query).sort({ departureDate: showAll ? -1 : 1 });
     res.status(200).json(sailings);
   } catch (err) {
     console.error("getSailings error:", err);
