@@ -53,7 +53,7 @@ export default function Sailings() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await authRequest.get("/api/v1/sailings?showAll=true");
+      const res = await authRequest.get("/sailings?showAll=true");
       setSailings(res.data);
     } catch { setError("Failed to load sailings."); }
     finally { setLoading(false); }
@@ -93,9 +93,9 @@ export default function Sailings() {
     setSaving(true); setError("");
     try {
       if (editingId) {
-        await authRequest.put(`/api/v1/sailings/${editingId}`, form);
+        await authRequest.put(`/sailings/${editingId}`, form);
       } else {
-        await authRequest.post("/api/v1/sailings", form);
+        await authRequest.post("/sailings", form);
       }
       reset();
       load();
@@ -107,7 +107,7 @@ export default function Sailings() {
   const handleDelete = async (id, label) => {
     if (!window.confirm(`Delete "${label}"? This cannot be undone.`)) return;
     try {
-      await authRequest.delete(`/api/v1/sailings/${id}`);
+      await authRequest.delete(`/sailings/${id}`);
       load();
     } catch { setError("Failed to delete sailing."); }
   };
