@@ -15,8 +15,15 @@ type Sailing = {
   closingDate: string;
   departureDate: string;
   eta: string | null;
+  frequency: "once" | "daily" | "weekly" | "twice-weekly";
   spacesLabel: string;
   notes: string;
+};
+
+const FREQ_LABEL: Record<string, string> = {
+  daily: "Daily departures",
+  weekly: "Weekly departures",
+  "twice-weekly": "Twice-weekly departures",
 };
 
 const MODE_TABS = [
@@ -136,7 +143,11 @@ const VesselTracker = () => {
                     </div>
                     <div className="flex justify-between">
                       <span>Departure</span>
-                      <span className="text-gray-300">{fmt(s.departureDate)}</span>
+                      <span className="text-gray-300">
+                        {s.frequency && s.frequency !== "once"
+                          ? FREQ_LABEL[s.frequency] || s.frequency
+                          : fmt(s.departureDate)}
+                      </span>
                     </div>
                     {s.eta && (
                       <div className="flex justify-between">

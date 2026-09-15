@@ -30,6 +30,7 @@ const empty = {
   closingDate: "",
   departureDate: "",
   eta: "",
+  frequency: "once",
   spacesLabel: "Available",
   notes: "",
   isActive: true,
@@ -75,6 +76,7 @@ export default function Sailings() {
       closingDate: s.closingDate ? s.closingDate.slice(0, 10) : "",
       departureDate: s.departureDate ? s.departureDate.slice(0, 10) : "",
       eta: s.eta ? s.eta.slice(0, 10) : "",
+      frequency: s.frequency || "once",
       spacesLabel: s.spacesLabel || "Available",
       notes: s.notes || "",
       isActive: s.isActive,
@@ -184,6 +186,16 @@ export default function Sailings() {
             <input value={form.notes} onChange={set("notes")} placeholder="e.g. Containers only" className={field} />
           </div>
         </div>
+
+        <div>
+            <label className="text-xs text-gray-400 uppercase tracking-widest mb-1 block">Frequency</label>
+            <select value={form.frequency} onChange={set("frequency")} className={field}>
+              <option value="once">One-off sailing</option>
+              <option value="daily">Daily</option>
+              <option value="twice-weekly">Twice weekly</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </div>
 
         <div className="flex items-center gap-2">
           <input type="checkbox" id="isActive" checked={form.isActive} onChange={setCheck("isActive")} className="accent-[#FFA500]" />
