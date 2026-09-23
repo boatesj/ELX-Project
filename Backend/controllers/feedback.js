@@ -23,36 +23,88 @@ function siteUrl() {
 function buildFeedbackEmail({ clientName, context, token }) {
   const link = `${siteUrl()}/feedback/${token}`;
   const greeting = clientName ? `Dear ${clientName},` : "Dear valued customer,";
-  const contextLine = context
-    ? `Your recent shipment (${context}) has now been completed.`
-    : "Your recent shipment with us has now been completed.";
 
   const text = [
     greeting,
     "",
-    `${contextLine} We don't take it for granted that you trusted us with this, and we'd value two minutes of your time to tell us how we did — it directly shapes how we serve customers like you going forward.`,
+    "Your cargo has arrived. We know you had a lot riding on this — and we are glad it landed safely and on time.",
     "",
-    `Share your experience: ${link}`,
+    "We would value two minutes of your honest feedback. No long surveys, no tick-box forms — just three quick questions from us to you. Your answer helps the next customer decide whether to trust us with their shipment.",
     "",
-    "With thanks,",
-    "Customer Service Team",
-    BRAND.name,
+    "Three questions. Two minutes. Completely honest.",
+    "",
+    `Leave your feedback here: ${link}`,
+    "",
+    "Best regards,",
+    "The Ellcworth Express Team",
+    "cs@ellcworth.com · +44 (0)208 979 6054",
+    "",
+    "P.S. Something felt off? Reply directly to this email. We personally review every response and we would rather hear it from you than not at all.",
   ].join("\n");
 
   const html = `
-    <div style="font-family:Arial,sans-serif;color:${BRAND.navy};line-height:1.6;max-width:560px;">
-      <p>${greeting}</p>
-      <p>${contextLine} We don't take it for granted that you trusted us with this, and we'd value two minutes of your time to tell us how we did &mdash; it directly shapes how we serve customers like you going forward.</p>
-      <p style="margin:28px 0;">
-        <a href="${link}" style="background:${BRAND.navy};color:${BRAND.accent};padding:12px 24px;border-radius:4px;text-decoration:none;font-weight:bold;display:inline-block;">
-          Share your experience
-        </a>
-      </p>
-      <p>With thanks,<br/>Customer Service Team<br/>${BRAND.name}</p>
-    </div>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+    <body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 16px;">
+        <tr><td align="center">
+          <table width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;">
+
+            <!-- Header -->
+            <tr>
+              <td style="background:#1A2930;padding:32px 40px 24px;text-align:center;border-radius:16px 16px 0 0;">
+                <p style="margin:0 0 8px;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:#6b7280;font-weight:600;">Ellcworth Express Ltd</p>
+                <div style="width:40px;height:2px;background:#FFA500;margin:0 auto 12px;border-radius:2px;"></div>
+                <p style="margin:0;font-size:12px;color:#FFA500;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">UK · West Africa Freight</p>
+              </td>
+            </tr>
+
+            <!-- Body -->
+            <tr>
+              <td style="background:#ffffff;padding:40px 40px 32px;">
+                <p style="margin:0 0 20px;font-size:15px;color:#1A2930;line-height:1.7;">${greeting}</p>
+                <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.7;">Your cargo has arrived. We know you had a lot riding on this &mdash; and we&rsquo;re glad it landed safely and on time.</p>
+                <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.7;">We&rsquo;d value two minutes of your honest feedback. No long surveys, no tick-box forms &mdash; just three quick questions from us to you. Your answer helps the next customer decide whether to trust us with their shipment.</p>
+                <p style="margin:0 0 32px;font-size:14px;color:#6b7280;font-style:italic;">Three questions. Two minutes. Completely honest.</p>
+
+                <!-- CTA Button -->
+                <table cellpadding="0" cellspacing="0" style="margin:0 auto 36px;">
+                  <tr>
+                    <td style="background:#FFA500;border-radius:50px;">
+                      <a href="${link}" style="display:inline-block;padding:16px 40px;color:#1A2930;font-size:14px;font-weight:700;text-decoration:none;letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap;">
+                        Tell us what you think &rarr;
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin:0 0 8px;font-size:14px;color:#374151;line-height:1.7;">Best regards,<br/><strong>The Ellcworth Express Team</strong><br/><span style="color:#6b7280;font-size:13px;">cs@ellcworth.com &nbsp;&middot;&nbsp; +44 (0)208 979 6054</span></p>
+              </td>
+            </tr>
+
+            <!-- PS -->
+            <tr>
+              <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
+                <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.7;"><strong style="color:#1A2930;">P.S.</strong> Something felt off? Reply directly to this email. We personally review every response and we&rsquo;d rather hear it from you than not at all.</p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="background:#1A2930;padding:20px 40px;text-align:center;border-radius:0 0 16px 16px;">
+                <p style="margin:0;font-size:11px;color:#6b7280;">&copy; ${new Date().getFullYear()} Ellcworth Express Ltd &nbsp;&middot;&nbsp; <a href="https://www.ellcworth.com" style="color:#6b7280;text-decoration:none;">ellcworth.com</a></p>
+              </td>
+            </tr>
+
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
   `;
 
-  return { subject: "Thank you — your shipment has been delivered", text, html };
+  return { subject: "Your shipment is home — how did we do?", text, html };
 }
 
 /**
