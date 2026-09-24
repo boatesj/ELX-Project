@@ -24,12 +24,20 @@ function buildFeedbackEmail({ clientName, context, token }) {
   const link = `${siteUrl()}/feedback/${token}`;
   const greeting = clientName ? `Dear ${clientName},` : "Dear valued customer,";
 
+  const openingText = context
+    ? `Your shipment — ${context} — has completed its journey from the UK to West Africa. The export documentation, customs clearance, and last-mile coordination on this corridor takes genuine expertise to get right. We have been doing exactly this for 15 years, and we are proud we delivered it for you.`
+    : `Your shipment has completed its journey from the UK to West Africa. What looks straightforward from the outside — export paperwork, port clearance, last-mile delivery — takes 15 years of corridor knowledge to execute without incident. We are glad we got it right for you.`;
+
+  const openingHtml = context
+    ? `Your shipment &mdash; <strong>${context}</strong> &mdash; has completed its journey from the UK to West Africa. The export documentation, customs clearance, and last-mile coordination on this corridor takes genuine expertise to get right. We&rsquo;ve been doing exactly this for 15 years, and we&rsquo;re proud we delivered it for you.`
+    : `Your shipment has completed its journey from the UK to West Africa. What looks straightforward from the outside &mdash; export paperwork, port clearance, last-mile delivery &mdash; takes 15 years of corridor knowledge to execute without incident. We&rsquo;re glad we got it right for you.`;
+
   const text = [
     greeting,
     "",
-    "Your cargo has arrived. We know you had a lot riding on this — and we are glad it landed safely and on time.",
+    openingText,
     "",
-    "We would value two minutes of your honest feedback. No long surveys, no tick-box forms — just three quick questions from us to you. Your answer helps the next customer decide whether to trust us with their shipment.",
+    "We would value two minutes of your honest feedback. Not a long form, not a tick-box exercise — just three questions from us to you. Your words go directly to our team, and they shape how we handle the next shipment on this corridor.",
     "",
     "Three questions. Two minutes. Completely honest.",
     "",
@@ -39,7 +47,7 @@ function buildFeedbackEmail({ clientName, context, token }) {
     "The Ellcworth Express Team",
     "cs@ellcworth.com · +44 (0)208 979 6054",
     "",
-    "P.S. Something felt off? Reply directly to this email. We personally review every response and we would rather hear it from you than not at all.",
+    "P.S. Something felt off? Reply directly to this email. We personally review every response — and we would rather hear it from you than not at all.",
   ].join("\n");
 
   const html = `
@@ -64,8 +72,8 @@ function buildFeedbackEmail({ clientName, context, token }) {
             <tr>
               <td style="background:#ffffff;padding:40px 40px 32px;">
                 <p style="margin:0 0 20px;font-size:15px;color:#1A2930;line-height:1.7;">${greeting}</p>
-                <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.7;">Your cargo has arrived. We know you had a lot riding on this &mdash; and we&rsquo;re glad it landed safely and on time.</p>
-                <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.7;">We&rsquo;d value two minutes of your honest feedback. No long surveys, no tick-box forms &mdash; just three quick questions from us to you. Your answer helps the next customer decide whether to trust us with their shipment.</p>
+                <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.7;">${openingHtml}</p>
+                <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.7;">We&rsquo;d value two minutes of your honest feedback. Not a long form, not a tick-box exercise &mdash; just three questions from us to you. Your words go directly to our team, and they shape how we handle the next shipment on this corridor.</p>
                 <p style="margin:0 0 32px;font-size:14px;color:#6b7280;font-style:italic;">Three questions. Two minutes. Completely honest.</p>
 
                 <!-- CTA Button -->
@@ -86,7 +94,7 @@ function buildFeedbackEmail({ clientName, context, token }) {
             <!-- PS -->
             <tr>
               <td style="background:#f9fafb;padding:20px 40px;border-top:1px solid #e5e7eb;">
-                <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.7;"><strong style="color:#1A2930;">P.S.</strong> Something felt off? Reply directly to this email. We personally review every response and we&rsquo;d rather hear it from you than not at all.</p>
+                <p style="margin:0;font-size:13px;color:#6b7280;line-height:1.7;"><strong style="color:#1A2930;">P.S.</strong> Something felt off? Reply directly to this email. We personally review every response &mdash; and we&rsquo;d rather hear it from you than not at all.</p>
               </td>
             </tr>
 
